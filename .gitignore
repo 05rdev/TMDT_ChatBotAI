@@ -1,8 +1,43 @@
+# Dependency directories
 node_modules/
+jspm_packages/
+
+# Build outputs
 dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
 .env
-.env.example
+.env.*
+!.env.example
+
+# Logs
 logs/
 *.log
-uploads/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System files
 .DS_Store
+Thumbs.db
+
+# Project specific
+uploads/
+TMDT_ChatBotAI/coverage/
+.next/
+.serverless/
+.agent/
+TMDT_ChatBotAI/postgres_data/
+TMDT_ChatBotAI/redis_data/
+
+# Prisma
+TMDT_ChatBotAI/prisma/migrations/
+*.db
+*.db-journal
