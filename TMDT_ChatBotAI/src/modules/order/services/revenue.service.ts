@@ -1,4 +1,4 @@
-import { prisma } from '../../../common/utils/prisma.service';
+import { prisma } from '../../../lib/prisma';
 
 export class RevenueService {
   /**

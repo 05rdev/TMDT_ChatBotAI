@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../../../common/utils/prisma.service';
-import { redisService } from '../../../common/utils/redis.service';
-import { JWTHelper } from '../../../common/utils/jwt.helper';
-import { AppError } from '../../../common/utils/app-error';
+import { prisma } from '../../../lib/prisma';
+import { redisService } from '../../../lib/redis';
+import * as jwtHelper from '../../../utils/jwt.helper';
+import { AppError } from '../../../middlewares/error.middleware';
+
 
 export class AuthService {
   /**
@@ -14,7 +15,7 @@ export class AuthService {
     // 1. Kiểm tra email tồn tại
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      throw new AppError('Email này đã được sử dụng.', 400);
+      throw new AppError(400, 'Email này đã được sử dụng.');
     }
 
     // 2. Hash mật khẩu (salt rounds: 12)
@@ -43,13 +44,14 @@ export class AuthService {
     // 1. Tìm user
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      throw new AppError('Email hoặc mật khẩu không chính xác.', 401);
+      throw new AppError(401, 'Email hoặc mật khẩu không chính xác.');
     }
 
     // 2. Tạo tokens
-    const payload = { userId: user.id, role: user.role };
-    const accessToken = JWTHelper.signAccessToken(payload);
-    const refreshToken = JWTHelper.signRefreshToken(payload);
+    const payload = { id: user.id, role: user.role };
+
+    const accessToken = jwtHelper.generateAccessToken(payload);
+    const refreshToken = jwtHelper.generateRefreshToken(payload);
 
     // 3. Lưu refresh token vào Redis (7 ngày = 604800s)
     await redisService.set(`refresh_token:${user.id}`, refreshToken, 604800);
@@ -67,23 +69,24 @@ export class AuthService {
   async refresh(token: string) {
     try {
       // 1. Verify token
-      const decoded = JWTHelper.verifyRefreshToken(token);
+      const decoded = jwtHelper.verifyRefreshToken(token);
 
       // 2. Kiểm tra token trong Redis
-      const storedToken = await redisService.get(`refresh_token:${decoded.userId}`);
+      const storedToken = await redisService.get(`refresh_token:${decoded.id}`);
       if (!storedToken || storedToken !== token) {
-        throw new AppError('Refresh token không hợp lệ hoặc đã hết hạn.', 401);
+        throw new AppError(401, 'Refresh token không hợp lệ hoặc đã hết hạn.');
       }
 
       // 3. Tạo access token mới
-      const newAccessToken = JWTHelper.signAccessToken({ 
-        userId: decoded.userId, 
+      const newAccessToken = jwtHelper.generateAccessToken({ 
+        id: decoded.id, 
         role: decoded.role 
       });
 
+
       return { accessToken: newAccessToken };
     } catch (error) {
-      throw new AppError('Refresh token không hợp lệ.', 401);
+      throw new AppError(401, 'Refresh token không hợp lệ.');
     }
   }
 

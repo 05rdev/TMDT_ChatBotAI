@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { AuthRequest } from '../../../middlewares/authenticate';
 
 const authService = new AuthService();
 
@@ -43,11 +44,11 @@ export class AuthController {
     }
   }
 
-  async logout(req: Request, res: Response, next: NextFunction) {
+  async logout(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // req.user được gán bởi middleware authenticate khi gọi API này
       if (req.user) {
-        await authService.logout(req.user.userId);
+        await authService.logout(req.user.id);
       }
       return res.json({
         success: true,
@@ -57,4 +58,5 @@ export class AuthController {
       next(error);
     }
   }
+
 }

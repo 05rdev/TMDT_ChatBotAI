@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import { ActivityLogService } from '../../modules/user/services/activity-log.service';
+import { ActivityLogService } from '../modules/user/services/activity-log.service';
 import { ActivityType } from '@prisma/client';
+import { AuthRequest } from './authenticate';
 
-export const activityLogger = (req: Request, res: Response, next: NextFunction) => {
+export const activityLogger = (req: AuthRequest, res: Response, next: NextFunction) => {
   // Chúng ta sẽ ghi log sau khi response đã được gửi đi (để có status code chuẩn)
   res.on('finish', () => {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
+
     const path = req.originalUrl;
     const method = req.method;
     const statusCode = res.statusCode;

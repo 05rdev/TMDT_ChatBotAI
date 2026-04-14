@@ -10,6 +10,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'super_secret_refre
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m'; // Access Token (15 phút)
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d'; // Refresh Token (7 ngày)
 
+
 export const generateAccessToken = (payload: TokenPayload): string => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 };
