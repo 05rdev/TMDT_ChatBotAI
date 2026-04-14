@@ -1,27 +1,102 @@
-import { Request, Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { OrderService } from '../services/order.service';
+import { createOrderSchema, updateOrderStatusSchema } from '../dto/order.schema';
+import { AuthRequest } from '../../../middlewares/authenticate';
 
 const orderService = new OrderService();
 
 export class OrderController {
-  async create(req: Request, res: Response) {
+  /**
+   * Đặt hàng (User)
+   */
+  async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Giả sử userId lấy từ middleware auth
-      const userId = 'user-id-placeholder'; 
-      const order = await orderService.createOrder(userId, req.body);
-      return res.status(201).json({ success: true, data: order });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      const userId = req.user!.id;
+      const validatedData = createOrderSchema.parse(req.body);
+      const order = await orderService.createOrder(userId, validatedData);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Đặt hàng thành công',
+        data: order
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async list(req: Request, res: Response) {
+  /**
+   * Xem lịch sử đơn hàng (User)
+   */
+  async getMyOrders(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const userId = 'user-id-placeholder';
-      const orders = await orderService.getMyOrders(userId);
-      return res.json({ success: true, data: orders });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      const userId = req.user!.id;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const result = await orderService.getMyOrders(userId, page, limit);
+      return res.json({
+        success: true,
+        ...result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Chi tiết đơn hàng (User)
+   */
+  async getById(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      const order = await orderService.getOrderById(id as string, userId);
+      
+      return res.json({
+        success: true,
+        data: order
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Hủy đơn hàng (User)
+   */
+  async cancel(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      const order = await orderService.cancelOrder(id as string, userId);
+      
+      return res.json({
+        success: true,
+        message: 'Đơn hàng đã được hủy thành công',
+        data: order
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Cập nhật trạng thái đơn (Admin)
+   */
+  async updateStatus(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { status } = updateOrderStatusSchema.parse(req.body);
+      
+      const order = await orderService.updateStatus(id as string, status);
+      return res.json({
+        success: true,
+        message: 'Cập nhật trạng thái đơn hàng thành công',
+        data: order
+      });
+    } catch (error) {
+      next(error);
     }
   }
 }

@@ -1,48 +1,95 @@
-import OpenAI from 'openai';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { EmbeddingHelper } from '../embeddingHelper';
+
+const prisma = new PrismaClient();
+const embeddingHelper = new EmbeddingHelper();
 
 export class AIService {
-  private openai: OpenAI;
-
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-
   /**
-   * Tạo vector embedding từ văn bản sử dụng model text-embedding-3-small (1536 dims)
+   * Tạo vector embedding từ văn bản (Wrapper cho EmbeddingHelper để tránh breaking changes)
    */
   async generateEmbedding(text: string): Promise<number[]> {
-    // Nếu không có API KEY, tự động bật chế độ MOCK (dành cho Dev)
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key') {
-      console.warn('⚠️ OpenAI API Key chưa được cấu hình. Đang sử dụng Mock Vector...');
-      return this.generateMockVector();
-    }
-
-    try {
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text,
-        encoding_format: 'float',
-      });
-
-      return response.data[0].embedding;
-    } catch (error: any) {
-      // Nếu lỗi do hết tiền (429), trong môi trường dev ta sẽ fallback sang mock để không gián đoạn
-      if (error.status === 429 && process.env.NODE_ENV !== 'production') {
-        console.error('❌ OpenAI Quota Exceeded. Fallback to Mock Vector...');
-        return this.generateMockVector();
-      }
-      
-      console.error('Error generating embedding:', error);
-      throw new Error('Failed to generate embedding');
-    }
+    return embeddingHelper.generateEmbedding(text);
   }
 
   /**
-   * Tạo vector ngẫu nhiên để phát triển không cần internet hoặc API Key
+   * Trích xuất khoảng giá mong muốn từ câu truy vấn tự nhiên
+   * VD: "dưới 300k", "tầm 1 triệu", "trên 500.000đ"
    */
-  private generateMockVector(): number[] {
-    return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
+  private extractPriceRange(query: string) {
+    const queryLower = query.toLowerCase();
+    let minPrice: number | undefined;
+    let maxPrice: number | undefined;
+
+    // Helper để chuẩn hóa số (Vd: 300k -> 300000, 1.5 triệu -> 1500000)
+    const normalizeNumber = (val: string, unit: string) => {
+      let num = parseFloat(val.replace(/\./g, '').replace(/,/g, ''));
+      if (unit.includes('k')) return num * 1000;
+      if (unit.includes('triệu') || unit.includes('tr')) return num * 1000000;
+      return num;
+    };
+
+    // 1. Dưới X (dưới 300k, thấp hơn 1tr)
+    const underMatch = queryLower.match(/(?:dưới|thấp hơn|tối đa|bé hơn)\s+([\d.,]+)\s*(k|triệu|tr|đ|vnđ)?/);
+    if (underMatch) {
+      maxPrice = normalizeNumber(underMatch[1], underMatch[2] || '');
+    }
+
+    // 2. Trên X (trên 500k, hơn 2 triệu)
+    const overMatch = queryLower.match(/(?:trên|hơn|cao hơn|tối thiểu|lớn hơn)\s+([\d.,]+)\s*(k|triệu|tr|đ|vnđ)?/);
+    if (overMatch) {
+      minPrice = normalizeNumber(overMatch[1], overMatch[2] || '');
+    }
+
+    // 3. Khoảng X (tầm 1 triệu, khoảng 500k) -> +/- 20%
+    const approxMatch = queryLower.match(/(?:tầm|khoảng|xấp xỉ|đâu đó)\s+([\d.,]+)\s*(k|triệu|tr|đ|vnđ)?/);
+    if (approxMatch && !minPrice && !maxPrice) {
+      const base = normalizeNumber(approxMatch[1], approxMatch[2] || '');
+      minPrice = base * 0.8;
+      maxPrice = base * 1.2;
+    }
+
+    return { minPrice, maxPrice };
+  }
+
+  /**
+   * Tìm kiếm Semantic - Kết hợp Vector Search và Business Filters
+   */
+  async searchSemantic(query: string, limit: number = 10) {
+    // 1. Sinh embedding cho câu truy vấn
+    const queryVector = await embeddingHelper.generateEmbedding(query);
+    const vectorString = `[${queryVector.join(',')}]`;
+
+    // 2. Trích xuất khoảng giá
+    const { minPrice, maxPrice } = this.extractPriceRange(query);
+
+    // 3. Xây dựng SQL Raw để tìm kiếm pgvector
+    const results = await prisma.$queryRaw<any[]>(Prisma.sql`
+      SELECT p.id, p.name, p.slug, p.description,
+             MIN(v.price) as "minPrice",
+             p.embedding <=> ${vectorString}::vector AS distance
+      FROM "Product" p
+      JOIN "ProductVariant" v ON p.id = v."productId"
+      WHERE p."isDeleted" = false 
+        AND p.embedding IS NOT NULL
+      GROUP BY p.id
+      HAVING 1=1
+        ${minPrice ? Prisma.sql`AND MIN(v.price) >= ${minPrice}` : Prisma.empty}
+        ${maxPrice ? Prisma.sql`AND MIN(v.price) <= ${maxPrice}` : Prisma.empty}
+      ORDER BY distance ASC
+      LIMIT ${limit}
+    `);
+
+    // 4. Lấy thêm thông tin ảnh sản phẩm
+    const productIds = results.map(r => r.id);
+    const images = await prisma.productImage.findMany({
+      where: { productId: { in: productIds }, isPrimary: true }
+    });
+
+    return results.map(r => ({
+      ...r,
+      primaryImage: images.find(img => img.productId === r.id)?.url,
+      distance: Number(r.distance).toFixed(4)
+    }));
   }
 }

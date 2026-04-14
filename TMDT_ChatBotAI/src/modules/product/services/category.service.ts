@@ -36,4 +36,38 @@ export class CategoryService {
       }
     });
   }
+
+  /**
+   * Lấy chi tiết danh mục
+   */
+  async getById(id: string) {
+    const category = await prisma.category.findFirst({
+      where: { id, isDeleted: false },
+      include: { children: true, parent: true }
+    });
+    if (!category) throw new AppError(404, 'Không tìm thấy danh mục');
+    return category;
+  }
+
+  /**
+   * Cập nhật danh mục
+   */
+  async update(id: string, data: any) {
+    await this.getById(id);
+    return prisma.category.update({
+      where: { id },
+      data
+    });
+  }
+
+  /**
+   * Xóa mềm danh mục
+   */
+  async softDelete(id: string) {
+    await this.getById(id);
+    return prisma.category.update({
+      where: { id },
+      data: { isDeleted: true }
+    });
+  }
 }

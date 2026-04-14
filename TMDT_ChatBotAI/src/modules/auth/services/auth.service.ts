@@ -96,4 +96,16 @@ export class AuthService {
   async logout(userId: string) {
     await redisService.delete(`refresh_token:${userId}`);
   }
+
+  /**
+   * Lấy thông tin cá nhân
+   */
+  async getProfile(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true }
+    });
+    if (!user) throw new AppError(404, 'Người dùng không tồn tại.');
+    return user;
+  }
 }

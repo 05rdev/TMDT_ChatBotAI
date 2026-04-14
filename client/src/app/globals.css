@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --accent: #34d399;
+  --muted: #64748b;
+  --muted-foreground: #94a3b8;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #10b981;
+  --card: rgba(255, 255, 255, 0.8);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0b0f1a;
+  --foreground: #f8fafc;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --accent: #34d399;
+  --muted: #64748b;
+  --muted-foreground: #94a3b8;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #10b981;
+  --card: rgba(30, 41, 59, 0.7);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-card: var(--card);
+  
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+  }
+}
+
+/* Trong Tailwind v4, sử dụng @utility để định nghĩa các utility tùy chỉnh có thể dùng với @apply */
+@utility glass-card {
+  background-color: var(--card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+@utility glass-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: color-mix(in srgb, var(--background), transparent 20%);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+@utility gradient-text {
+  background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, var(--color-emerald-400), var(--color-cyan-400));
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium 
+           hover:bg-emerald-600 transition-all duration-300 shadow-lg shadow-emerald-500/20
+           active:scale-95 cursor-pointer disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-secondary text-foreground rounded-lg font-medium 
+           hover:bg-muted/10 transition-all duration-300 border border-border
+           active:scale-95 cursor-pointer;
+  }
+
+  .sidebar-section {
+    /* Sử dụng lại các thuộc tính của glass-card thay vì @apply glass-card vì Tailwind v4 hạn chế @apply class tùy chỉnh trong cùng layer */
+    background-color: var(--card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    @apply space-y-4 p-6 rounded-3xl shadow-xl;
+  }
+  
+  .sidebar-title {
+    @apply text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center;
+  }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}

@@ -4,11 +4,14 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
 import { prisma } from './lib/prisma';
 import productRouter from './modules/product/router';
 import categoryRouter from './modules/product/category.router';
-import userRouter from './modules/user/router';
+import cartRouter from './modules/cart/router';
 import orderRouter from './modules/order/router';
+import userRouter from './modules/user/router';
 import authRouter from './modules/auth/router';
 import aiRouter from './modules/ai/router';
 import adminRouter from './modules/user/admin.router';
@@ -35,16 +38,20 @@ app.use(activityLogger);
 app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
 app.use('/api/categories', categoryRouter);
-app.use('/api/users', userRouter);
+app.use('/api/cart', cartRouter);
 app.use('/api/orders', orderRouter);
+app.use('/api/users', userRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'E-commerce AI Server is running' });
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Swagger Documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 404 handler
 app.use('*', (req, res) => {

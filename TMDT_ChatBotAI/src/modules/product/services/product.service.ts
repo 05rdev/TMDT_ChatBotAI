@@ -121,6 +121,40 @@ export class ProductService {
   }
 
   /**
+   * Chi tiết sản phẩm bằng Slug (Dùng cho Frontend)
+   */
+  async getBySlug(slug: string) {
+    const product = await prisma.product.findUnique({
+      where: { slug, isDeleted: false },
+      include: {
+        images: true,
+        variants: true,
+        category: true,
+        reviews: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { name: true, avatar: true } } }
+        },
+      },
+    });
+
+    if (!product) throw new AppError(404, 'Không tìm thấy sản phẩm');
+
+    // Tính toán average rating
+    const aggregate = await prisma.review.aggregate({
+      where: { productId: product.id },
+      _avg: { rating: true },
+      _count: { rating: true }
+    });
+
+    return {
+      ...product,
+      averageRating: aggregate._avg.rating || 0,
+      totalReviews: aggregate._count.rating
+    };
+  }
+
+  /**
    * Tạo sản phẩm mới kèm Variants
    */
   async create(data: any) {

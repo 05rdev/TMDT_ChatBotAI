@@ -16,10 +16,10 @@ export class ProductController {
     try {
       const validatedQuery = productQuerySchema.parse(req.query);
       const result = await productService.getProducts(validatedQuery);
-      
       return res.json({
         success: true,
-        ...result
+        data: result.products,
+        pagination: result.pagination
       });
     } catch (error) {
       next(error);
@@ -27,7 +27,23 @@ export class ProductController {
   }
 
   /**
-   * Chi tiết sản phẩm (Public)
+   * Chi tiết sản phẩm bằng Slug (Public - SEO)
+   */
+  async getBySlug(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { slug } = req.params;
+      const product = await productService.getBySlug(slug as string);
+      return res.json({
+        success: true,
+        data: product
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Chi tiết sản phẩm bằng ID (Public)
    */
   async getById(req: Request, res: Response, next: NextFunction) {
     try {

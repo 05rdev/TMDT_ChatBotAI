@@ -67,6 +67,7 @@ model User {
   cart          Cart[]
   refreshTokens RefreshToken[]
   activities    ActivityLog[]
+  chatMessages  ChatMessage[]
 
   @@index([email])
 }
@@ -252,5 +253,17 @@ model ActivityLog {
 
   @@index([userId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // 'user' | 'assistant'
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
   @@index([createdAt])
 }

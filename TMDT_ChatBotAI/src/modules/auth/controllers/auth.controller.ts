@@ -31,7 +31,7 @@ export class AuthController {
     }
   }
 
-  async refresh(req: Request, res: Response, next: NextFunction) {
+  async refreshToken(req: Request, res: Response, next: NextFunction) {
     try {
       const { refreshToken } = req.body;
       const result = await authService.refresh(refreshToken);
@@ -44,9 +44,21 @@ export class AuthController {
     }
   }
 
+  async getProfile(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const user = await authService.getProfile(userId);
+      return res.json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async logout(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // req.user được gán bởi middleware authenticate khi gọi API này
       if (req.user) {
         await authService.logout(req.user.id);
       }
@@ -58,5 +70,4 @@ export class AuthController {
       next(error);
     }
   }
-
 }
