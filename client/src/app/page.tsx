@@ -1,86 +1,132 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { Bot, Zap, Sparkles, ShieldCheck } from 'lucide-react';
+import { Bot, Zap, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="space-y-24 py-12">
-      {/* Hero Section */}
-      <section className="text-center space-y-8 animate-fade-in-up">
-        <div className="inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          <span className="text-emerald-400 text-sm font-medium">Kỷ nguyên mua sắm AI mới đã bắt đầu</span>
-        </div>
-        
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight">
-          Mua sắm thông minh <br />
-          <span className="gradient-text">Với trợ lý AI thực thụ</span>
-        </h1>
-        
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Tìm kiếm bằng hình ảnh, giọng nói và nhận gợi ý cá nhân hóa từ hệ thống trí tuệ nhân tạo tiên tiến nhất. 
-          UltraShop mang cả kho hàng đến ngay tầm tay bạn.
-        </p>
+    <div className="space-y-32">
+      {/* 
+        HERO SECTION: Asymmetric Tension & Massive Typography 
+        Breaking the "Safe Split" with overlapping elements
+      */}
+      <section className="relative pt-12 lg:pt-24 min-h-[80vh] flex flex-col justify-center animate-slide-in-right">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+          
+          {/* Typographic Block (Col 1-8) */}
+          <div className="lg:col-span-8 flex flex-col justify-center z-20">
+            <div className="inline-flex items-center space-x-2 bg-foreground text-background px-4 py-2 border-2 border-transparent w-max mb-8 font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_var(--primary)]">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span>Giao Thức Mua Sắm Thế Hệ 3.0</span>
+            </div>
+            
+            <h1 className="text-6xl md:text-8xl lg:text-[10rem] font-black leading-[0.85] tracking-tighter uppercase text-foreground">
+              Lệnh <br/>
+              <span className="text-primary" style={{ WebkitTextStroke: '2px var(--foreground)' }}>Mua Hàng</span>
+            </h1>
+            
+            <p className="mt-8 text-xl md:text-3xl font-medium max-w-2xl border-l-4 border-primary pl-6 py-2 text-foreground/80">
+              Không cần tìm kiếm. Chỉ cần ra lệnh. Trợ lý AI của UltraShop sẽ mang cả thế giới đến màn hình của bạn.
+            </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
-          <Link href="/shop">
-            <Button size="lg" className="w-full sm:w-auto">Bắt đầu mua sắm</Button>
-          </Link>
-          <Link href="/ai-hub">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto">Khám phá AI Assistant</Button>
-          </Link>
-        </div>
+            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 pt-12">
+              <Link href="/shop" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full text-xl py-4 px-8 flex items-center justify-between group">
+                  <span>Khởi Động</span>
+                  <ArrowRight className="w-6 h-6 ml-4 group-hover:translate-x-2 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/ai-hub" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="w-full text-xl py-4 px-8">
+                  <Bot className="w-6 h-6 mr-3" />
+                  <span>Kết Nối AI</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
 
-        {/* Hero Image / Mockup Placeholder */}
-        <div className="pt-16 max-w-5xl mx-auto relative group">
-          <div className="absolute inset-0 bg-emerald-500/5 rounded-[2rem] blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
-          <div className="glass-card rounded-[2rem] aspect-[16/9] flex items-center justify-center border-white/10 overflow-hidden relative">
-             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-emerald-500/10 to-transparent" />
-             <Bot className="w-32 h-32 text-emerald-500/30" />
-             <div className="text-center z-10 p-8">
-                <span className="text-slate-500 font-mono text-sm tracking-widest uppercase mb-4 block">Visual Interface Preview</span>
-                <div className="flex space-x-4">
-                   <div className="w-48 h-64 bg-slate-800/50 rounded-xl border border-white/5 animate-pulse" />
-                   <div className="w-48 h-64 bg-slate-800/50 rounded-xl border border-white/5 animate-pulse delay-75" />
-                   <div className="w-48 h-64 bg-slate-800/50 rounded-xl border border-white/5 animate-pulse delay-150" />
+          {/* Fragmented Visual Block (Col 9-12) overlapping */}
+          <div className="lg:col-span-4 relative mt-12 lg:mt-0 z-10 lg:-ml-16">
+            <div className="solid-card aspect-[3/4] w-full bg-accent relative flex items-center justify-center overflow-hidden group">
+              {/* Halftone pattern overlay */}
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(var(--foreground) 2px, transparent 0)', backgroundSize: '16px 16px' }} />
+              
+              <div className="absolute top-4 left-4 bg-background border-2 border-foreground px-3 py-1 font-bold text-sm uppercase z-10">
+                [AI_VISION_ACTIVE]
+              </div>
+              
+              <Bot className="w-48 h-48 text-foreground group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]" />
+              
+              {/* Overlapping Product Card Fragment */}
+              <div className="absolute -bottom-6 -left-12 w-64 h-32 solid-card bg-background p-4 flex flex-col justify-between transform -rotate-3 group-hover:rotate-0 transition-transform">
+                <div className="flex justify-between items-start">
+                  <div className="w-8 h-8 bg-primary rounded-none" />
+                  <span className="font-bold text-lg">999.000₫</span>
                 </div>
-             </div>
+                <div className="h-4 w-3/4 bg-muted mt-4" />
+                <div className="h-4 w-1/2 bg-muted mt-2" />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <FeatureCard 
-          icon={<Bot className="w-8 h-8 text-emerald-400" />}
-          title="Tư vấn 24/7"
-          description="Hỏi đáp về sản phẩm, tìm kiếm thông tin và nhận hỗ trợ ngay lập tức từ Chatbot AI."
-        />
-        <FeatureCard 
-          icon={<Zap className="w-8 h-8 text-cyan-400" />}
-          title="Gợi ý siêu tốc"
-          description="Hệ thống học máy phân tích hành vi để đưa ra những sản phẩm khớp nhất với sở thích của bạn."
-        />
-         <FeatureCard 
-          icon={<ShieldCheck className="w-8 h-8 text-blue-400" />}
-          title="An toàn tuyệt đối"
-          description="Thanh toán bảo mật, quản lý đơn hàng minh bạch và hỗ trợ đổi trả dễ dàng."
-        />
+      {/* 
+        FEATURES: Asymmetric Grid 
+        Not the standard 3-column equal grid
+      */}
+      <section className="py-12 border-t-4 border-foreground">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-12">
+          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter w-full md:w-1/2">
+            Kiến trúc <br/> Hệ thống
+          </h2>
+          <p className="w-full md:w-1/3 text-xl font-medium mt-6 md:mt-0 text-foreground/70">
+            Ba trụ cột đảm bảo trải nghiệm mua sắm không độ trễ, an toàn tuyệt đối và thông minh vượt trội.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-2">
+            <FeatureCard 
+              icon={<Bot className="w-12 h-12 text-primary" />}
+              title="Tư vấn Cognitive"
+              description="Hỏi đáp về sản phẩm bằng ngôn ngữ tự nhiên. AI hiểu ngữ cảnh, đưa ra lời khuyên như một chuyên gia thực thụ."
+              className="h-full bg-foreground text-background"
+            />
+          </div>
+          <div className="md:col-span-1">
+            <FeatureCard 
+              icon={<Zap className="w-12 h-12 text-foreground" />}
+              title="Phản hồi 0.1s"
+              description="Thuật toán phân tích hành vi siêu tốc."
+              className="h-full bg-accent"
+            />
+          </div>
+          <div className="md:col-span-1">
+             <FeatureCard 
+              icon={<ShieldCheck className="w-12 h-12 text-foreground" />}
+              title="Giao thức Bảo mật"
+              description="Kiểm soát toàn vẹn luồng thanh toán."
+              className="h-full bg-background"
+            />
+          </div>
+        </div>
       </section>
     </div>
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function FeatureCard({ icon, title, description, className = '' }: { icon: React.ReactNode, title: string, description: string, className?: string }) {
   return (
-    <div className="glass-card p-8 rounded-2xl border-white/5 hover:border-emerald-500/30 transition-all hover:-translate-y-2 group">
-      <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+    <div className={`solid-card p-8 flex flex-col justify-between hover:-translate-y-2 hover:translate-x-2 transition-transform duration-300 ${className}`}>
+      <div className="mb-8 p-4 border-2 border-current w-max shadow-[4px_4px_0px_0px_currentColor]">
         {icon}
       </div>
-      <h3 className="text-xl font-bold mb-4">{title}</h3>
-      <p className="text-slate-400 leading-relaxed text-sm">
-        {description}
-      </p>
+      <div>
+        <h3 className="text-2xl font-black uppercase mb-4 tracking-wide">{title}</h3>
+        <p className="font-medium text-lg opacity-80 leading-snug">
+          {description}
+        </p>
+      </div>
     </div>
   );
 }

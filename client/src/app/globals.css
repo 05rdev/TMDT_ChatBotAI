@@ -2,33 +2,39 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #0f172a;
-  --primary: #10b981;
+  --foreground: #121212;
+  --primary: #ff4500;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --accent: #34d399;
-  --muted: #64748b;
-  --muted-foreground: #94a3b8;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #10b981;
-  --card: rgba(255, 255, 255, 0.8);
-  --radius: 0.75rem;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #121212;
+  --accent: #ff6a33;
+  --accent-foreground: #ffffff;
+  --muted: #a1a1aa;
+  --muted-foreground: #52525b;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #ff4500;
+  --card: #ffffff;
+  --card-foreground: #121212;
+  --radius: 0px; /* Neo-brutalist sharp edges */
 }
 
 .dark {
-  --background: #0b0f1a;
-  --foreground: #f8fafc;
-  --primary: #10b981;
+  --background: #121212;
+  --foreground: #fafafa;
+  --primary: #ff4500;
   --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --accent: #34d399;
-  --muted: #64748b;
-  --muted-foreground: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #10b981;
-  --card: rgba(30, 41, 59, 0.7);
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --accent: #ff6a33;
+  --accent-foreground: #ffffff;
+  --muted: #71717a;
+  --muted-foreground: #a1a1aa;
+  --border: #3f3f46;
+  --input: #3f3f46;
+  --ring: #ff4500;
+  --card: #18181b;
+  --card-foreground: #fafafa;
 }
 
 @theme inline {
@@ -37,18 +43,21 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: var(--radius);
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-sm: var(--radius);
 }
 
 @layer base {
@@ -56,7 +65,7 @@
     border-color: var(--border);
   }
   body {
-    background: var(--background);
+    background-color: var(--background);
     color: var(--foreground);
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
@@ -65,74 +74,65 @@
   }
   
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
   ::-webkit-scrollbar-track {
     background: var(--background);
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--muted);
-    border-radius: 10px;
+    background: var(--primary);
+    border-radius: 0px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: var(--accent);
   }
 }
 
-/* Trong Tailwind v4, sử dụng @utility để định nghĩa các utility tùy chỉnh có thể dùng với @apply */
-@utility glass-card {
+@utility solid-card {
   background-color: var(--card);
-  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  box-shadow: 4px 4px 0px 0px var(--foreground); /* Brutalist hard shadow */
 }
 
-@utility glass-nav {
+@utility solid-nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: color-mix(in srgb, var(--background), transparent 20%);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-}
-
-@utility gradient-text {
-  background-clip: text;
-  color: transparent;
-  background-image: linear-gradient(to right, var(--color-emerald-400), var(--color-cyan-400));
+  background-color: var(--background);
+  border-bottom: 2px solid var(--foreground);
 }
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium 
-           hover:bg-emerald-600 transition-all duration-300 shadow-lg shadow-emerald-500/20
-           active:scale-95 cursor-pointer disabled:opacity-50;
+    @apply px-6 py-3 bg-primary text-primary-foreground font-bold tracking-wide uppercase
+           border-2 border-transparent hover:border-foreground
+           transition-all duration-200
+           active:translate-y-[2px] cursor-pointer disabled:opacity-50;
+    box-shadow: 2px 2px 0px 0px var(--foreground);
+  }
+  
+  .btn-primary:active {
+    box-shadow: 0px 0px 0px 0px var(--foreground);
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-secondary text-foreground rounded-lg font-medium 
-           hover:bg-muted/10 transition-all duration-300 border border-border
-           active:scale-95 cursor-pointer;
-  }
-
-  .sidebar-section {
-    /* Sử dụng lại các thuộc tính của glass-card thay vì @apply glass-card vì Tailwind v4 hạn chế @apply class tùy chỉnh trong cùng layer */
-    background-color: var(--card);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
-    @apply space-y-4 p-6 rounded-3xl shadow-xl;
+    @apply px-6 py-3 bg-background text-foreground font-bold tracking-wide uppercase
+           border-2 border-foreground hover:bg-secondary
+           transition-all duration-200
+           active:translate-y-[2px] cursor-pointer;
+    box-shadow: 2px 2px 0px 0px var(--foreground);
   }
   
-  .sidebar-title {
-    @apply text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center;
+  .btn-secondary:active {
+    box-shadow: 0px 0px 0px 0px var(--foreground);
   }
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.4s ease-out forwards;
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

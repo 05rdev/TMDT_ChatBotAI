@@ -26,66 +26,90 @@ const RECENT_ORDERS = [
 
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {MOCK_STATS.map((stat, idx) => (
-          <div key={idx} className="glass-card p-6 rounded-2xl border-border flex flex-col relative overflow-hidden">
-             <div className="flex items-center justify-between mb-4 relative z-10">
-               <h4 className="text-sm font-medium text-muted-foreground">{stat.label}</h4>
-               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                 <stat.icon className="w-5 h-5 text-primary" />
+          <div key={idx} className="solid-card p-6 flex flex-col relative overflow-hidden bg-background hover:-translate-y-1 transition-transform cursor-default">
+             <div className="flex items-center justify-between mb-8 relative z-10">
+               <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</h4>
+               <div className="w-10 h-10 border-2 border-foreground bg-accent flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
+                 <stat.icon className="w-5 h-5 text-foreground" />
                </div>
              </div>
              <div className="relative z-10">
-               <h2 className="text-3xl font-bold text-foreground">{stat.value}</h2>
-               <div className={`flex items-center mt-2 text-sm font-bold ${stat.isUp ? 'text-emerald-500' : 'text-red-500'}`}>
-                 {stat.isUp ? <ArrowUpRight className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
-                 {stat.change} <span className="text-muted-foreground font-normal ml-2">so với tháng trước</span>
+               <h2 className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</h2>
+               <div className="flex items-center mt-4 text-sm font-bold bg-foreground text-background w-max px-2 py-1 border border-foreground">
+                 {stat.isUp ? <ArrowUpRight className="w-4 h-4 mr-1 text-primary" /> : <ArrowDownRight className="w-4 h-4 mr-1 text-red-500" />}
+                 {stat.change} <span className="opacity-70 font-normal ml-2 uppercase text-[10px]">Tháng trước</span>
                </div>
              </div>
-             {/* Decorative Background Blob */}
-             <div className={`absolute -bottom-6 -right-6 w-24 h-24 rounded-full blur-2xl opacity-20 ${stat.isUp ? 'bg-emerald-500' : 'bg-red-500'}`} />
+             {/* Decorative Background Element */}
+             <div className={`absolute -bottom-4 -right-4 w-24 h-24 border-4 border-foreground opacity-10 ${stat.isUp ? 'rotate-12' : '-rotate-12'}`} />
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart placeholder */}
-        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border-border h-96 flex flex-col">
-           <div className="flex items-center justify-between mb-6">
-             <h3 className="font-bold text-foreground">Biểu đồ doanh thu</h3>
-             <select className="bg-background border border-border rounded-lg text-sm px-3 py-1.5 outline-none">
+        <div className="lg:col-span-2 solid-card p-8 bg-background flex flex-col">
+           <div className="flex items-center justify-between mb-8 border-b-2 border-foreground pb-4">
+             <h3 className="font-black text-xl uppercase tracking-tighter text-foreground">Biểu đồ doanh thu</h3>
+             <select className="bg-background border-2 border-foreground font-bold text-sm px-4 py-2 outline-none uppercase tracking-wider cursor-pointer hover:bg-secondary transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]">
                <option>7 ngày qua</option>
                <option>30 ngày qua</option>
                <option>Năm nay</option>
              </select>
            </div>
-           <div className="flex-1 bg-muted/20 border border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground text-sm">
-             [Line Chart Rendering Area - Requires Chart.js / Recharts]
+           <div className="flex-1 bg-background border-2 border-dashed border-foreground p-6 flex items-end justify-between min-h-[300px] relative">
+             {/* Y-axis labels */}
+             <div className="absolute left-2 top-4 bottom-8 flex flex-col justify-between text-[10px] font-black text-muted-foreground">
+               <span>50M</span>
+               <span>25M</span>
+               <span>0</span>
+             </div>
+             {/* Bars */}
+             <div className="w-full h-full flex items-end justify-around pl-8">
+               {[40, 65, 30, 80, 50, 90, 70].map((height, i) => (
+                 <div key={i} className="flex flex-col items-center group w-1/12 relative">
+                    <div 
+                      className="w-full bg-primary border-2 border-foreground transition-all duration-500 hover:bg-accent group-hover:-translate-y-2 relative" 
+                      style={{ height: `${height}%`, boxShadow: '2px 2px 0px 0px var(--foreground)' }}
+                    >
+                      {/* Tooltip */}
+                      <span className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold py-1 px-2 whitespace-nowrap transition-opacity">
+                        {(height * 0.5).toFixed(1)}M
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold mt-4 uppercase text-foreground">T{i+2}</span>
+                 </div>
+               ))}
+             </div>
            </div>
         </div>
 
         {/* Recent Orders List */}
-        <div className="lg:col-span-1 glass-card rounded-3xl p-6 border-border flex flex-col">
-           <div className="flex items-center justify-between mb-6">
-             <h3 className="font-bold text-foreground">Đơn hàng mới đây</h3>
-             <button className="text-sm text-emerald-500 hover:underline">Xem tất cả</button>
+        <div className="lg:col-span-1 solid-card p-8 bg-background flex flex-col">
+           <div className="flex items-center justify-between mb-8 border-b-2 border-foreground pb-4">
+             <h3 className="font-black text-xl uppercase tracking-tighter text-foreground">Đơn hàng mới</h3>
+             <button className="text-xs font-bold uppercase tracking-widest text-primary hover:text-foreground hover:underline underline-offset-4 transition-all">Xem tất cả</button>
            </div>
            <div className="space-y-4 flex-1">
              {RECENT_ORDERS.map((order) => (
-               <div key={order.id} className="flex justify-between items-center p-3 rounded-xl hover:bg-muted/10 transition-colors border border-transparent hover:border-border cursor-pointer">
+               <div key={order.id} className="flex justify-between items-center p-4 bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_var(--primary)] transition-all cursor-pointer">
                   <div>
-                    <h5 className="font-bold text-sm text-foreground">{order.id}</h5>
-                    <p className="text-xs text-muted-foreground">{order.customer}</p>
+                    <h5 className="font-black text-sm text-foreground uppercase">{order.id}</h5>
+                    <p className="text-xs font-bold text-muted-foreground uppercase mt-1">{order.customer}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-sm text-foreground">{order.amount.toLocaleString('vi-VN')}₫</p>
-                    <p className={`text-[10px] font-bold mt-1 uppercase ${
-                      order.status === 'COMPLETED' ? 'text-emerald-500' :
-                      order.status === 'DELIVERING' ? 'text-purple-500' :
-                      order.status === 'PROCESSING' ? 'text-blue-500' : 'text-amber-500'
-                    }`}>{order.status}</p>
+                    <p className="font-black text-sm text-foreground">{order.amount.toLocaleString('vi-VN')}₫</p>
+                    <div className={`text-[10px] font-bold mt-2 uppercase px-2 py-0.5 border border-foreground inline-block ${
+                      order.status === 'COMPLETED' ? 'bg-primary text-primary-foreground' :
+                      order.status === 'DELIVERING' ? 'bg-accent text-accent-foreground' :
+                      order.status === 'PROCESSING' ? 'bg-foreground text-background' : 'bg-muted text-foreground'
+                    }`}>
+                      {order.status}
+                    </div>
                   </div>
                </div>
              ))}
