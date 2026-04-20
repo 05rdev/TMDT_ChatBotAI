@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import api from '@/lib/api';
-import { Bot, User, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { Bot, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -16,7 +17,6 @@ export default function RegisterPage() {
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   
   const router = useRouter();
@@ -28,10 +28,9 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
+      toast.error('Lỗi xác nhận', { description: 'Mật khẩu xác nhận không khớp.' });
       setIsLoading(false);
       return;
     }
@@ -44,9 +43,12 @@ export default function RegisterPage() {
       });
       
       setSuccess(true);
+      toast.success('Đăng ký thành công', { description: 'Tài khoản của bạn đã được tạo!' });
       setTimeout(() => router.push('/login'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
+      toast.error('Đăng ký thất bại', {
+        description: err.response?.data?.message || 'Vui lòng kiểm tra lại thông tin.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -57,20 +59,20 @@ export default function RegisterPage() {
       <div className="w-full max-w-lg glass-card p-8 rounded-3xl animate-fade-in-up">
         {/* Header */}
         <div className="text-center space-y-2 mb-8">
-          <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Bot className="text-emerald-400 w-10 h-10" />
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Bot className="text-emerald-500 w-10 h-10" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Tạo tài khoản mới</h1>
-          <p className="text-slate-400 text-sm">Gia nhập cộng đồng UltraShop để tận hưởng đặc quyền AI</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Tạo tài khoản mới</h1>
+          <p className="text-muted-foreground text-sm">Gia nhập cộng đồng UltraShop để tận hưởng đặc quyền AI</p>
         </div>
 
         {success ? (
           <div className="text-center space-y-4 py-8">
-            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
               <span className="text-white text-2xl font-bold">✓</span>
             </div>
-            <h2 className="text-xl font-bold text-emerald-400">Đăng ký thành công!</h2>
-            <p className="text-slate-400">Đang chuyển hướng bạn tới trang đăng nhập...</p>
+            <h2 className="text-xl font-bold text-emerald-500">Đăng ký thành công!</h2>
+            <p className="text-muted-foreground">Đang chuyển hướng bạn tới trang đăng nhập...</p>
           </div>
         ) : (
           <form onSubmit={handleRegister} className="grid grid-cols-1 gap-6">
@@ -115,12 +117,6 @@ export default function RegisterPage() {
               />
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-lg text-center">
-                {error}
-              </div>
-            )}
-
             <Button 
               className="w-full" 
               size="lg" 
@@ -133,8 +129,8 @@ export default function RegisterPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-8 text-center">
-          <Link href="/login" className="text-slate-400 hover:text-emerald-400 text-sm font-medium inline-flex items-center transition-colors">
+        <div className="mt-8 text-center border-t border-border pt-6">
+          <Link href="/login" className="text-muted-foreground hover:text-emerald-500 text-sm font-medium inline-flex items-center transition-colors">
             <ArrowLeft className="mr-2 w-4 h-4" /> Quay lại đăng nhập
           </Link>
         </div>

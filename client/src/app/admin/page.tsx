@@ -1,177 +1,97 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { 
-  TrendingUp, 
-  Users, 
-  ShoppingBag, 
   DollarSign, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  Package,
-  Clock,
-  CheckCircle2,
-  XCircle
+  ShoppingCart, 
+  Users, 
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
-import api from '@/lib/api';
+
+const MOCK_STATS = [
+  { label: 'Tổng doanh thu', value: '45.2M ₫', change: '+12.5%', isUp: true, icon: DollarSign },
+  { label: 'Đơn hàng mới', value: '156', change: '+5.2%', isUp: true, icon: ShoppingCart },
+  { label: 'Khách hàng', value: '2,405', change: '+3.1%', isUp: true, icon: Users },
+  { label: 'Tỉ lệ chuyển đổi', value: '4.8%', change: '-0.4%', isUp: false, icon: TrendingUp },
+];
+
+const RECENT_ORDERS = [
+  { id: 'ORD-001', customer: 'Nguyễn Văn A', amount: 3500000, status: 'DELIVERING' },
+  { id: 'ORD-002', customer: 'Trần Thị B', amount: 1200000, status: 'PENDING' },
+  { id: 'ORD-003', customer: 'Lê Văn C', amount: 890000, status: 'COMPLETED' },
+  { id: 'ORD-004', customer: 'Phạm Thị D', amount: 4500000, status: 'PROCESSING' },
+];
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/admin/stats'); // We built this endpoint in the BE
-        setStats(response.data.data);
-      } catch (err) {
-        console.error('Failed to fetch admin stats', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
   return (
-    <div className="space-y-10">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-         <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-white">Thống kê tổng quan</h1>
-            <p className="text-slate-400">Chào mừng trở lại, đây là những gì đang diễn ra với UltraShop.</p>
-         </div>
-         <button className="btn-primary py-2.5 flex items-center">
-            <TrendingUp className="w-4 h-4 mr-2" /> Xuất báo cáo
-         </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Tổng doanh thu" 
-          value="125,430,000đ" 
-          change="+12.5%" 
-          trend="up" 
-          icon={<DollarSign className="w-6 h-6 text-emerald-400" />}
-        />
-        <StatCard 
-          title="Đơn hàng mới" 
-          value="456" 
-          change="+8.2%" 
-          trend="up" 
-          icon={<ShoppingBag className="w-6 h-6 text-cyan-400" />}
-        />
-        <StatCard 
-          title="Khách hàng" 
-          value="1,240" 
-          change="-2.4%" 
-          trend="down" 
-          icon={<Users className="w-6 h-6 text-blue-400" />}
-        />
-        <StatCard 
-          title="Tỷ lệ hoàn thành" 
-          value="98.2%" 
-          change="+0.5%" 
-          trend="up" 
-          icon={<CheckCircle2 className="w-6 h-6 text-amber-400" />}
-        />
-      </div>
-
-      {/* Charts & Lists Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-         {/* Main Chart Placeholder */}
-         <div className="xl:col-span-2 glass-card rounded-3xl p-8 border-white/5 space-y-8">
-            <div className="flex items-center justify-between">
-               <h3 className="text-xl font-bold">Biểu đồ tăng trưởng</h3>
-               <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                  <option>7 ngày qua</option>
-                  <option>30 ngày qua</option>
-               </select>
-            </div>
-            <div className="h-[300px] w-full bg-slate-800/20 rounded-2xl flex items-center justify-center border border-dashed border-white/10">
-               <div className="text-center space-y-2">
-                  <TrendingUp className="w-12 h-12 text-slate-700 mx-auto" />
-                  <p className="text-slate-500 text-sm italic">Dữ liệu biểu đồ thời gian thực đang được cập nhật...</p>
+    <div className="space-y-8">
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {MOCK_STATS.map((stat, idx) => (
+          <div key={idx} className="glass-card p-6 rounded-2xl border-border flex flex-col relative overflow-hidden">
+             <div className="flex items-center justify-between mb-4 relative z-10">
+               <h4 className="text-sm font-medium text-muted-foreground">{stat.label}</h4>
+               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                 <stat.icon className="w-5 h-5 text-primary" />
                </div>
-            </div>
-         </div>
+             </div>
+             <div className="relative z-10">
+               <h2 className="text-3xl font-bold text-foreground">{stat.value}</h2>
+               <div className={`flex items-center mt-2 text-sm font-bold ${stat.isUp ? 'text-emerald-500' : 'text-red-500'}`}>
+                 {stat.isUp ? <ArrowUpRight className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
+                 {stat.change} <span className="text-muted-foreground font-normal ml-2">so với tháng trước</span>
+               </div>
+             </div>
+             {/* Decorative Background Blob */}
+             <div className={`absolute -bottom-6 -right-6 w-24 h-24 rounded-full blur-2xl opacity-20 ${stat.isUp ? 'bg-emerald-500' : 'bg-red-500'}`} />
+          </div>
+        ))}
+      </div>
 
-         {/* Recent Orders / Alerts */}
-         <div className="glass-card rounded-3xl border-white/5 overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
-               <h3 className="font-bold flex items-center text-amber-400">
-                  <AlertCircle className="w-4 h-4 mr-2" /> Cảnh báo kho
-               </h3>
-               <span className="text-[10px] bg-amber-400/10 text-amber-400 px-2 py-0.5 rounded-full font-bold">URGENT</span>
-            </div>
-            <div className="flex-1 p-6 space-y-4">
-               <LowStockItem name="Áo Thun Premium v2" stock={3} />
-               <LowStockItem name="Quần Jean Slimfit" stock={5} />
-               <LowStockItem name="Balo Laptop Pro" stock={0} />
-               <LowStockItem name="Sơ mi Oxford" stock={8} />
-            </div>
-            <button className="p-4 bg-white/5 hover:bg-emerald-500/10 text-center text-sm font-medium transition-all text-slate-400 hover:text-emerald-400 border-t border-white/5">
-               Xem tất cả thông báo
-            </button>
-         </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Chart placeholder */}
+        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border-border h-96 flex flex-col">
+           <div className="flex items-center justify-between mb-6">
+             <h3 className="font-bold text-foreground">Biểu đồ doanh thu</h3>
+             <select className="bg-background border border-border rounded-lg text-sm px-3 py-1.5 outline-none">
+               <option>7 ngày qua</option>
+               <option>30 ngày qua</option>
+               <option>Năm nay</option>
+             </select>
+           </div>
+           <div className="flex-1 bg-muted/20 border border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground text-sm">
+             [Line Chart Rendering Area - Requires Chart.js / Recharts]
+           </div>
+        </div>
+
+        {/* Recent Orders List */}
+        <div className="lg:col-span-1 glass-card rounded-3xl p-6 border-border flex flex-col">
+           <div className="flex items-center justify-between mb-6">
+             <h3 className="font-bold text-foreground">Đơn hàng mới đây</h3>
+             <button className="text-sm text-emerald-500 hover:underline">Xem tất cả</button>
+           </div>
+           <div className="space-y-4 flex-1">
+             {RECENT_ORDERS.map((order) => (
+               <div key={order.id} className="flex justify-between items-center p-3 rounded-xl hover:bg-muted/10 transition-colors border border-transparent hover:border-border cursor-pointer">
+                  <div>
+                    <h5 className="font-bold text-sm text-foreground">{order.id}</h5>
+                    <p className="text-xs text-muted-foreground">{order.customer}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-foreground">{order.amount.toLocaleString('vi-VN')}₫</p>
+                    <p className={`text-[10px] font-bold mt-1 uppercase ${
+                      order.status === 'COMPLETED' ? 'text-emerald-500' :
+                      order.status === 'DELIVERING' ? 'text-purple-500' :
+                      order.status === 'PROCESSING' ? 'text-blue-500' : 'text-amber-500'
+                    }`}>{order.status}</p>
+                  </div>
+               </div>
+             ))}
+           </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-function StatCard({ title, value, change, trend, icon }: any) {
-  return (
-    <div className="glass-card p-6 rounded-3xl border-white/5 space-y-4 hover:border-emerald-500/30 transition-all group">
-      <div className="flex items-center justify-between">
-        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-          {icon}
-        </div>
-        <div className={`flex items-center text-xs font-bold ${trend === 'up' ? 'text-emerald-400' : 'text-red-400'}`}>
-           {change} {trend === 'up' ? <ArrowUpRight className="w-3 h-3 ml-1" /> : <ArrowDownRight className="w-3 h-3 ml-1" />}
-        </div>
-      </div>
-      <div>
-        <p className="text-slate-500 text-sm font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-white mt-1">{value}</h3>
-      </div>
-    </div>
-  );
-}
-
-function LowStockItem({ name, stock }: any) {
-   return (
-      <div className="flex items-center justify-between group p-2 hover:bg-white/5 rounded-xl transition-all cursor-pointer">
-         <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-500">
-               <Package className="w-5 h-5" />
-            </div>
-            <span className="text-sm font-medium text-slate-300">{name}</span>
-         </div>
-         <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${stock === 0 ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'}`}>
-            {stock === 0 ? 'HẾT HÀNG' : `CÒN ${stock}`}
-         </span>
-      </div>
-   );
-}
-
-function AlertCircle(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
   );
 }

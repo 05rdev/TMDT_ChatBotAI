@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,6 +45,19 @@ export default function RootLayout({
               </svg>
             </div>
           </div>
+
+          <Toaster 
+            position="bottom-right"
+            toastOptions={{
+              className: 'glass-card border-none shadow-2xl',
+              style: {
+                background: 'var(--card)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--border)',
+                backdropFilter: 'blur(12px)',
+              }
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>

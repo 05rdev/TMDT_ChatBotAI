@@ -1,127 +1,105 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { usePathname } from 'next/navigation';
 import { 
-  BarChart3, 
-  Package, 
+  LayoutDashboard, 
+  PackageSearch, 
   ShoppingCart, 
   Users, 
   Settings, 
   LogOut, 
-  ChevronRight, 
-  LayoutDashboard,
-  AlertCircle
+  Bot,
+  Bell
 } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useTheme } from 'next-themes';
+import { Moon, Sun } from 'lucide-react';
+
+const ADMIN_LINKS = [
+  { name: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
+  { name: 'Sản phẩm', href: '/admin/products', icon: PackageSearch },
+  { name: 'Đơn hàng', href: '/admin/orders', icon: ShoppingCart },
+  { name: 'Khách hàng', href: '/admin/users', icon: Users },
+  { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    // Client-side protection
-    if (!isAuthenticated || user?.role !== 'ADMIN') {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, user, router]);
-
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
-    return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-      </div>
-    );
-  }
-
-  const menuItems = [
-    { name: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
-    { name: 'Sản phẩm', href: '/admin/products', icon: Package },
-    { name: 'Đơn hàng', href: '/admin/orders', icon: ShoppingCart },
-    { name: 'Người dùng', href: '/admin/users', icon: Users },
-  ];
+  const { user } = useAuthStore();
+  const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex h-screen bg-[#020617] overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-72 bg-slate-900/50 border-r border-white/5 flex flex-col">
-        <div className="p-8 border-b border-white/5">
-           <Link href="/" className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                <BarChart3 className="text-white w-6 h-6" />
-              </div>
-              <span className="text-xl font-bold gradient-text">UltraShop Admin</span>
-           </Link>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar Focus (Bỏ Glassmorphism quá đà trong admin để nhường chỗ cho text rõ ràng) */}
+      <aside className="w-64 border-r border-border bg-card/50 flex flex-col hidden lg:flex sticky top-0 h-screen">
+        <div className="h-16 flex items-center px-6 border-b border-border">
+          <Link href="/" className="flex items-center space-x-2 group">
+            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+              <Bot className="text-white w-5 h-5" />
+            </div>
+            <span className="font-bold tracking-tight text-foreground uppercase">Ultra Admin</span>
+          </Link>
         </div>
 
-        <nav className="flex-1 p-6 space-y-2">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
+        <nav className="flex-1 p-4 space-y-1">
+          {ADMIN_LINKS.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${
+              <Link 
+                key={link.name} 
+                href={link.href}
+                className={`flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive 
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-                    : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/5'
+                    : 'text-muted-foreground hover:bg-muted/10 hover:text-foreground'
                 }`}
               >
-                <div className="flex items-center space-x-3">
-                  <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'group-hover:text-emerald-400'}`} />
-                  <span className="font-medium">{item.name}</span>
-                </div>
-                {isActive && <ChevronRight className="w-4 h-4 text-white/50" />}
+                <link.icon className={`w-5 h-5 mr-3 ${isActive ? 'text-white' : ''}`} />
+                {link.name}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-6 border-t border-white/5 space-y-4">
-           <div className="flex items-center space-x-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400 font-bold">
-                 {user.name.charAt(0)}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                 <p className="text-sm font-bold text-slate-200 truncate">{user.name}</p>
-                 <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">{user.role}</p>
-              </div>
-           </div>
-           <button 
-             onClick={logout}
-             className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/5 rounded-xl transition-all"
-           >
-             <LogOut className="w-5 h-5" />
-             <span className="font-medium">Đăng xuất</span>
-           </button>
+        <div className="p-4 border-t border-border space-y-2">
+          <button className="flex w-full items-center px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+            <LogOut className="w-5 h-5 mr-3" />
+            Đăng xuất
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="h-20 bg-slate-900/30 border-b border-white/5 flex items-center justify-between px-10">
-           <h2 className="text-xl font-bold text-slate-200">
-              {menuItems.find(i => i.href === pathname)?.name || 'Trang quản trị'}
-           </h2>
-           
-           <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-full border border-amber-400/20 text-xs font-medium animate-pulse">
-                 <AlertCircle className="w-4 h-4" />
-                 <span>2 Sản phẩm sắp hết hàng</span>
-              </div>
-              <div className="h-6 w-[1px] bg-white/10" />
-              <button className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-emerald-400 transition-all">
-                 <Settings className="w-5 h-5" />
-              </button>
-           </div>
+      <main className="flex-1 flex flex-col min-h-screen relative">
+        {/* Top Header Admin */}
+        <header className="h-16 glass-nav border-b border-border flex items-center justify-between px-6 lg:px-10">
+          <h2 className="font-bold text-foreground capitalize">
+            {ADMIN_LINKS.find(l => pathname === l.href)?.name || 'Dashboard'}
+          </h2>
+          
+          <div className="flex items-center space-x-4">
+             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 text-muted-foreground hover:text-emerald-500 transition-colors">
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+             </button>
+             <button className="p-2 text-muted-foreground hover:text-emerald-500 transition-colors flex relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background" />
+             </button>
+             <div className="w-px h-6 bg-border mx-2" />
+             <div className="flex items-center space-x-2">
+               <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 font-bold border border-emerald-500/30">
+                 {user?.name?.charAt(0) || 'A'}
+               </div>
+               <span className="text-sm font-medium hidden sm:block">{user?.name || 'Administrator'}</span>
+             </div>
+          </div>
         </header>
 
-        {/* Dynamic Content */}
-        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-           {children}
+        {/* Content Area */}
+        <div className="p-6 lg:p-10 flex-1">
+          {children}
         </div>
       </main>
     </div>
