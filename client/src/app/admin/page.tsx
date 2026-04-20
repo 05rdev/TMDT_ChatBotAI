@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, 
   ShoppingCart, 
@@ -9,22 +9,56 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-
-const MOCK_STATS = [
-  { label: 'Tổng doanh thu', value: '45.2M ₫', change: '+12.5%', isUp: true, icon: DollarSign },
-  { label: 'Đơn hàng mới', value: '156', change: '+5.2%', isUp: true, icon: ShoppingCart },
-  { label: 'Khách hàng', value: '2,405', change: '+3.1%', isUp: true, icon: Users },
-  { label: 'Tỉ lệ chuyển đổi', value: '4.8%', change: '-0.4%', isUp: false, icon: TrendingUp },
-];
-
-const RECENT_ORDERS = [
-  { id: 'ORD-001', customer: 'Nguyễn Văn A', amount: 3500000, status: 'DELIVERING' },
-  { id: 'ORD-002', customer: 'Trần Thị B', amount: 1200000, status: 'PENDING' },
-  { id: 'ORD-003', customer: 'Lê Văn C', amount: 890000, status: 'COMPLETED' },
-  { id: 'ORD-004', customer: 'Phạm Thị D', amount: 4500000, status: 'PROCESSING' },
-];
+import api from '@/lib/api';
 
 export default function AdminDashboardPage() {
+  const [statsData, setStatsData] = useState<any>(null);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<number[]>([0,0,0,0,0,0,0]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [statsRes, ordersRes, trendRes] = await Promise.all([
+        api.get('/admin/stats/overview'),
+        api.get('/admin/orders?limit=5'),
+        api.get('/admin/stats/revenue-trend?type=day')
+      ]);
+      
+      if (statsRes.data.success) {
+        setStatsData(statsRes.data.data);
+      }
+      if (ordersRes.data.success) {
+        setRecentOrders(ordersRes.data.orders);
+      }
+      if (trendRes.data.success) {
+        // extract 'total' from array of {date, total}
+        const values = trendRes.data.data.map((item: any) => item.total || 0);
+        // keep last 7 items or pad
+        if (values.length > 0) {
+          setRevenueTrend(values.slice(-7));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data', error);
+    }
+  };
+
+  const MOCK_STATS = statsData ? [
+    { label: 'Tổng doanh thu', value: `${statsData.revenue.toLocaleString('vi-VN')} ₫`, change: '+12.5%', isUp: true, icon: DollarSign },
+    { label: 'Tổng đơn hàng', value: statsData.orders, change: '+5.2%', isUp: true, icon: ShoppingCart },
+    { label: 'Khách hàng', value: statsData.users, change: '+3.1%', isUp: true, icon: Users },
+    { label: 'Cảnh báo kho', value: statsData.lowStockAlert, change: 'Sắp hết hàng', isUp: false, icon: TrendingUp },
+  ] : [
+    { label: 'Tổng doanh thu', value: '0 ₫', change: '0%', isUp: true, icon: DollarSign },
+    { label: 'Tổng đơn hàng', value: '0', change: '0%', isUp: true, icon: ShoppingCart },
+    { label: 'Khách hàng', value: '0', change: '0%', isUp: true, icon: Users },
+    { label: 'Cảnh báo kho', value: '0', change: '0%', isUp: false, icon: TrendingUp },
+  ];
+
   return (
     <div className="space-y-12">
       {/* Metric Cards */}
@@ -69,22 +103,26 @@ export default function AdminDashboardPage() {
                <span>0</span>
              </div>
              {/* Bars */}
-             <div className="w-full h-full flex items-end justify-around pl-8">
-               {[40, 65, 30, 80, 50, 90, 70].map((height, i) => (
-                 <div key={i} className="flex flex-col items-center group w-1/12 relative">
-                    <div 
-                      className="w-full bg-primary border-2 border-foreground transition-all duration-500 hover:bg-accent group-hover:-translate-y-2 relative" 
-                      style={{ height: `${height}%`, boxShadow: '2px 2px 0px 0px var(--foreground)' }}
-                    >
-                      {/* Tooltip */}
-                      <span className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold py-1 px-2 whitespace-nowrap transition-opacity">
-                        {(height * 0.5).toFixed(1)}M
-                      </span>
+              <div className="w-full h-full flex items-end justify-around pl-8">
+                {revenueTrend.map((height, i) => {
+                  const max = Math.max(...revenueTrend, 1);
+                  const percentage = (height / max) * 100;
+                  return (
+                    <div key={i} className="flex flex-col items-center group w-1/12 relative">
+                      <div 
+                        className="w-full bg-primary border-2 border-foreground transition-all duration-500 hover:bg-accent group-hover:-translate-y-2 relative" 
+                        style={{ height: `${percentage}%`, boxShadow: '2px 2px 0px 0px var(--foreground)' }}
+                      >
+                        {/* Tooltip */}
+                        <span className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold py-1 px-2 whitespace-nowrap transition-opacity">
+                          {height.toLocaleString('vi-VN')}₫
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold mt-4 uppercase text-foreground">N{i+1}</span>
                     </div>
-                    <span className="text-xs font-bold mt-4 uppercase text-foreground">T{i+2}</span>
-                 </div>
-               ))}
-             </div>
+                  );
+                })}
+              </div>
            </div>
         </div>
 
@@ -95,17 +133,17 @@ export default function AdminDashboardPage() {
              <button className="text-xs font-bold uppercase tracking-widest text-primary hover:text-foreground hover:underline underline-offset-4 transition-all">Xem tất cả</button>
            </div>
            <div className="space-y-4 flex-1">
-             {RECENT_ORDERS.map((order) => (
+             {recentOrders.map((order) => (
                <div key={order.id} className="flex justify-between items-center p-4 bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_var(--primary)] transition-all cursor-pointer">
                   <div>
-                    <h5 className="font-black text-sm text-foreground uppercase">{order.id}</h5>
-                    <p className="text-xs font-bold text-muted-foreground uppercase mt-1">{order.customer}</p>
+                    <h5 className="font-black text-xs text-foreground uppercase truncate max-w-[100px]">{order.id}</h5>
+                    <p className="text-xs font-bold text-muted-foreground uppercase mt-1">{order.user?.name || 'Khách vãng lai'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-sm text-foreground">{order.amount.toLocaleString('vi-VN')}₫</p>
+                    <p className="font-black text-sm text-foreground">{Number(order.totalAmount).toLocaleString('vi-VN')}₫</p>
                     <div className={`text-[10px] font-bold mt-2 uppercase px-2 py-0.5 border border-foreground inline-block ${
-                      order.status === 'COMPLETED' ? 'bg-primary text-primary-foreground' :
-                      order.status === 'DELIVERING' ? 'bg-accent text-accent-foreground' :
+                      order.status === 'DELIVERED' ? 'bg-primary text-primary-foreground' :
+                      order.status === 'SHIPPED' ? 'bg-accent text-accent-foreground' :
                       order.status === 'PROCESSING' ? 'bg-foreground text-background' : 'bg-muted text-foreground'
                     }`}>
                       {order.status}

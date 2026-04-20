@@ -187,7 +187,7 @@ function VisualSearchResults({ data }: { data: any }) {
              <div key={p.id} className="solid-card bg-background flex flex-col group hover:-translate-y-2 transition-all p-0 overflow-hidden border-2 shadow-[4px_4px_0px_0px_var(--foreground)]">
                 <Link href={`/product/${p.slug}`} className="block relative aspect-square border-b-2 border-foreground bg-secondary">
                    {p.primaryImage ? (
-                     <img src={p.primaryImage} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt={p.name} />
+                     <img src={p.primaryImage} className="w-full h-full object-cover transition-all duration-500" alt={p.name} />
                    ) : (
                      <div className="w-full h-full flex items-center justify-center text-foreground font-black uppercase tracking-widest text-[10px]">No Image</div>
                    )}

@@ -56,7 +56,7 @@ router.post('/', cartController.add);
 
 /**
  * @swagger
- * /api/cart/{productId}:
+ * /api/cart/{productVariantId}:
  *   put:
  *     summary: Cập nhật số lượng sản phẩm trong giỏ
  *     tags: [Cart]
@@ -64,7 +64,7 @@ router.post('/', cartController.add);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: productId
+ *         name: productVariantId
  *         required: true
  *         schema: { type: string }
  *     requestBody:
@@ -80,7 +80,7 @@ router.post('/', cartController.add);
  *       200:
  *         description: Cập nhật thành công
  */
-router.put('/:productId', cartController.update);
+router.put('/:productVariantId', cartController.update);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ router.delete('/', cartController.clear);
 
 /**
  * @swagger
- * /api/cart/{productId}:
+ * /api/cart/{productVariantId}:
  *   delete:
  *     summary: Xóa một sản phẩm khỏi giỏ
  *     tags: [Cart]
@@ -106,13 +106,13 @@ router.delete('/', cartController.clear);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: productId
+ *         name: productVariantId
  *         required: true
  *         schema: { type: string }
  *     responses:
  *       200:
  *         description: Đã xóa sản phẩm
  */
-router.delete('/:productId', cartController.remove);
+router.delete('/:productVariantId', cartController.remove);
 
 export default router;

@@ -1,41 +1,71 @@
 import { prisma } from '../../../lib/prisma';
 import { AIService } from './ai.service';
-import OpenAI from 'openai';
 
 const aiService = new AIService();
 
 export class ChatbotService {
-  private openai: OpenAI;
-
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
+  private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
+  private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
 
   /**
-   * Trò chuyện với khách hàng sử dụng cơ chế RAG chuyên sâu
+   * Trò chuyện với khách hàng sử dụng Ollama và RAG (Products, Vouchers, Orders)
    */
   async askChatbot(userId: string | null, message: string) {
-    // 1. Lưu tin nhắn của User vào Database (nếu đã đăng nhập)
+    // 1. Lưu tin nhắn của User
     if (userId) {
       await prisma.chatMessage.create({
         data: { userId, role: 'user', content: message }
       });
     }
 
-    // 2. RAG Step 1: Retrieval sử dụng Semantic Search (Có khả năng hiểu giá)
-    // Ví dụ: User hỏi "Tìm laptop dưới 10tr" -> searchSemantic sẽ xử lý chính xác
-    const relevantProducts = await aiService.searchSemantic(message, 5);
+    let productContext = 'Không có ngữ cảnh sản phẩm.';
+    let relevantProducts: any[] = [];
+    let voucherContext = '';
+    let orderContext = '';
 
-    // Tạo ngữ cảnh sản phẩm chi tiết cho AI
-    const productContext = relevantProducts.length > 0
-      ? relevantProducts.map(p =>
-        `- ${p.name}: ${p.description?.substring(0, 150)}... (Giá từ: ${p.minPrice || 'Liên hệ'}). Link chi tiết: /product/${p.slug}`
-      ).join('\n')
-      : 'Hiện tại chưa tìm thấy sản phẩm nào khớp hoàn toàn với yêu cầu của bạn trong kho.';
+    try {
+      // 2. RAG: Lấy ngữ cảnh sản phẩm (Semantic Search)
+      relevantProducts = await aiService.searchSemantic(message, 5);
+      if (relevantProducts.length > 0) {
+        productContext = relevantProducts.map(p =>
+          `- ${p.name}: ${p.description?.substring(0, 100)}... (Giá từ: ${p.minPrice || 'Liên hệ'}). Link: /product/${p.slug}`
+        ).join('\n');
+      }
 
-    // 3. RAG Step 2: Lấy lịch sử hội thoại gần nhất (Memory)
+      // 3. RAG: Lấy ngữ cảnh Voucher (nếu hỏi về khuyến mãi/giảm giá)
+      const voucherKeywords = ['giảm giá', 'voucher', 'khuyến mãi', 'mã giảm', 'code', 'ưu đãi'];
+      if (voucherKeywords.some(k => message.toLowerCase().includes(k))) {
+        const activeVouchers = await prisma.voucher.findMany({
+          where: { isActive: true, endDate: { gte: new Date() } },
+          take: 5
+        });
+        voucherContext = activeVouchers.length > 0
+          ? '\n--- MÃ GIẢM GIÁ ĐANG CÓ ---\n' + activeVouchers.map((v: any) => 
+              `- Mã: ${v.code} (${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'}). ĐK: Đơn từ ${Number(v.minOrderValue || 0).toLocaleString()}đ.`
+            ).join('\n')
+          : '\nHiện tại chưa có mã giảm giá mới.';
+      }
+
+      // 4. RAG: Lấy ngữ cảnh Đơn hàng (nếu hỏi về đơn của tôi)
+      const orderKeywords = ['đơn hàng', 'mua', 'lịch sử', 'trạng thái đơn', 'vận chuyển'];
+      if (userId && orderKeywords.some(k => message.toLowerCase().includes(k))) {
+        const recentOrders = await prisma.order.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          include: { items: { include: { product: { select: { name: true } } } } }
+        });
+        orderContext = recentOrders.length > 0
+          ? '\n--- ĐƠN HÀNG GẦN ĐÂY CỦA BẠN ---\n' + recentOrders.map((o: any) => 
+              `- Đơn #${String(o.id).slice(0, 8)}: ${o.status}. Gồm: ${o.items.map((i: any) => i.product.name).join(', ')}. Tổng: ${Number(o.totalAmount).toLocaleString()}đ.`
+            ).join('\n')
+          : '\nBạn chưa có đơn hàng nào.';
+      }
+    } catch (ragError) {
+      console.warn('⚠️ RAG Enhancement Failed, continuing with basic chat:', ragError);
+    }
+
+    // 5. Lấy lịch sử hội thoại
     let history: any[] = [];
     if (userId) {
       history = await prisma.chatMessage.findMany({
@@ -46,40 +76,45 @@ export class ChatbotService {
       history.reverse();
     }
 
-    // 4. Generation: Sinh phản hồi với Persona "Shopping Assistant" chuyên nghiệp
+    // 6. Gọi Ollama API
     const systemPrompt = `
-      Bạn là "UltraShop Assistant" - một chuyên gia tư vấn mua sắm thông minh, nhiệt tình và am hiểu sản phẩm.
-      Nhiệm vụ của bạn là giúp khách hàng tìm được sản phẩm ưng ý nhất từ danh sách sản phẩm thực tế được cung cấp dưới đây.
-
-      --- DANH SÁCH SẢN PHẨM TRONG KHO (Dữ liệu thực tế) ---
+      Bạn là "UltraShop Assistant" - Trợ lý mua sắm AI.
+      Dưới đây là thông tin thực tế từ hệ thống:
+      
       ${productContext}
-      --- HẾT DANH SÁCH ---
+      ${voucherContext}
+      ${orderContext}
 
-      QUY TẮC CỐT LÕI:
-      1. THÁI ĐỘ: Luôn lịch sự, sử dụng các từ ngữ như "Dạ", "Vâng", "Chào bạn", "Chúc bạn một ngày tốt lành".
-      2. TRUNG THỰC: Chỉ tư vấn dựa trên danh sách sản phẩm trên. Nếu sản phẩm khách hỏi không có, hãy khéo léo giới thiệu sản phẩm tương tự có sẵn.
-      3. CHUYÊN NGHIỆP: Phân tích ngắn gọn ưu điểm của sản phẩm (ví dụ: "Sản phẩm này rất phù hợp với ngân sách của bạn").
-      4. KÊU GỌI: Luôn kết thúc bằng một câu hỏi gợi mở hoặc hướng dẫn khách hàng xem chi tiết/thêm vào giỏ hàng.
-      5. NGỮ CẢNH: Chú ý đến lịch sử hội thoại để trả lời các câu hỏi nối tiếp (VD: "Cái này" là sản phẩm vừa nhắc tới).
+      QUY TẮC:
+      - Luôn trả lời bằng tiếng Việt, lịch sự, thân thiện.
+      - Tuyệt đối không tiết lộ thông tin của người dùng khác.
+      - Nếu khách hỏi về đơn hàng hoặc voucher mà không có trong dữ liệu trên, hãy báo khách kiểm tra lại hoặc liên hệ admin.
+      - Trả lời ngắn gọn, tập trung vào giải quyết vấn đề.
     `;
 
-    const chatMessages: any[] = [
+    const chatMessages = [
       { role: 'system', content: systemPrompt },
       ...history.map(h => ({ role: h.role, content: h.content })),
       { role: 'user', content: message }
     ];
 
     try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: chatMessages,
-        temperature: 0.6,
-        max_tokens: 800,
+      const response = await fetch(this.ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: chatMessages,
+          stream: false
+        })
       });
 
-      const aiResponse = completion.choices[0].message.content || 'Dạ, hiện tại hệ thống của em đang gặp chút trục trặc nhỏ, anh/chị vui lòng thử lại sau giây lát nhé!';
+      if (!response.ok) throw new Error('Ollama service error');
 
-      // 5. Lưu phản hồi của AI vào Database
+      const data: any = await response.json();
+      const aiResponse = data.message.content || 'Xin lỗi, tôi không thể trả lời lúc này.';
+
+      // 7. Lưu phản hồi của AI
       if (userId) {
         await prisma.chatMessage.create({
           data: { userId, role: 'assistant', content: aiResponse }
@@ -96,8 +131,11 @@ export class ChatbotService {
         }))
       };
     } catch (error: any) {
-      console.error('❌ AI Chatbot Error:', error);
-      throw new Error('Dịch vụ AI đang tạm thời gián đoạn. Vui lòng thử lại sau.');
+      console.error('❌ Ollama Chatbot Error:', error);
+      return {
+        message: 'Dạ, hiện tại em (AI) đang bảo trì một chút ạ. Anh/chị cần hỗ trợ gì có thể nhắn trực tiếp cho Admin nhé!',
+        suggestedProducts: relevantProducts.slice(0, 2)
+      };
     }
   }
 

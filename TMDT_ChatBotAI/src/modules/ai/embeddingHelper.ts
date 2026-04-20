@@ -16,8 +16,12 @@ export class EmbeddingHelper {
    * Generates embedding for a given text using text-embedding-3-small
    */
   async generateEmbedding(text: string, retries: number = 3): Promise<number[]> {
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key') {
-      console.warn('⚠️ OpenAI API Key missing. Generating Mock Vector...');
+    const isPlaceholder = !process.env.OPENAI_API_KEY || 
+                         process.env.OPENAI_API_KEY.includes('your-openai-api-key') || 
+                         process.env.OPENAI_API_KEY.includes('here');
+
+    if (isPlaceholder) {
+      console.warn('⚠️ OpenAI API Key missing or placeholder. Generating Mock Vector (1536d)...');
       return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
     }
 

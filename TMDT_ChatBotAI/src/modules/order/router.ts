@@ -130,6 +130,18 @@ router.post('/checkout', paymentController.create);
 
 /**
  * @swagger
+ * /api/orders/vnpay-return:
+ *   get:
+ *     summary: Xử lý redirect từ VNPay
+ *     tags: [Orders]
+ *     responses:
+ *       302:
+ *         description: Redirect về frontend
+ */
+router.get('/vnpay-return', paymentController.vnpayReturn);
+
+/**
+ * @swagger
  * /api/orders/webhook:
  *   post:
  *     summary: Webhook giả lập để xác nhận thanh toán (Dành cho thử nghiệm)

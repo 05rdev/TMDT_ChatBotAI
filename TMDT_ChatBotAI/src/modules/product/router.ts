@@ -45,6 +45,38 @@ router.get('/', productController.getAll);
 
 /**
  * @swagger
+ * /api/products/hot:
+ *   get:
+ *     summary: Sản phẩm bán chạy nhất (Hot)
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: number, default: 8 }
+ *     responses:
+ *       200:
+ *         description: Danh sách sản phẩm bán chạy
+ */
+router.get('/hot', productController.getHotProducts);
+
+/**
+ * @swagger
+ * /api/products/new:
+ *   get:
+ *     summary: Sản phẩm mới nhất
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: number, default: 8 }
+ *     responses:
+ *       200:
+ *         description: Danh sách sản phẩm mới
+ */
+router.get('/new', productController.getNewProducts);
+
+/**
+ * @swagger
  * /api/products/slug/{slug}:
  *   get:
  *     summary: Chi tiết sản phẩm bằng Slug

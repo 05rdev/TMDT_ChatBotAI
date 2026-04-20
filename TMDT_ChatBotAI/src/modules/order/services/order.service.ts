@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma';
 import { AppError } from '../../../middlewares/error.middleware';
+import { VoucherService } from '../../voucher/services/voucher.service';
 
 export class OrderService {
   /**
@@ -13,6 +14,7 @@ export class OrderService {
       where: { userId },
       include: {
         variant: true,
+        product: true
       }
     });
 
@@ -21,9 +23,20 @@ export class OrderService {
     }
 
     // 2. Tính tổng tiền
-    const totalAmount = cartItems.reduce((sum, item) => {
+    let totalAmount = cartItems.reduce((sum, item) => {
       return sum + Number(item.variant.price) * item.quantity;
     }, 0);
+
+    let appliedVoucherId: string | undefined = undefined;
+    
+    // 2.5 Kiểm tra và áp dụng Voucher
+    if (data.voucherCode) {
+      const voucherService = new VoucherService();
+      const uniqueCategoryIds = Array.from(new Set(cartItems.map(item => item.product.categoryId)));
+      const result = await voucherService.validateVoucher(data.voucherCode, totalAmount, uniqueCategoryIds);
+      totalAmount = Math.max(0, totalAmount - result.discountAmount);
+      appliedVoucherId = result.voucher.id;
+    }
 
     // 3. Thực thi Transaction nguyên tử
     return prisma.$transaction(async (tx) => {
@@ -53,6 +66,7 @@ export class OrderService {
           address,
           phone,
           status: 'PENDING',
+          voucherId: appliedVoucherId,
           items: {
             create: cartItems.map(item => ({
               productId: item.productId,
@@ -63,6 +77,14 @@ export class OrderService {
           }
         }
       });
+
+      // B2. Nếu có voucher, tăng số lần sử dụng
+      if (appliedVoucherId) {
+        await tx.voucher.update({
+          where: { id: appliedVoucherId },
+          data: { usedCount: { increment: 1 } }
+        });
+      }
 
       // C. TẠO THÔNG TIN THANH TOÁN
       await tx.payment.create({
@@ -234,9 +256,25 @@ export class OrderService {
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) throw new AppError(404, 'Đơn hàng không tồn tại');
 
-    return prisma.order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id },
       data: { status }
     });
+
+    // Tạo thông báo cho user
+    try {
+      const NotificationService = require('../../notification/services/notification.service').NotificationService;
+      const notificationService = new NotificationService();
+      await notificationService.createNotification(
+        order.userId,
+        'Cập nhật đơn hàng',
+        `Đơn hàng #${order.id.slice(0, 8)} của bạn đã chuyển sang trạng thái: ${status}`,
+        'ORDER'
+      );
+    } catch (err) {
+      console.error('Failed to send order update notification', err);
+    }
+
+    return updatedOrder;
   }
 }

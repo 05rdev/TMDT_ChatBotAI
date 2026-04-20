@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { prisma } from './lib/prisma';
@@ -15,6 +16,9 @@ import userRouter from './modules/user/router';
 import authRouter from './modules/auth/router';
 import aiRouter from './modules/ai/router';
 import adminRouter from './modules/user/admin.router';
+import voucherRouter from './modules/voucher/router';
+import notificationRouter from './modules/notification/router';
+import supportRouter from './modules/support/router';
 
 import { errorHandler as globalErrorHandler } from './middlewares/error.middleware';
 import { activityLogger } from './middlewares/activity-logger';
@@ -26,6 +30,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60000,
+  max: Number(process.env.RATE_LIMIT_MAX) || 100,
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+
 // Middlewares
 app.use(helmet());
 app.use(cors());
@@ -33,6 +44,7 @@ app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(activityLogger);
+app.use('/api', limiter);
 
 // Routes
 app.use('/api/auth', authRouter);
@@ -43,6 +55,9 @@ app.use('/api/orders', orderRouter);
 app.use('/api/users', userRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/vouchers', voucherRouter);
+app.use('/api/notifications', notificationRouter);
+app.use('/api/support', supportRouter);
 
 
 // Health check
@@ -53,6 +68,11 @@ app.get('/health', (req, res) => {
 // Swagger Documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Root route
+app.get('/', (req, res) => {
+  res.send('Welcome to TMDT ChatBot AI API');
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
@@ -60,11 +80,6 @@ app.use('*', (req, res) => {
 
 // Global Error Handler
 app.use(globalErrorHandler);
-
-// Root route
-app.get('/', (req, res) => {
-  res.send('Welcome to TMDT ChatBot AI API');
-});
 
 // Start server
 const startServer = async () => {

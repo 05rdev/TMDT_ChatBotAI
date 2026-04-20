@@ -47,7 +47,12 @@ export class AuthService {
       throw new AppError(401, 'Email hoặc mật khẩu không chính xác.');
     }
 
-    // 2. Tạo tokens
+    // 2. Kiểm tra tài khoản có bị khóa không
+    if (!user.isActive) {
+      throw new AppError(403, 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
+    }
+
+    // 3. Tạo tokens
     const payload = { id: user.id, role: user.role };
 
     const accessToken = jwtHelper.generateAccessToken(payload);
@@ -77,7 +82,13 @@ export class AuthService {
         throw new AppError(401, 'Refresh token không hợp lệ hoặc đã hết hạn.');
       }
 
-      // 3. Tạo access token mới
+      // 3. Kiểm tra user còn hoạt động không
+      const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+      if (!user || !user.isActive) {
+        throw new AppError(403, 'Tài khoản đã bị khóa hoặc không tồn tại.');
+      }
+
+      // 4. Tạo access token mới
       const newAccessToken = jwtHelper.generateAccessToken({ 
         id: decoded.id, 
         role: decoded.role 
@@ -106,6 +117,39 @@ export class AuthService {
       select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true }
     });
     if (!user) throw new AppError(404, 'Người dùng không tồn tại.');
+  }
+
+  /**
+   * Cập nhật thông tin cá nhân
+   */
+  async updateProfile(userId: string, data: any) {
+    const { name, avatar } = data;
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { name, avatar },
+      select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true }
+    });
     return user;
+  }
+
+  /**
+   * Đổi mật khẩu
+   */
+  async changePassword(userId: string, data: any) {
+    const { oldPassword, newPassword } = data;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'Người dùng không tồn tại.');
+    
+    if (!(await bcrypt.compare(oldPassword, user.password))) {
+      throw new AppError(401, 'Mật khẩu cũ không chính xác.');
+    }
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+    
+    return true;
   }
 }

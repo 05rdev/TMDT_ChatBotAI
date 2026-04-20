@@ -1,20 +1,52 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Filter, Eye, Clock, CheckCircle2, Package, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Eye, Clock, CheckCircle2, Package, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-
-// Mock Data
-const mockOrders = [
-  { id: 'ORD-001', customer: 'Nguyễn Văn A',  phone: '0901234567', total: 3500000, date: '14/04/2026', status: 'DELIVERING' },
-  { id: 'ORD-002', customer: 'Trần Thị B',    phone: '0987654321', total: 1200000, date: '14/04/2026', status: 'PENDING' },
-  { id: 'ORD-003', customer: 'Lê Văn C',      phone: '0912345678', total: 890000,  date: '13/04/2026', status: 'COMPLETED' },
-  { id: 'ORD-004', customer: 'Phạm Thị D',    phone: '0977112233', total: 4500000, date: '12/04/2026', status: 'PROCESSING' },
-  { id: 'ORD-005', customer: 'Hoàng Văn E',   phone: '0909998877', total: 2500000, date: '10/04/2026', status: 'CANCELLED' }
-];
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function AdminOrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  useEffect(() => {
+    fetchOrders();
+  }, [filterStatus]);
+
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/admin/orders', { params: { status: filterStatus } });
+      if (res.data.success) {
+        setOrders(res.data.orders);
+      }
+    } catch (error) {
+      toast.error('Lỗi khi tải danh sách đơn hàng');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    if (!newStatus) return;
+    try {
+      const res = await api.patch(`/orders/${id}/status`, { status: newStatus });
+      if (res.data.success) {
+        toast.success('Cập nhật trạng thái thành công');
+        fetchOrders();
+      }
+    } catch (error) {
+      toast.error('Lỗi khi cập nhật trạng thái');
+    }
+  };
+
+  const filteredOrders = orders.filter(order => 
+    order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (order.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -56,12 +88,17 @@ export default function AdminOrdersPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <select className="bg-background border border-border rounded-xl text-sm px-3 py-2 outline-none text-foreground hidden sm:block">
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-background border border-border rounded-xl text-sm px-3 py-2 outline-none text-foreground hidden sm:block"
+          >
             <option value="">Tất cả trạng thái</option>
             <option value="PENDING">Chờ duyệt</option>
             <option value="PROCESSING">Đang gói</option>
-            <option value="DELIVERING">Đang giao</option>
-            <option value="COMPLETED">Hoàn tất</option>
+            <option value="SHIPPED">Đang giao</option>
+            <option value="DELIVERED">Hoàn tất</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
           <Button variant="outline" className="flex items-center bg-background border-border">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" /> Lọc
@@ -84,32 +121,45 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {mockOrders.map((order) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-4">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      <p className="font-bold uppercase tracking-widest">Đang tải dữ liệu...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-muted/5 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-foreground whitespace-nowrap">
-                    {order.id}
+                    <span className="truncate max-w-[120px] inline-block">{order.id}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-foreground">{order.customer}</p>
+                    <p className="text-sm font-bold text-foreground">{order.user?.name || 'Khách vãng lai'}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{order.phone}</p>
                   </td>
                   <td className="px-6 py-4 text-sm font-bold text-emerald-500 whitespace-nowrap">
-                    {order.total.toLocaleString('vi-VN')}₫
+                    {Number(order.totalAmount).toLocaleString('vi-VN')}₫
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                    {order.date}
+                    {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                      {getStatusBadge(order.status)}
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end space-x-2">
-                       <select className="bg-background border border-border rounded-lg text-xs px-2 py-1 outline-none text-foreground border-dashed">
-                         <option>Đổi T.Thái</option>
-                         <option>Đang gói</option>
-                         <option>Đang giao</option>
-                         <option>Hoàn tất</option>
-                         <option>Hủy đơn</option>
+                       <select 
+                         onChange={(e) => updateStatus(order.id, e.target.value)}
+                         value={order.status}
+                         className="bg-background border border-border rounded-lg text-xs px-2 py-1 outline-none text-foreground border-dashed"
+                       >
+                         <option value="PENDING">Chờ duyệt</option>
+                         <option value="PROCESSING">Đang gói</option>
+                         <option value="SHIPPED">Đang giao</option>
+                         <option value="DELIVERED">Hoàn tất</option>
+                         <option value="CANCELLED">Hủy đơn</option>
                        </select>
                        <button className="p-2 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Xem chi tiết">
                          <Eye className="w-4 h-4" />

@@ -11,7 +11,10 @@ import {
   Settings, 
   LogOut, 
   Bot,
-  Bell
+  Bell,
+  MessageSquare,
+  Tag,
+  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from 'next-themes';
@@ -22,6 +25,9 @@ const ADMIN_LINKS = [
   { name: 'Sản phẩm', href: '/admin/products', icon: PackageSearch },
   { name: 'Đơn hàng', href: '/admin/orders', icon: ShoppingCart },
   { name: 'Khách hàng', href: '/admin/users', icon: Users },
+  { name: 'Khuyến mãi', href: '/admin/vouchers', icon: Tag },
+  { name: 'AI Assistant', href: '/admin/ai-assistant', icon: Sparkles },
+  { name: 'Hỗ trợ', href: '/admin/support', icon: MessageSquare },
   { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
 ];
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AIController } from './controllers/ai.controller';
 import { RecommendationController } from './controllers/recommendation.controller';
 import { ChatbotController } from './controllers/chatbot.controller';
+import { AdminChatbotController } from './controllers/admin-chatbot.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { upload } from '../../middlewares/upload.middleware';
 
@@ -9,6 +10,7 @@ const router = Router();
 const aiController = new AIController();
 const recommendationController = new RecommendationController();
 const chatbotController = new ChatbotController();
+const adminChatbotController = new AdminChatbotController();
 
 /**
  * @swagger
@@ -65,6 +67,7 @@ router.get('/recommendations', authenticate, recommendationController.getPersona
 // --- Chatbot ---
 router.post('/chatbot', chatbotController.chat);
 router.get('/chatbot/history', authenticate, chatbotController.getHistory);
+router.post('/admin/chatbot', authenticate, adminChatbotController.chat);
 
 // --- Utils ---
 router.post('/embed', aiController.generateEmbedding);

@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt.helper';
 import { AppError } from './error.middleware';
+import { prisma } from '../lib/prisma';
 
 export interface AuthRequest extends Request {
   user?: { id: string; role: string };
 }
 
-export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+export const authenticate = async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return next(new AppError(401, 'Unauthorized: Missing or invalid token format'));
@@ -15,6 +16,21 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
   const token = authHeader.split(' ')[1];
   try {
     const decoded = verifyAccessToken(token);
+    
+    // Kiểm tra user có tồn tại và đang hoạt động không
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { isActive: true }
+    });
+
+    if (!user) {
+      return next(new AppError(401, 'Tài khoản không tồn tại.'));
+    }
+
+    if (!user.isActive) {
+      return next(new AppError(403, 'Tài khoản của bạn đã bị khóa.'));
+    }
+
     req.user = decoded;
     next();
   } catch (error: any) {

@@ -12,6 +12,8 @@ import api from '@/lib/api';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from 'sonner';
 
 interface Product {
   id: string;
@@ -37,6 +39,7 @@ export default function ProductDetailPage() {
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   
   const addToCart = useCartStore((state) => state.addItem);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (slug) {
@@ -77,18 +80,33 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
     const variant = product.variants[selectedVariant] || product.variants[0];
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: variant.price,
-      quantity: quantity,
-      image: product.images[0]?.url || 'https://via.placeholder.com/800',
-      variant: variant.name
-    });
-    // Optional: show a toast notification here
+    
+    if (user) {
+      try {
+        await api.post('/cart', {
+          productId: product.id,
+          productVariantId: variant.id,
+          quantity: quantity
+        });
+        toast.success('Đã thêm vào giỏ hàng');
+      } catch (error) {
+        toast.error('Lỗi khi thêm vào giỏ hàng');
+      }
+    } else {
+      addToCart({
+        productId: product.id,
+        productVariantId: variant.id,
+        name: product.name,
+        price: variant.price,
+        quantity: quantity,
+        image: product.images[0]?.url || 'https://via.placeholder.com/800',
+        variant: variant.name
+      });
+      toast.success('Đã thêm vào giỏ hàng cục bộ');
+    }
   };
 
   const handleBuyNow = () => {
@@ -149,7 +167,7 @@ export default function ProductDetailPage() {
                 transition={{ duration: 0.4 }}
                 src={product.images[selectedImage]?.url || 'https://via.placeholder.com/800'} 
                 alt={product.name}
-                className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
+                className="w-full h-full object-cover transition-all duration-500"
               />
             </AnimatePresence>
             
@@ -311,7 +329,7 @@ export default function ProductDetailPage() {
           {similarProducts.map((p) => (
             <div key={p.id} className="solid-card bg-background flex flex-col group hover:-translate-y-2 transition-transform cursor-pointer relative p-0 overflow-hidden">
               <Link href={`/product/${p.slug}`} className="block relative aspect-square border-b-2 border-foreground bg-secondary">
-                <img src={p.images?.[0]?.url || p.primaryImage || 'https://via.placeholder.com/200'} alt={p.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-transform duration-500" />
+                <img src={p.images?.[0]?.url || p.primaryImage || 'https://via.placeholder.com/200'} alt={p.name} className="w-full h-full object-cover transition-transform duration-500" />
               </Link>
               <div className="p-3 space-y-2">
                 <Link href={`/product/${p.slug}`}>
@@ -352,7 +370,7 @@ export default function ProductDetailPage() {
                 {product.reviews.map((review, i) => (
                   <div key={review.id} className="solid-card p-6 bg-background flex space-x-6">
                     <div className="w-16 h-16 bg-accent border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] flex-shrink-0 flex items-center justify-center overflow-hidden">
-                      <img src={review.user.avatar || 'https://via.placeholder.com/64'} alt="" className="w-full h-full object-cover grayscale" />
+                      <img src={review.user.avatar || 'https://via.placeholder.com/64'} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="space-y-2 flex-1">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

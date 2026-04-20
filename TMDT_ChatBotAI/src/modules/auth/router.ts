@@ -108,4 +108,51 @@ router.get('/profile', authenticate, authController.getProfile);
  */
 router.post('/logout', authenticate, authController.logout);
 
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   put:
+ *     summary: Cập nhật thông tin cá nhân
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               avatar: { type: string }
+ *     responses:
+ *       200:
+ *         description: Đã cập nhật
+ */
+router.put('/profile', authenticate, authController.updateProfile);
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   put:
+ *     summary: Đổi mật khẩu
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [oldPassword, newPassword]
+ *             properties:
+ *               oldPassword: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Đã đổi mật khẩu
+ */
+router.put('/change-password', authenticate, authController.changePassword);
+
 export default router;

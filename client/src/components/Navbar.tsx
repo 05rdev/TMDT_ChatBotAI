@@ -6,8 +6,11 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { Button } from './ui/Button';
-import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera } from 'lucide-react';
+import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera, MessageSquare } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { NotificationBell } from './NotificationBell';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { Translate } from './Translate';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -47,15 +50,16 @@ export const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
           <Link href="/shop" className="text-foreground font-bold uppercase tracking-wider hover:text-primary transition-colors hover:underline decoration-2 underline-offset-4">
-            Cửa hàng
+            <Translate>Cửa hàng</Translate>
           </Link>
           <Link href="/about" className="text-foreground font-bold uppercase tracking-wider hover:text-primary transition-colors hover:underline decoration-2 underline-offset-4">
-            Giới thiệu
+            <Translate>Giới thiệu</Translate>
           </Link>
         </div>
 
         {/* Actions */}
         <div className="flex items-center space-x-4">
+          <LanguageSwitcher />
           {/* Theme Toggle */}
           {mounted && (
             <button 
@@ -97,10 +101,22 @@ export const Navbar = () => {
             )}
           </Link>
 
+          <NotificationBell />
+
           <div className="h-8 w-[2px] bg-foreground mx-2" />
 
           {isAuthenticated ? (
             <div className="flex items-center space-x-4">
+              {user?.role === 'ADMIN' && (
+                <Link href="/admin" className="hidden lg:flex items-center px-4 py-2 bg-foreground text-background border-2 border-foreground font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-[2px_2px_0px_0px_var(--foreground)] active:shadow-none active:translate-y-[2px]">
+                   Admin
+                </Link>
+              )}
+              
+              <Link href="/profile/support" className="p-2.5 border-2 border-transparent hover:border-foreground hover:bg-foreground hover:text-background transition-all" title="Hỗ trợ">
+                <MessageSquare className="w-5 h-5" />
+              </Link>
+
               <Link href="/profile" className="flex items-center space-x-2 text-foreground font-bold hover:text-primary transition-all">
                 <User className="w-5 h-5" />
                 <span className="text-sm uppercase tracking-wider hidden sm:inline">{user?.name}</span>

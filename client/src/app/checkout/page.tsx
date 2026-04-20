@@ -1,48 +1,151 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { ShieldCheck, Truck, CreditCard, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Truck, CreditCard, ChevronLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Mock Data
-const orderItems = [
-  { id: '1', name: 'Sleek Granite Chair', price: 3500000, quantity: 1, image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267' },
-];
+import api from '@/lib/api';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
 
 export default function CheckoutPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const { clearCart } = useCartStore(); // Just to clear local Zustand if needed
+
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [subtotal, setSubtotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [formData, setFormData] = useState({
-    name: 'Nguyễn Văn A',
-    phone: '0901234567',
-    address: '123 Đường AI, Quận 1, TP. HCM',
+    name: '',
+    phone: '',
+    address: '',
     paymentMethod: 'COD'
   });
+
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({ ...prev, name: user.name || '' }));
+    }
+    fetchCart();
+  }, [user]);
+
+  const fetchCart = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/cart');
+      if (res.data.success) {
+        setOrderItems(res.data.data.items);
+        setSubtotal(res.data.data.totalAmount);
+      }
+    } catch (error) {
+      toast.error('Không thể tải giỏ hàng');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const router = useRouter();
-  const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string, discount: number } | null>(null);
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+
+  const discount = appliedVoucher ? appliedVoucher.discount : 0;
+  const total = Math.max(0, subtotal - discount);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) return toast.error('Vui lòng nhập mã giảm giá');
+    
+    setIsApplyingVoucher(true);
+    try {
+      const categoryIds = Array.from(new Set(orderItems.map(item => item.product?.categoryId)));
+      const res = await api.post('/vouchers/check', {
+        code: voucherCode.trim().toUpperCase(),
+        orderValue: subtotal,
+        categoryIds
+      });
+      
+      if (res.data.success) {
+        setAppliedVoucher({
+          code: res.data.data.voucher.code,
+          discount: res.data.data.discountAmount
+        });
+        toast.success('Đã áp dụng mã giảm giá');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Mã giảm giá không hợp lệ');
+      setAppliedVoucher(null);
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCode('');
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (orderItems.length === 0) return toast.error('Giỏ hàng trống');
+    if (!formData.address || !formData.phone || !formData.name) return toast.error('Vui lòng điền đầy đủ thông tin giao hàng');
+    
     setIsProcessing(true);
 
-    // Mô phỏng quá trình API xử lý (delay 2s)
-    setTimeout(() => {
+    try {
+      const payload = {
+        address: formData.address,
+        phone: formData.phone,
+        paymentMethod: formData.paymentMethod,
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined
+      };
+      
+      const res = await api.post('/orders', payload);
+      if (res.data.success) {
+        clearCart(); // clear local store
+        const orderId = res.data.data.id;
+
+        // If VNPAY, generate payment URL
+        if (formData.paymentMethod === 'VNPAY') {
+          try {
+            const paymentRes = await api.post('/orders/checkout', {
+              orderId,
+              method: 'VNPAY'
+            });
+            if (paymentRes.data.success && paymentRes.data.data.payUrl) {
+              // Redirect to VNPAY
+              window.location.href = paymentRes.data.data.payUrl;
+              return;
+            }
+          } catch (paymentError) {
+            toast.error('Lỗi khởi tạo thanh toán VNPAY, vui lòng thử lại sau');
+          }
+        }
+
+        toast.success('Đặt hàng thành công!', {
+          description: 'Đơn hàng của bạn đã được hệ thống ghi nhận. Cảm ơn bạn đã mua sắm trên UltraShop.',
+        });
+        
+        // Optional: clear server cart if POST /orders doesn't do it automatically
+        await api.delete('/cart').catch(() => {});
+        
+        router.push('/profile/orders');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Đặt hàng thất bại');
+    } finally {
       setIsProcessing(false);
-      toast.success('Đặt hàng thành công!', {
-        description: 'Đơn hàng của bạn đã được hệ thống ghi nhận. Cảm ơn bạn đã mua sắm trên UltraShop.',
-      });
-      router.push('/profile/orders'); // Chuyển về trang theo dõi đơn
-    }, 2000);
+    }
   };
 
   return (
@@ -114,19 +217,31 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-lg text-foreground border-b border-border pb-4">Tóm tắt đơn hàng</h3>
             
             {/* List Mini Item */}
-            <div className="space-y-4 border-b border-border pb-4">
-              {orderItems.map((item) => (
-                <div key={item.id} className="flex items-center space-x-3">
-                   <div className="w-12 h-12 rounded-lg bg-muted relative overflow-hidden flex-shrink-0">
-                     <img src={item.image} alt={item.name} className="object-cover w-full h-full" />
-                     <div className="absolute top-0 right-0 w-4 h-4 bg-emerald-500 text-[8px] font-bold text-white flex items-center justify-center rounded-bl-sm">{item.quantity}</div>
-                   </div>
-                   <div className="flex-1">
-                     <h5 className="text-xs font-bold text-foreground line-clamp-1">{item.name}</h5>
-                     <p className="text-xs text-muted-foreground">{item.price.toLocaleString('vi-VN')}đ</p>
-                   </div>
+            <div className="space-y-4 border-b border-border pb-4 max-h-[300px] overflow-y-auto pr-2">
+              {isLoading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
-              ))}
+              ) : orderItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Giỏ hàng trống</p>
+              ) : (
+                orderItems.map((item: any) => {
+                  const image = item.product?.images?.[0]?.url || 'https://via.placeholder.com/150';
+                  const price = item.variant?.price ? Number(item.variant.price) : 0;
+                  return (
+                    <div key={item.id} className="flex items-center space-x-3">
+                       <div className="w-12 h-12 rounded-lg bg-muted relative overflow-hidden flex-shrink-0">
+                         <img src={image} alt={item.product?.name} className="object-cover w-full h-full" />
+                         <div className="absolute top-0 right-0 w-4 h-4 bg-emerald-500 text-[8px] font-bold text-white flex items-center justify-center rounded-bl-sm">{item.quantity}</div>
+                       </div>
+                       <div className="flex-1">
+                         <h5 className="text-xs font-bold text-foreground line-clamp-1">{item.product?.name}</h5>
+                         <p className="text-xs text-muted-foreground">{price.toLocaleString('vi-VN')}đ</p>
+                       </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
             
             <div className="space-y-4 text-sm">
@@ -138,10 +253,38 @@ export default function CheckoutPage() {
                 <span>Vận chuyển</span>
                 <span>Miễn phí</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Thuế (10%)</span>
-                <span>{tax.toLocaleString('vi-VN')}đ</span>
-              </div>
+              {appliedVoucher && (
+                <div className="flex justify-between text-emerald-500 font-bold">
+                  <span>Mã giảm giá ({appliedVoucher.code})</span>
+                  <span>-{appliedVoucher.discount.toLocaleString('vi-VN')}đ</span>
+                </div>
+              )}
+            </div>
+
+            {/* Voucher Input */}
+            <div className="pt-4 border-t border-border">
+              {appliedVoucher ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 flex justify-between items-center rounded-xl">
+                  <span className="text-emerald-500 font-bold text-sm">Đã áp dụng: {appliedVoucher.code}</span>
+                  <button onClick={removeVoucher} className="text-xs text-red-500 hover:underline">Gỡ bỏ</button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Nhập mã giảm giá..." 
+                    value={voucherCode} 
+                    onChange={(e) => setVoucherCode(e.target.value)} 
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleApplyVoucher} 
+                    isLoading={isApplyingVoucher}
+                    variant="outline"
+                  >
+                    Áp dụng
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-emerald-500/30 pt-4 flex justify-between items-end">

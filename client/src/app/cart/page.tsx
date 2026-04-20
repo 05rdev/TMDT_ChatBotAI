@@ -3,22 +3,122 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, getTotalPrice } = useCartStore();
+  const localCart = useCartStore();
+  const { user } = useAuthStore();
   const [mounted, setMounted] = useState(false);
+  const [serverCart, setServerCart] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [serverTotal, setServerTotal] = useState(0);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user) {
+      fetchServerCart();
+    }
+  }, [user]);
+
+  const fetchServerCart = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/cart');
+      if (res.data.success) {
+        setServerCart(res.data.data.items);
+        setServerTotal(res.data.data.totalAmount);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải giỏ hàng', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateQuantity = async (id: string, variantId: string, currentQty: number, change: number) => {
+    const newQty = Math.max(1, currentQty + change);
+    if (user) {
+      try {
+        await api.put(`/cart/${variantId}`, { quantity: newQty });
+        fetchServerCart();
+      } catch (error) {
+        toast.error('Cập nhật số lượng thất bại');
+      }
+    } else {
+      localCart.updateQuantity(id, newQty);
+    }
+  };
+
+  const removeItem = async (id: string, variantId: string) => {
+    if (user) {
+      try {
+        await api.delete(`/cart/${variantId}`);
+        fetchServerCart();
+      } catch (error) {
+        toast.error('Xóa sản phẩm thất bại');
+      }
+    } else {
+      localCart.removeItem(id);
+    }
+  };
 
   if (!mounted) {
     return null; // Prevent hydration mismatch
   }
 
-  const totalAmount = getTotalPrice();
+  // Auth Guard: yêu cầu đăng nhập khi chưa login
+  if (!user) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
+        <div className="w-32 h-32 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] flex items-center justify-center">
+          <ShoppingCart className="w-16 h-16 text-foreground" />
+        </div>
+        <div className="text-center space-y-4">
+          <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Vui lòng đăng nhập</h2>
+          <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm max-w-md mx-auto">
+            Bạn cần đăng nhập để xem và quản lý giỏ hàng của mình.
+          </p>
+        </div>
+        <div className="flex justify-center gap-4 pt-4">
+          <Link href="/login">
+            <Button size="lg" className="px-8 py-6 text-lg">Đăng nhập ngay</Button>
+          </Link>
+          <Link href="/register">
+            <Button size="lg" variant="outline" className="px-8 py-6 text-lg bg-accent">
+              Đăng ký
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const items = user ? serverCart.map(item => ({
+    id: item.id,
+    productId: item.productId,
+    productVariantId: item.productVariantId,
+    name: item.product?.name,
+    price: item.variant?.price || 0,
+    quantity: item.quantity,
+    image: item.product?.images?.[0]?.url,
+    variant: item.variant?.name
+  })) : localCart.items;
+
+  const totalAmount = user ? serverTotal : localCart.getTotalPrice();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
+        <Loader2 className="w-16 h-16 animate-spin text-primary" />
+        <p className="font-bold uppercase tracking-widest text-muted-foreground">Đang tải giỏ hàng...</p>
+      </div>
+    );
+  }
+
 
   if (items.length === 0) {
     return (
@@ -90,15 +190,15 @@ export default function CartPage() {
                 {/* Controller */}
                 <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-center">
                   <div className="flex items-center bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)]">
-                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-r-2 border-foreground">
+                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-r-2 border-foreground">
                       <Minus className="w-4 h-4 text-foreground" />
                     </button>
                     <span className="w-10 text-center font-black text-base">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-l-2 border-foreground">
+                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-l-2 border-foreground">
                       <Plus className="w-4 h-4 text-foreground" />
                     </button>
                   </div>
-                  <button onClick={() => removeItem(item.id)} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] transition-all sm:hidden">
+                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] transition-all sm:hidden">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -106,7 +206,7 @@ export default function CartPage() {
                 {/* Price & Delete */}
                 <div className="hidden sm:flex col-span-3 items-center justify-end gap-6">
                   <span className="font-black text-xl text-foreground">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
-                  <button onClick={() => removeItem(item.id)} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-1 transition-all">
+                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-1 transition-all">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -131,15 +231,11 @@ export default function CartPage() {
                 <span>Phí vận chuyển chuẩn</span>
                 <span className="text-primary">Miễn phí</span>
               </div>
-              <div className="flex justify-between">
-                <span>Thuế (VAT 10%)</span>
-                <span>{(totalAmount * 0.1).toLocaleString('vi-VN')}đ</span>
-              </div>
             </div>
 
             <div className="border-t-4 border-foreground pt-6 flex justify-between items-end">
               <span className="font-black text-xl uppercase tracking-tighter text-foreground">Tổng cộng</span>
-              <span className="text-3xl font-black text-primary">{(totalAmount * 1.1).toLocaleString('vi-VN')}đ</span>
+              <span className="text-3xl font-black text-primary">{totalAmount.toLocaleString('vi-VN')}đ</span>
             </div>
 
             <Link href="/checkout" className="block w-full pt-4">

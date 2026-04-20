@@ -70,4 +70,31 @@ export class AuthController {
       next(error);
     }
   }
+
+  async updateProfile(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const user = await authService.updateProfile(userId, req.body);
+      return res.json({
+        success: true,
+        message: 'Cập nhật thông tin thành công.',
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      await authService.changePassword(userId, req.body);
+      return res.json({
+        success: true,
+        message: 'Đổi mật khẩu thành công.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

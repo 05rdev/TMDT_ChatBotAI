@@ -10,7 +10,9 @@ export class PaymentController {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const { orderId, method } = req.body;
-      const data = await paymentService.createPayment(orderId, method);
+      const ipAddr = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+      
+      const data = await paymentService.createPayment(orderId, method, ipAddr as string);
       
       return res.json({
         success: true,
@@ -35,6 +37,25 @@ export class PaymentController {
         message: success ? 'Thanh toán thành công (Simulated)' : 'Thanh toán thất bại (Simulated)',
         data: order
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Xử lý VNPay Return URL (Redirect từ VNPay về)
+   */
+  async vnpayReturn(req: Request, res: Response, next: NextFunction) {
+    try {
+      const vnp_Params = req.query;
+      const result = await paymentService.processVnpayReturn(vnp_Params);
+      
+      if (result.success) {
+        // Có thể redirect về trang báo thành công trên frontend
+        return res.redirect(`${process.env.CORS_ORIGIN}/checkout/success?orderId=${result.orderId}`);
+      } else {
+        return res.redirect(`${process.env.CORS_ORIGIN}/checkout/failed?orderId=${result.orderId}`);
+      }
     } catch (error) {
       next(error);
     }

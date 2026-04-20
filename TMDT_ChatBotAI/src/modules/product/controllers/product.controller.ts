@@ -27,6 +27,32 @@ export class ProductController {
   }
 
   /**
+   * Sản phẩm bán chạy nhất (Hot)
+   */
+  async getHotProducts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const limit = parseInt(req.query.limit as string) || 8;
+      const products = await productService.getHotProducts(limit);
+      return res.json({ success: true, data: products });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Sản phẩm mới nhất
+   */
+  async getNewProducts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const limit = parseInt(req.query.limit as string) || 8;
+      const products = await productService.getNewProducts(limit);
+      return res.json({ success: true, data: products });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Chi tiết sản phẩm bằng Slug (Public - SEO)
    */
   async getBySlug(req: Request, res: Response, next: NextFunction) {

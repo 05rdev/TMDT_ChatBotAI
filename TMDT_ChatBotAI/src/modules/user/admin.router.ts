@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { AdminStatsController } from './controllers/admin-stats.controller';
 import { AdminOrderController } from './controllers/admin-order.controller';
+import { AdminUserController } from './controllers/admin-user.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { authorize } from '../../middlewares/authorize';
 
 const router = Router();
 const adminStatsController = new AdminStatsController();
 const adminOrderController = new AdminOrderController();
+const adminUserController = new AdminUserController();
 
 // Tất cả các route admin yêu cầu xác thực và quyền ADMIN
 router.use(authenticate, authorize(['ADMIN']));
@@ -122,5 +124,119 @@ router.get('/products/low-stock', adminStatsController.getLowStock);
  *         description: Danh sách đơn hàng có thể lọc theo trạng thái và thời gian
  */
 router.get('/orders', adminOrderController.getAll);
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Danh sách tất cả người dùng
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trả về danh sách user
+ */
+router.get('/users', adminUserController.getAll);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/status:
+ *   patch:
+ *     summary: Cập nhật trạng thái user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isActive: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Đã cập nhật
+ */
+router.patch('/users/:id/status', adminUserController.updateStatus);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/role:
+ *   patch:
+ *     summary: Cập nhật quyền user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role: { type: string, enum: [USER, ADMIN] }
+ *     responses:
+ *       200:
+ *         description: Đã cập nhật
+ */
+router.patch('/users/:id/role', adminUserController.updateRole);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   put:
+ *     summary: Cập nhật thông tin user (tên, email)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               email: { type: string }
+ *     responses:
+ *       200:
+ *         description: Đã cập nhật
+ */
+router.put('/users/:id', adminUserController.updateUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Xoá user (soft delete)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Đã xoá
+ */
+router.delete('/users/:id', adminUserController.delete);
 
 export default router;

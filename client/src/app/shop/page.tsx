@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import api from '@/lib/api';
-import { Search, Grid, List as ListIcon, Loader2, Sparkles, Filter, Bot, Zap, DollarSign, Mic, Camera } from 'lucide-react';
+import { Search, Grid, List as ListIcon, Loader2, Sparkles, Filter, Bot, Zap, DollarSign, Flame, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 interface Product {
@@ -25,22 +24,36 @@ interface Category {
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [hotProducts, setHotProducts] = useState<Product[]>([]);
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 12;
+
+  const [activeTab, setActiveTab] = useState<'all' | 'hot' | 'new'>('all');
+
   useEffect(() => {
     fetchCategories();
+    fetchHotProducts();
+    fetchNewProducts();
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]); // Fetch when category changes
+    if (activeTab === 'all') {
+      fetchProducts();
+    }
+  }, [selectedCategory, page, activeTab]);
 
   const fetchCategories = async () => {
     try {
@@ -51,25 +64,56 @@ export default function ShopPage() {
     }
   };
 
-  const fetchProducts = async (isSearchSubmit = false) => {
+  const fetchHotProducts = async () => {
+    try {
+      const res = await api.get('/products/hot?limit=8');
+      const formatted = formatProducts(res.data.data || []);
+      setHotProducts(formatted);
+    } catch (err) {
+      console.error('Failed to fetch hot products', err);
+    }
+  };
+
+  const fetchNewProducts = async () => {
+    try {
+      const res = await api.get('/products/new?limit=8');
+      const formatted = formatProducts(res.data.data || []);
+      setNewProducts(formatted);
+    } catch (err) {
+      console.error('Failed to fetch new products', err);
+    }
+  };
+
+  const formatProducts = (data: any[]): Product[] => {
+    return data.map((p: any) => ({
+      ...p,
+      primaryImage: p.images?.[0]?.url,
+      minPrice: p.variants?.[0]?.price ? Number(p.variants[0].price) : 0,
+    }));
+  };
+
+  const fetchProducts = async () => {
     try {
       setIsLoading(true);
       const queryParams = new URLSearchParams();
-      
+
+      queryParams.append('page', String(page));
+      queryParams.append('limit', String(limit));
       if (searchQuery.trim()) queryParams.append('search', searchQuery.trim());
       if (selectedCategory) queryParams.append('categoryId', selectedCategory);
       if (minPrice) queryParams.append('minPrice', minPrice);
       if (maxPrice) queryParams.append('maxPrice', maxPrice);
 
-      const url = `/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `/products?${queryParams.toString()}`;
       const response = await api.get(url);
-      
-      const formattedProducts = (response.data.data || []).map((p: any) => ({
-        ...p,
-        primaryImage: p.images?.[0]?.url,
-        minPrice: p.variants?.[0]?.price
-      }));
+
+      const formattedProducts = formatProducts(response.data.data || []);
       setProducts(formattedProducts);
+
+      if (response.data.pagination) {
+        setTotalPages(response.data.pagination.totalPages);
+        setTotal(response.data.pagination.total);
+      }
     } catch (err) {
       console.error('Failed to fetch products', err);
     } finally {
@@ -79,10 +123,12 @@ export default function ShopPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchProducts(true);
+    setPage(1);
+    fetchProducts();
   };
 
   const handleApplyFilters = () => {
+    setPage(1);
     fetchProducts();
   };
 
@@ -91,153 +137,297 @@ export default function ShopPage() {
     setMinPrice('');
     setMaxPrice('');
     setSearchQuery('');
+    setPage(1);
     setTimeout(() => fetchProducts(), 0);
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Header & Search */}
+    <div className="space-y-12 pb-20">
+      {/* Header & Tabs */}
       <section className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-4 border-foreground pb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-foreground pb-8">
           <div className="space-y-2">
             <h1 className="text-5xl font-black tracking-tighter uppercase text-foreground">Cửa hàng</h1>
-            <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm">Khám phá bộ sưu tập sản phẩm mới nhất</p>
-          </div>
-          
-          <div className="flex items-center space-x-2 text-sm font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-4 py-2 border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)]">
-            <button className="flex items-center hover:text-foreground transition-colors"><Grid className="w-4 h-4 mr-2" /> Lưới</button>
-            <div className="w-[2px] h-4 bg-foreground mx-3" />
-            <button className="flex items-center hover:text-foreground transition-colors"><ListIcon className="w-4 h-4 mr-2" /> Danh sách</button>
+            <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm">
+              {activeTab === 'all' && 'Khám phá toàn bộ bộ sưu tập'}
+              {activeTab === 'hot' && 'Những sản phẩm được yêu thích nhất'}
+              {activeTab === 'new' && 'Cập nhật những xu hướng mới nhất'}
+            </p>
           </div>
         </div>
 
-
-      </section>
-
-      {/* Top Filters Section */}
-      <section className="solid-card p-6 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)]">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-black text-xl uppercase tracking-tighter flex items-center">
-            <Filter className="w-5 h-5 mr-2" /> Bộ lọc
-          </h3>
-          <button 
-            onClick={handleClearFilters}
-            className="text-xs font-bold uppercase tracking-widest text-red-500 hover:text-red-700 hover:underline underline-offset-4 transition-all"
-          >
-            Xóa tất cả
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Categories */}
-          <div className="lg:col-span-2 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground block">Danh mục</span>
-            <div className="flex flex-wrap gap-3">
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap gap-4 p-2 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)]">
+          {[
+            { id: 'all', label: 'Tất cả sản phẩm', icon: Grid, color: 'bg-background' },
+            { id: 'hot', label: 'Sản phẩm bán chạy', icon: Flame, color: 'bg-red-500' },
+            { id: 'new', label: 'Sản phẩm mới', icon: Clock, color: 'bg-primary' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
               <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-4 py-2 border-2 text-sm font-bold uppercase tracking-wider transition-all ${
-                  selectedCategory === null 
-                    ? 'bg-primary text-primary-foreground border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] -translate-y-0.5' 
-                    : 'bg-background text-foreground border-foreground hover:bg-secondary hover:shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-0.5'
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-1 min-w-[150px] flex items-center justify-center space-x-3 px-6 py-4 border-2 font-black uppercase tracking-widest text-sm transition-all ${
+                  isActive 
+                    ? 'bg-foreground text-background border-foreground shadow-[4px_4px_0px_0px_var(--primary)] -translate-y-1 translate-x-1' 
+                    : 'bg-background text-foreground border-foreground hover:bg-secondary hover:-translate-y-0.5'
                 }`}
               >
-                Tất cả
+                <div className={`w-8 h-8 border-2 border-foreground flex items-center justify-center ${isActive ? 'bg-primary text-primary-foreground' : tab.color + (tab.id === 'all' ? '' : ' text-white')}`}>
+                  <tab.icon className="w-5 h-5" />
+                </div>
+                <span>{tab.label}</span>
               </button>
-              {categories.map((cat) => (
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Tab Content */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        
+        {/* 🔥 BEST SELLERS TAB */}
+        {activeTab === 'hot' && (
+          <section className="space-y-8">
+             <div className="flex items-center gap-3 border-b-4 border-foreground pb-4 mb-6">
+                <div className="w-10 h-10 bg-red-500 border-2 border-foreground flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
+                  <Flame className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Sản phẩm bán chạy</h2>
+              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {hotProducts.map((product) => (
+                <ProductCard key={product.id} product={product} badge="HOT" />
+              ))}
+            </div>
+            {hotProducts.length === 0 && (
+              <div className="h-[300px] flex flex-col items-center justify-center space-y-4">
+                <Bot className="w-12 h-12 text-muted-foreground" />
+                <p className="font-bold uppercase tracking-widest">Đang cập nhật sản phẩm bán chạy...</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ✨ NEW ARRIVALS TAB */}
+        {activeTab === 'new' && (
+          <section className="space-y-8">
+            <div className="flex items-center gap-3 border-b-4 border-foreground pb-4 mb-6">
+                <div className="w-10 h-10 bg-primary border-2 border-foreground flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
+                  <Clock className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Sản phẩm mới</h2>
+              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {newProducts.map((product) => (
+                <ProductCard key={product.id} product={product} badge="NEW" />
+              ))}
+            </div>
+            {newProducts.length === 0 && (
+              <div className="h-[300px] flex flex-col items-center justify-center space-y-4">
+                <Bot className="w-12 h-12 text-muted-foreground" />
+                <p className="font-bold uppercase tracking-widest">Đang cập nhật sản phẩm mới...</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* 📦 ALL PRODUCTS TAB */}
+        {activeTab === 'all' && (
+          <section className="space-y-8">
+            <div className="flex items-center gap-3 border-b-4 border-foreground pb-4 mb-8">
+               <div className="w-10 h-10 bg-accent border-2 border-foreground flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
+                  <Grid className="w-6 h-6 text-foreground" />
+                </div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Tất cả sản phẩm</h2>
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground bg-accent px-3 py-1 border border-foreground ml-auto">
+                {total} sản phẩm
+              </span>
+            </div>
+
+            {/* Filters */}
+            <div className="solid-card p-6 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)]">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-xl uppercase tracking-tighter flex items-center">
+              <Filter className="w-5 h-5 mr-2" /> Bộ lọc
+            </h3>
+            <button
+              onClick={handleClearFilters}
+              className="text-xs font-bold uppercase tracking-widest text-red-500 hover:text-red-700 hover:underline underline-offset-4 transition-all"
+            >
+              Xóa tất cả
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Categories */}
+            <div className="lg:col-span-2 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground block">Danh mục</span>
+              <div className="flex flex-wrap gap-3">
                 <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => { setSelectedCategory(null); setPage(1); }}
                   className={`px-4 py-2 border-2 text-sm font-bold uppercase tracking-wider transition-all ${
-                    selectedCategory === cat.id 
-                      ? 'bg-primary text-primary-foreground border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] -translate-y-0.5' 
+                    selectedCategory === null
+                      ? 'bg-primary text-primary-foreground border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] -translate-y-0.5'
                       : 'bg-background text-foreground border-foreground hover:bg-secondary hover:shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-0.5'
                   }`}
                 >
-                  {cat.name}
+                  Tất cả
                 </button>
-              ))}
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setSelectedCategory(cat.id); setPage(1); }}
+                    className={`px-4 py-2 border-2 text-sm font-bold uppercase tracking-wider transition-all ${
+                      selectedCategory === cat.id
+                        ? 'bg-primary text-primary-foreground border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] -translate-y-0.5'
+                        : 'bg-background text-foreground border-foreground hover:bg-secondary hover:shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-0.5'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Price Range */}
-          <div className="space-y-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground block">Khoảng giá (VND)</span>
-            <div className="flex items-center space-x-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground"><DollarSign className="w-4 h-4" /></span>
-                <input 
-                  type="number" 
-                  placeholder="Min" 
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-background border-2 border-foreground font-bold text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors"
-                />
+            {/* Price Range */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground block">Khoảng giá (VND)</span>
+              <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground"><DollarSign className="w-4 h-4" /></span>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-background border-2 border-foreground font-bold text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors"
+                  />
+                </div>
+                <span className="font-bold">-</span>
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground"><DollarSign className="w-4 h-4" /></span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-background border-2 border-foreground font-bold text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors"
+                  />
+                </div>
+                <Button onClick={handleApplyFilters} className="px-4 py-2" variant="primary">Lọc</Button>
               </div>
-              <span className="font-bold">-</span>
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground"><DollarSign className="w-4 h-4" /></span>
-                <input 
-                  type="number" 
-                  placeholder="Max" 
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-background border-2 border-foreground font-bold text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors"
-                />
-              </div>
-              <Button onClick={handleApplyFilters} className="px-4 py-2" variant="default">Lọc</Button>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Main Content Area */}
-      <div>
+        {/* Products Grid */}
         {isLoading ? (
           <div className="h-[400px] flex flex-col items-center justify-center space-y-6">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
             <p className="font-bold text-xl uppercase tracking-widest animate-pulse">Đang tải dữ liệu...</p>
           </div>
-        ) : (products?.length === 0) ? (
+        ) : products.length === 0 ? (
           <div className="h-[400px] solid-card bg-background flex flex-col items-center justify-center space-y-6 text-center p-8">
             <div className="w-20 h-20 bg-accent border-4 border-foreground rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_var(--foreground)]">
                <Search className="w-10 h-10 text-foreground" />
             </div>
             <h3 className="text-3xl font-black uppercase tracking-tighter">Không tìm thấy sản phẩm</h3>
-            <p className="text-muted-foreground font-bold max-w-md uppercase tracking-wider">Dạ, hiện tại chưa có sản phẩm nào khớp với yêu cầu lọc của bạn. Hãy thử thay đổi tiêu chí!</p>
+            <p className="text-muted-foreground font-bold max-w-md uppercase tracking-wider">Hiện tại chưa có sản phẩm nào khớp với yêu cầu. Hãy thử thay đổi tiêu chí!</p>
             <Button size="lg" onClick={handleClearFilters}>Xóa bộ lọc</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-8">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-4 py-2 border-2 border-foreground bg-background font-bold text-sm uppercase tracking-wider hover:bg-secondary disabled:opacity-50 transition-all shadow-[2px_2px_0px_0px_var(--foreground)] disabled:shadow-none"
+                >
+                  ← Trước
+                </button>
+
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 7) {
+                    pageNum = i + 1;
+                  } else if (page <= 4) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 3) {
+                    pageNum = totalPages - 6 + i;
+                  } else {
+                    pageNum = page - 3 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-10 h-10 border-2 border-foreground font-black text-sm transition-all ${
+                        page === pageNum
+                          ? 'bg-primary text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] -translate-y-1'
+                          : 'bg-background text-foreground hover:bg-secondary hover:-translate-y-0.5'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-4 py-2 border-2 border-foreground bg-background font-bold text-sm uppercase tracking-wider hover:bg-secondary disabled:opacity-50 transition-all shadow-[2px_2px_0px_0px_var(--foreground)] disabled:shadow-none"
+                >
+                  Tiếp →
+                </button>
+              </div>
+            )}
+          </>
         )}
-      </div>
-    </div>
+      </section>
+    )}
+  </div>
+</div>
   );
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, badge }: { product: Product; badge?: string }) {
   return (
     <div className="solid-card bg-background flex flex-col group hover:-translate-y-2 transition-transform cursor-pointer relative">
       <Link href={`/product/${product.slug}`} className="block relative aspect-[4/5] border-b-2 border-foreground overflow-hidden bg-secondary">
         {product.primaryImage ? (
-          <img src={product.primaryImage} alt={product.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 grayscale group-hover:grayscale-0" />
+          <img src={product.primaryImage} alt={product.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <Bot className="w-16 h-16 text-muted-foreground opacity-50" />
           </div>
         )}
-        
-        {/* Similarity Badge (if search result) */}
+
+        {/* Badge */}
+        {badge && (
+          <div className={`absolute top-4 left-4 border-2 border-foreground text-[10px] font-black uppercase tracking-widest px-3 py-1 shadow-[2px_2px_0px_0px_var(--foreground)] ${
+            badge === 'HOT' ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground'
+          }`}>
+            {badge === 'HOT' ? '🔥 Hot' : '✨ Mới'}
+          </div>
+        )}
+
         {product.similarity && (
-          <div className="absolute top-4 left-4 bg-primary text-primary-foreground border-2 border-foreground text-[10px] font-black uppercase tracking-widest px-3 py-1 shadow-[2px_2px_0px_0px_var(--foreground)]">
+          <div className="absolute top-4 right-4 bg-primary text-primary-foreground border-2 border-foreground text-[10px] font-black uppercase tracking-widest px-3 py-1 shadow-[2px_2px_0px_0px_var(--foreground)]">
             Match: {Math.round(product.similarity * 100)}%
           </div>
         )}
       </Link>
-      
+
       <div className="p-5 space-y-4 flex flex-col flex-1">
         <div className="space-y-2 flex-1">
           <p className="text-[10px] uppercase tracking-widest font-black text-muted-foreground bg-accent px-2 py-1 inline-block border border-foreground">
@@ -249,14 +439,16 @@ function ProductCard({ product }: { product: Product }) {
             </h3>
           </Link>
         </div>
-        
+
         <div className="flex items-end justify-between pt-4 border-t-2 border-foreground border-dashed">
           <span className="text-2xl font-black text-foreground">
             {product.minPrice ? `${product.minPrice.toLocaleString('vi-VN')}đ` : 'Liên hệ'}
           </span>
-          <Button size="sm" className="px-3 py-2 border-2 shadow-[2px_2px_0px_0px_var(--foreground)] active:shadow-none active:translate-y-[2px]">
-             <Zap className="w-4 h-4 mr-1" /> Mua
-          </Button>
+          <Link href={`/product/${product.slug}`}>
+            <Button size="sm" className="px-3 py-2 border-2 shadow-[2px_2px_0px_0px_var(--foreground)] active:shadow-none active:translate-y-[2px]">
+               <Zap className="w-4 h-4 mr-1" /> Xem
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

@@ -155,6 +155,57 @@ export class ProductService {
   }
 
   /**
+   * Sản phẩm bán chạy nhất (dựa trên tổng quantity trong OrderItem)
+   */
+  async getHotProducts(limit: number = 8) {
+    // Query raw để GROUP BY productId, SUM quantity
+    const hotProductIds = await prisma.$queryRaw<{ productId: string; totalSold: number }[]>`
+      SELECT "productId", CAST(SUM("quantity") AS INTEGER) as "totalSold"
+      FROM "OrderItem"
+      GROUP BY "productId"
+      ORDER BY "totalSold" DESC
+      LIMIT ${limit}
+    `;
+
+    if (hotProductIds.length === 0) {
+      // Fallback: trả sản phẩm mới nhất nếu chưa có đơn hàng
+      return this.getNewProducts(limit);
+    }
+
+    const ids = hotProductIds.map(p => p.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: ids }, isDeleted: false },
+      include: {
+        images: { where: { isPrimary: true }, take: 1 },
+        variants: { orderBy: { price: 'asc' }, take: 1 },
+        category: { select: { name: true } },
+      },
+    });
+
+    // Giữ thứ tự theo totalSold
+    const productMap = new Map(products.map(p => [p.id, p]));
+    return hotProductIds
+      .map(h => productMap.get(h.productId))
+      .filter(Boolean);
+  }
+
+  /**
+   * Sản phẩm mới nhất (sắp xếp theo createdAt DESC)
+   */
+  async getNewProducts(limit: number = 8) {
+    return prisma.product.findMany({
+      where: { isDeleted: false },
+      include: {
+        images: { where: { isPrimary: true }, take: 1 },
+        variants: { orderBy: { price: 'asc' }, take: 1 },
+        category: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
    * Tạo sản phẩm mới kèm Variants
    */
   async create(data: any) {
