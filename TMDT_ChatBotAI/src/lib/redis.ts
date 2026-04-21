@@ -37,9 +37,17 @@ class RedisService {
   async delete(key: string) {
     await this.client.del(key);
   }
+
+  async deletePattern(pattern: string) {
+    const keys = await this.client.keys(pattern);
+    if (keys.length > 0) {
+      await this.client.del(...keys);
+    }
+  }
 }
 
 export const redisService = RedisService.getInstance();
 export const cacheSet = (key: string, value: string, ttl: number) => redisService.set(key, value, ttl);
 export const cacheGet = <T>(key: string) => redisService.get(key) as Promise<T | null>;
 export const cacheDel = (key: string) => redisService.delete(key);
+export const cacheDelPattern = (pattern: string) => redisService.deletePattern(pattern);

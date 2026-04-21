@@ -19,6 +19,7 @@ import adminRouter from './modules/user/admin.router';
 import voucherRouter from './modules/voucher/router';
 import notificationRouter from './modules/notification/router';
 import supportRouter from './modules/support/router';
+import bannerRouter from './modules/banner/router';
 
 import { errorHandler as globalErrorHandler } from './middlewares/error.middleware';
 import { activityLogger } from './middlewares/activity-logger';
@@ -58,6 +59,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/vouchers', voucherRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/support', supportRouter);
+app.use('/api/banners', bannerRouter);
 
 
 // Health check

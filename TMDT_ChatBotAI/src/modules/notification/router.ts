@@ -8,12 +8,14 @@ const notificationController = new NotificationController();
 
 // User routes
 router.use(authenticate);
-router.get('/', notificationController.getMyNotifications);
-router.put('/read-all', notificationController.markAllAsRead);
-router.put('/:id/read', notificationController.markAsRead);
+router.get('/', notificationController.getMyNotifications as any);
+router.get('/:userId', notificationController.getMyNotifications as any);
+router.put('/read-all', notificationController.markAllAsRead as any);
+router.put('/:id/read', notificationController.markAsRead as any);
+router.delete('/:id', notificationController.deleteNotification as any);
 
 // Admin routes
-router.post('/send', authorize(['ADMIN']), notificationController.sendToUser);
-router.post('/broadcast', authorize(['ADMIN']), notificationController.broadcast);
+router.post('/send', authorize(['ADMIN']), notificationController.sendToUser as any);
+router.post('/broadcast', authorize(['ADMIN']), notificationController.broadcast as any);
 
 export default router;

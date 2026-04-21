@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import api from '@/lib/api';
 
 export interface CartItem {
   id: string; // Typically productId + variantId
@@ -20,12 +21,34 @@ interface CartStore {
   clearCart: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
+  fetchCart: () => Promise<void>;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      
+      fetchCart: async () => {
+        try {
+          const res = await api.get('/cart');
+          if (res.data.success) {
+            const serverItems = res.data.data.items.map((item: any) => ({
+              id: `${item.productId}-${item.variant?.name || 'default'}`,
+              productId: item.productId,
+              productVariantId: item.productVariantId,
+              name: item.product.name,
+              price: Number(item.variant?.price || item.price),
+              quantity: item.quantity,
+              image: item.product.images?.[0]?.url || item.product.primaryImage || '',
+              variant: item.variant?.name || ''
+            }));
+            set({ items: serverItems });
+          }
+        } catch (error) {
+          console.error('Failed to fetch cart from server', error);
+        }
+      },
       
       addItem: (item) => {
         set((state) => {

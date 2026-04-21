@@ -11,7 +11,12 @@ export class AdminChatbotService {
    * Trò chuyện với Admin (Hỗ trợ quản trị hệ thống)
    */
   async askAdminChatbot(adminId: string, message: string) {
-    // 1. Lấy dữ liệu thống kê tổng quan
+    // 1. Lưu tin nhắn của Admin
+    await prisma.chatMessage.create({
+      data: { userId: adminId, role: 'user', content: message }
+    });
+
+    // 2. Lấy dữ liệu thống kê tổng quan
     const userCount = await prisma.user.count({ where: { isActive: true } });
     const productCount = await prisma.product.count({ where: { isDeleted: false } });
     const orderCount = await prisma.order.count();
@@ -20,24 +25,24 @@ export class AdminChatbotService {
       _sum: { totalAmount: true }
     });
 
-    // 2. Lấy danh sách đơn hàng mới nhất
+    // 3. Lấy danh sách đơn hàng mới nhất
     const latestOrders = await prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { user: { select: { name: true } } }
     });
 
-    // 3. Lấy sản phẩm sắp hết hàng
+    // 4. Lấy sản phẩm sắp hết hàng
     const lowStockProducts = await prisma.productVariant.findMany({
       where: { stock: { lt: 10 } },
       take: 5,
       include: { product: { select: { name: true } } }
     });
 
-    // 4. Lấy Support Ticket đang chờ
+    // 5. Lấy Support Ticket đang chờ
     const pendingTickets = await prisma.supportTicket.count({ where: { status: 'OPEN' } });
 
-    // 5. Ngữ cảnh Admin
+    // 6. Ngữ cảnh Admin
     const revenueAmount = totalRevenue?._sum?.totalAmount ? Number(totalRevenue._sum.totalAmount) : 0;
     
     const adminContext = `
@@ -67,6 +72,14 @@ export class AdminChatbotService {
       - Trả lời dựa trên số liệu thực tế được cung cấp.
     `;
 
+    // 7. Lấy lịch sử hội thoại
+    const history = await prisma.chatMessage.findMany({
+      where: { userId: adminId },
+      orderBy: { createdAt: 'desc' },
+      take: 7
+    });
+    history.reverse();
+
     try {
       const response = await fetch(this.ollamaUrl, {
         method: 'POST',
@@ -75,7 +88,7 @@ export class AdminChatbotService {
           model: this.modelName,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: message }
+            ...history.map(h => ({ role: h.role, content: h.content }))
           ],
           stream: false
         })
@@ -84,10 +97,37 @@ export class AdminChatbotService {
       if (!response.ok) throw new Error('Ollama service error');
 
       const data: any = await response.json();
-      return data.message.content;
+      const aiResponse = data.message.content;
+
+      // 8. Lưu phản hồi của AI
+      await prisma.chatMessage.create({
+        data: { userId: adminId, role: 'assistant', content: aiResponse }
+      });
+
+      return aiResponse;
     } catch (error) {
       console.error('❌ Admin Chatbot Error:', error);
       return 'Dạ, hiện tại em không thể truy xuất dữ liệu hệ thống. Anh/chị vui lòng kiểm tra lại kết nối Ollama.';
     }
+  }
+
+  /**
+   * Lấy lịch sử trò chuyện của Admin
+   */
+  async getHistory(adminId: string) {
+    return prisma.chatMessage.findMany({
+      where: { userId: adminId },
+      orderBy: { createdAt: 'asc' },
+      take: 50
+    });
+  }
+
+  /**
+   * Làm trống lịch sử trò chuyện
+   */
+  async clearHistory(adminId: string) {
+    return prisma.chatMessage.deleteMany({
+      where: { userId: adminId }
+    });
   }
 }

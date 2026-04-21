@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { ShieldCheck, Truck, CreditCard, ChevronLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { ShieldCheck, Truck, CreditCard, ChevronLeft, CheckCircle2, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -14,7 +14,7 @@ import { useCartStore } from '@/store/useCartStore';
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { clearCart } = useCartStore(); // Just to clear local Zustand if needed
+  const { clearCart } = useCartStore();
 
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [subtotal, setSubtotal] = useState(0);
@@ -51,7 +51,6 @@ export default function CheckoutPage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Voucher state
   const [voucherCode, setVoucherCode] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<{ code: string, discount: number } | null>(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
@@ -112,10 +111,9 @@ export default function CheckoutPage() {
       
       const res = await api.post('/orders', payload);
       if (res.data.success) {
-        clearCart(); // clear local store
+        clearCart(); 
         const orderId = res.data.data.id;
 
-        // If VNPAY, generate payment URL
         if (formData.paymentMethod === 'VNPAY') {
           try {
             const paymentRes = await api.post('/orders/checkout', {
@@ -123,7 +121,6 @@ export default function CheckoutPage() {
               method: 'VNPAY'
             });
             if (paymentRes.data.success && paymentRes.data.data.payUrl) {
-              // Redirect to VNPAY
               window.location.href = paymentRes.data.data.payUrl;
               return;
             }
@@ -136,10 +133,9 @@ export default function CheckoutPage() {
           description: 'Đơn hàng của bạn đã được hệ thống ghi nhận. Cảm ơn bạn đã mua sắm trên UltraShop.',
         });
         
-        // Optional: clear server cart if POST /orders doesn't do it automatically
         await api.delete('/cart').catch(() => {});
         
-        router.push('/profile/orders');
+        router.push(`/checkout/success?orderId=${orderId}`);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Đặt hàng thất bại');
@@ -149,94 +145,93 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 space-y-8">
-      <div className="flex items-center space-x-4">
+    <div className="space-y-8 pb-20 animate-fade-in-up">
+      <div className="flex items-center space-x-3 mb-2">
         <Link href="/cart">
-          <Button variant="ghost" className="w-10 h-10 p-0 rounded-full"><ChevronLeft className="w-6 h-6" /></Button>
+          <Button variant="ghost" className="w-10 h-10 p-0 rounded-full hover:bg-secondary"><ChevronLeft className="w-5 h-5 text-muted-foreground" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Thanh toán an toàn</h1>
-          <p className="text-muted-foreground text-sm">Vui lòng kiểm tra lại thông tin trước khi hoàn tất.</p>
+          <h1 className="font-heading text-3xl text-foreground">Thanh toán</h1>
+          <p className="text-muted-foreground text-sm mt-1">Vui lòng kiểm tra lại thông tin trước khi hoàn tất.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Checkout */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6">
           {/* Section 1: Thông tin giao hàng */}
-          <section className="glass-card p-8 rounded-3xl space-y-6">
-            <h2 className="text-xl font-bold border-b border-border pb-4 flex items-center">
-              <span className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mr-3 text-sm">1</span>
+          <section className="card-elevated p-6 sm:p-8 rounded-[var(--radius-xl)] bg-card">
+            <h2 className="text-xl font-semibold border-b border-border pb-4 mb-6 flex items-center">
+              <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-3 text-sm font-bold">1</span>
               Thông tin giao hàng
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input label="Họ và tên người nhận" name="name" value={formData.name} onChange={handleChange} required />
               <Input label="Số điện thoại" name="phone" value={formData.phone} onChange={handleChange} required />
               <div className="sm:col-span-2">
                 <Input label="Địa chỉ giao hàng (Số nhà, Tên đường...)" name="address" value={formData.address} onChange={handleChange} required />
               </div>
             </div>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-start space-x-3 mt-4">
-               <Truck className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-               <p className="text-sm text-muted-foreground">Khoảng thời gian giao hàng dự kiến: <strong className="text-foreground">1-2 ngày làm việc</strong> tại khu vực của bạn.</p>
+            <div className="bg-secondary/50 border border-border rounded-[var(--radius-lg)] p-4 flex items-start space-x-3 mt-6">
+               <Truck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+               <p className="text-sm text-muted-foreground leading-relaxed">Khoảng thời gian giao hàng dự kiến: <strong className="text-foreground font-semibold">1-2 ngày làm việc</strong> tại khu vực của bạn.</p>
             </div>
           </section>
 
           {/* Section 2: Phương thức thanh toán */}
-          <section className="glass-card p-8 rounded-3xl space-y-6">
-            <h2 className="text-xl font-bold border-b border-border pb-4 flex items-center">
-              <span className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mr-3 text-sm">2</span>
+          <section className="card-elevated p-6 sm:p-8 rounded-[var(--radius-xl)] bg-card">
+            <h2 className="text-xl font-semibold border-b border-border pb-4 mb-6 flex items-center">
+              <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-3 text-sm font-bold">2</span>
               Phương thức thanh toán
             </h2>
             
             <div className="space-y-4">
-              <label className={`block flex items-center p-4 border rounded-2xl cursor-pointer transition-all ${formData.paymentMethod === 'COD' ? 'border-emerald-500 bg-emerald-500/5' : 'border-border hover:border-emerald-500/30'}`}>
-                <input type="radio" name="paymentOption" className="w-5 h-5 accent-emerald-500" checked={formData.paymentMethod === 'COD'} onChange={() => setFormData({...formData, paymentMethod: 'COD'})} />
+              <label className={`block flex items-center p-4 border rounded-[var(--radius-lg)] cursor-pointer transition-all ${formData.paymentMethod === 'COD' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-foreground/30 bg-card'}`}>
+                <input type="radio" name="paymentOption" className="w-4.5 h-4.5 accent-primary" checked={formData.paymentMethod === 'COD'} onChange={() => setFormData({...formData, paymentMethod: 'COD'})} />
                 <div className="ml-4 flex-1">
-                  <h4 className="font-bold text-foreground">Thanh toán khi nhận hàng (COD)</h4>
-                  <p className="text-sm text-muted-foreground">Kiểm tra hàng trước khi thanh toán tiền mặt.</p>
+                  <h4 className="font-semibold text-foreground">Thanh toán khi nhận hàng (COD)</h4>
+                  <p className="text-sm text-muted-foreground mt-0.5">Kiểm tra hàng trước khi thanh toán bằng tiền mặt.</p>
                 </div>
-                <Truck className="w-6 h-6 text-emerald-500 opacity-50" />
+                <Truck className="w-6 h-6 text-primary opacity-80 hidden sm:block" />
               </label>
 
-              <label className={`block flex items-center p-4 border rounded-2xl cursor-pointer transition-all ${formData.paymentMethod === 'VNPAY' ? 'border-cyan-500 bg-cyan-500/5' : 'border-border hover:border-cyan-500/30'}`}>
-                <input type="radio" name="paymentOption" className="w-5 h-5 accent-cyan-500" checked={formData.paymentMethod === 'VNPAY'} onChange={() => setFormData({...formData, paymentMethod: 'VNPAY'})} />
+              <label className={`block flex items-center p-4 border rounded-[var(--radius-lg)] cursor-pointer transition-all ${formData.paymentMethod === 'VNPAY' ? 'border-accent bg-accent/5 shadow-sm' : 'border-border hover:border-foreground/30 bg-card'}`}>
+                <input type="radio" name="paymentOption" className="w-4.5 h-4.5 accent-accent" checked={formData.paymentMethod === 'VNPAY'} onChange={() => setFormData({...formData, paymentMethod: 'VNPAY'})} />
                 <div className="ml-4 flex-1">
-                  <h4 className="font-bold text-foreground">Ví điện tử VNPAY (Demo)</h4>
-                  <p className="text-sm text-muted-foreground">Thanh toán qua mã QR ngay lập tức.</p>
+                  <h4 className="font-semibold text-foreground">Ví điện tử VNPAY</h4>
+                  <p className="text-sm text-muted-foreground mt-0.5">Thanh toán qua mã QR ngay lập tức an toàn.</p>
                 </div>
-                <CreditCard className="w-6 h-6 text-cyan-500 opacity-50" />
+                <CreditCard className="w-6 h-6 text-accent opacity-80 hidden sm:block" />
               </label>
             </div>
           </section>
         </div>
 
-        {/* Cột Tổng kết & Place Order */}
+        {/* Summary */}
         <div className="lg:col-span-1">
-          <div className="glass-card p-6 rounded-3xl border-border space-y-6 sticky top-32">
-            <h3 className="font-bold text-lg text-foreground border-b border-border pb-4">Tóm tắt đơn hàng</h3>
+          <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card space-y-6 sticky top-24">
+            <h3 className="font-semibold text-lg text-foreground border-b border-border pb-4">Tóm tắt đơn hàng</h3>
             
-            {/* List Mini Item */}
-            <div className="space-y-4 border-b border-border pb-4 max-h-[300px] overflow-y-auto pr-2">
+            <div className="space-y-4 border-b border-border pb-4 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
               {isLoading ? (
-                <div className="flex justify-center p-4">
+                <div className="flex justify-center p-6">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               ) : orderItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Giỏ hàng trống</p>
               ) : (
                 orderItems.map((item: any) => {
-                  const image = item.product?.images?.[0]?.url || 'https://via.placeholder.com/150';
+                  const image = item.product?.images?.[0]?.url || '';
                   const price = item.variant?.price ? Number(item.variant.price) : 0;
                   return (
                     <div key={item.id} className="flex items-center space-x-3">
-                       <div className="w-12 h-12 rounded-lg bg-muted relative overflow-hidden flex-shrink-0">
-                         <img src={image} alt={item.product?.name} className="object-cover w-full h-full" />
-                         <div className="absolute top-0 right-0 w-4 h-4 bg-emerald-500 text-[8px] font-bold text-white flex items-center justify-center rounded-bl-sm">{item.quantity}</div>
+                       <div className="w-14 h-14 rounded-[var(--radius-md)] bg-secondary relative overflow-hidden flex-shrink-0 border border-border">
+                         {image ? <img src={image} alt="" className="object-cover w-full h-full" /> : <div className="w-full h-full bg-muted" />}
+                         <div className="absolute top-0 right-0 w-4 h-4 bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center rounded-bl-[var(--radius-sm)]">{item.quantity}</div>
                        </div>
-                       <div className="flex-1">
-                         <h5 className="text-xs font-bold text-foreground line-clamp-1">{item.product?.name}</h5>
-                         <p className="text-xs text-muted-foreground">{price.toLocaleString('vi-VN')}đ</p>
+                       <div className="flex-1 min-w-0">
+                         <h5 className="text-sm font-semibold text-foreground line-clamp-1">{item.product?.name}</h5>
+                         <p className="text-xs text-muted-foreground mt-0.5">{price.toLocaleString('vi-VN')}đ</p>
                        </div>
                     </div>
                   );
@@ -244,17 +239,17 @@ export default function CheckoutPage() {
               )}
             </div>
             
-            <div className="space-y-4 text-sm">
+            <div className="space-y-3.5 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Tạm tính</span>
-                <span>{subtotal.toLocaleString('vi-VN')}đ</span>
+                <span className="text-foreground font-medium">{subtotal.toLocaleString('vi-VN')}đ</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Vận chuyển</span>
-                <span>Miễn phí</span>
+                <span>Phí vận chuyển</span>
+                <span className="text-primary font-medium">Miễn phí</span>
               </div>
               {appliedVoucher && (
-                <div className="flex justify-between text-emerald-500 font-bold">
+               <div className="flex justify-between text-warning font-semibold">
                   <span>Mã giảm giá ({appliedVoucher.code})</span>
                   <span>-{appliedVoucher.discount.toLocaleString('vi-VN')}đ</span>
                 </div>
@@ -264,9 +259,9 @@ export default function CheckoutPage() {
             {/* Voucher Input */}
             <div className="pt-4 border-t border-border">
               {appliedVoucher ? (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 flex justify-between items-center rounded-xl">
-                  <span className="text-emerald-500 font-bold text-sm">Đã áp dụng: {appliedVoucher.code}</span>
-                  <button onClick={removeVoucher} className="text-xs text-red-500 hover:underline">Gỡ bỏ</button>
+                <div className="bg-warning/10 border border-warning/20 p-3 flex justify-between items-center rounded-[var(--radius-md)]">
+                  <span className="text-warning font-semibold text-sm">Đã áp dụng: {appliedVoucher.code}</span>
+                  <button onClick={removeVoucher} className="text-xs text-danger hover:underline font-medium">Gỡ bỏ</button>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -279,7 +274,7 @@ export default function CheckoutPage() {
                   <Button 
                     onClick={handleApplyVoucher} 
                     isLoading={isApplyingVoucher}
-                    variant="outline"
+                    variant="secondary"
                   >
                     Áp dụng
                   </Button>
@@ -287,20 +282,20 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            <div className="border-t border-emerald-500/30 pt-4 flex justify-between items-end">
-              <span className="font-bold text-foreground">Tổng thanh toán</span>
-              <span className="text-2xl font-black text-emerald-500">{total.toLocaleString('vi-VN')}đ</span>
+            <div className="border-t border-border pt-5 flex justify-between items-end">
+              <span className="font-semibold text-foreground">Tổng thanh toán</span>
+              <span className="text-2xl font-bold text-primary">{total.toLocaleString('vi-VN')}đ</span>
             </div>
 
-            <Button onClick={handlePlaceOrder} isLoading={isProcessing} className="w-full py-6 text-lg font-bold rounded-2xl group relative overflow-hidden bg-emerald-500 hover:bg-emerald-600">
-              <span className="relative z-10 flex items-center justify-center text-white">
+            <Button onClick={handlePlaceOrder} isLoading={isProcessing} size="lg" className="w-full relative overflow-hidden group">
+              <span className="relative z-10 flex items-center justify-center">
                 Hoàn tất đặt hàng <CheckCircle2 className="ml-2 w-5 h-5" />
               </span>
             </Button>
 
             <div className="pt-2">
-              <p className="text-[10px] text-muted-foreground flex items-start">
-                <ShieldCheck className="w-4 h-4 mr-2 text-emerald-500 flex-shrink-0" />
+              <p className="text-[11px] text-muted-foreground flex items-start leading-relaxed bg-secondary/30 p-3 rounded-[var(--radius-md)]">
+                <ShieldCheck className="w-4 h-4 mr-2 text-primary flex-shrink-0" />
                 Thông tin của bạn được mã hóa an toàn theo tiêu chuẩn bảo mật của UltraShop AI System.
               </p>
             </div>

@@ -15,6 +15,23 @@ export class ProductController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const validatedQuery = productQuerySchema.parse(req.query);
+      
+      // Nếu có từ khóa tìm kiếm, sử dụng AI Search thông minh
+      if (validatedQuery.search) {
+        const aiProducts = await aiService.intelligentSearch(validatedQuery.search, validatedQuery.limit || 20);
+        return res.json({
+          success: true,
+          data: aiProducts,
+          pagination: {
+            total: aiProducts.length,
+            page: validatedQuery.page || 1,
+            limit: validatedQuery.limit || 20,
+            totalPages: 1
+          },
+          searchType: 'intelligent'
+        });
+      }
+
       const result = await productService.getProducts(validatedQuery);
       return res.json({
         success: true,
@@ -187,6 +204,32 @@ export class ProductController {
         count: products.length,
         data: products 
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Xóa ảnh sản phẩm (Admin)
+   */
+  async deleteImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { imageId } = req.params;
+      await productService.deleteImage(imageId as string);
+      return res.json({ success: true, message: 'Xoá ảnh thành công' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Đặt ảnh làm ảnh chính (Admin)
+   */
+  async setPrimaryImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, imageId } = req.params;
+      await productService.setPrimaryImage(id as string, imageId as string);
+      return res.json({ success: true, message: 'Đã đặt làm ảnh chính' });
     } catch (error) {
       next(error);
     }

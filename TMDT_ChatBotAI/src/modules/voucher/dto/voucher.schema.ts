@@ -10,6 +10,7 @@ export const createVoucherSchema = z.object({
   endDate: z.string().datetime(),
   usageLimit: z.number().int().min(1).default(1),
   categoryId: z.string().uuid().optional().nullable(),
+  productId: z.string().uuid().optional().nullable(),
 });
 
 export const updateVoucherSchema = createVoucherSchema.partial();

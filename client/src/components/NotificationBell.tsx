@@ -41,7 +41,7 @@ export function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      if (!isOpen && notifications.length > 0) return; // Don't fetch if closed and already have data, except initial count load
+      if (!isOpen && notifications.length > 0) return;
       setIsLoading(true);
       const res = await api.get('/notifications?limit=10');
       if (res.data.success) {
@@ -77,9 +77,9 @@ export function NotificationBell() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'ORDER': return <Package className="w-5 h-5 text-emerald-500" />;
-      case 'PROMOTION': return <Sparkles className="w-5 h-5 text-yellow-500" />;
-      default: return <AlertCircle className="w-5 h-5 text-primary" />;
+      case 'ORDER': return <Package className="w-4.5 h-4.5 text-accent" />;
+      case 'PROMOTION': return <Sparkles className="w-4.5 h-4.5 text-warning" />;
+      default: return <AlertCircle className="w-4.5 h-4.5 text-primary" />;
     }
   };
 
@@ -89,26 +89,26 @@ export function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 border-2 border-transparent hover:border-foreground hover:bg-foreground hover:text-background transition-all"
+        className="relative p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-foreground text-white text-[10px] font-black flex items-center justify-center animate-bounce">
+          <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-danger rounded-full text-white text-[10px] font-semibold flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-background border-4 border-foreground shadow-[8px_8px_0px_0px_var(--foreground)] z-50">
-          <div className="p-4 bg-accent border-b-4 border-foreground flex items-center justify-between">
-            <h3 className="font-black text-lg uppercase tracking-tighter">Thông báo</h3>
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-lg">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Thông báo</h3>
             {unreadCount > 0 && (
               <button 
                 onClick={markAllAsRead}
-                className="text-xs font-bold uppercase tracking-widest text-primary hover:underline flex items-center"
+                className="text-xs font-medium text-primary hover:underline flex items-center"
               >
-                <Check className="w-3 h-3 mr-1" /> Đánh dấu đã đọc
+                <Check className="w-3 h-3 mr-1" /> Đã đọc tất cả
               </button>
             )}
           </div>
@@ -116,31 +116,31 @@ export function NotificationBell() {
           <div className="max-h-[400px] overflow-y-auto">
             {isLoading && notifications.length === 0 ? (
               <div className="flex justify-center p-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground font-bold uppercase tracking-widest text-sm">
+              <div className="p-8 text-center text-muted-foreground text-sm">
                 Bạn chưa có thông báo nào.
               </div>
             ) : (
-              <div className="divide-y-2 divide-foreground">
+              <div className="divide-y divide-border">
                 {notifications.map(notification => (
                   <div 
                     key={notification.id} 
                     onClick={() => !notification.isRead && markAsRead(notification.id)}
-                    className={`p-4 hover:bg-secondary cursor-pointer transition-colors flex gap-3 ${!notification.isRead ? 'bg-primary/5' : ''}`}
+                    className={`p-3.5 hover:bg-secondary cursor-pointer transition-colors flex gap-3 ${!notification.isRead ? 'bg-primary/5' : ''}`}
                   >
-                    <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full border-2 border-foreground flex items-center justify-center ${!notification.isRead ? 'bg-background' : 'bg-accent'}`}>
+                    <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${!notification.isRead ? 'bg-primary/10' : 'bg-secondary'}`}>
                       {getIcon(notification.type)}
                     </div>
-                    <div>
-                      <h4 className={`text-sm font-bold ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    <div className="min-w-0 flex-1">
+                      <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {notification.title}
                       </h4>
-                      <p className="text-xs mt-1 text-muted-foreground line-clamp-2">
+                      <p className="text-xs mt-0.5 text-muted-foreground line-clamp-2">
                         {notification.content}
                       </p>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2 block">
+                      <span className="text-[10px] text-muted mt-1.5 block">
                         {new Date(notification.createdAt).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -153,8 +153,8 @@ export function NotificationBell() {
             )}
           </div>
           
-          <div className="p-2 bg-accent border-t-4 border-foreground text-center">
-            <Link href="/profile/notifications" className="text-xs font-black uppercase tracking-widest text-foreground hover:text-primary transition-colors block py-2">
+          <div className="p-2 border-t border-border text-center">
+            <Link href="/profile/notifications" className="text-xs font-medium text-primary hover:underline block py-2 transition-colors">
               Xem tất cả thông báo →
             </Link>
           </div>

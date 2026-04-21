@@ -33,15 +33,15 @@ export default function OrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <span className="px-3 py-1 bg-amber-500 text-white border-2 border-foreground font-black text-[10px] uppercase tracking-wider flex items-center shadow-[2px_2px_0px_0px_var(--foreground)]"><Clock className="w-3 h-3 mr-1" /> Chờ xác nhận</span>;
+        return <span className="px-3 py-1 bg-warning/10 text-warning rounded-full font-semibold text-xs flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> Chờ xác nhận</span>;
       case 'PROCESSING':
-        return <span className="px-3 py-1 bg-blue-500 text-white border-2 border-foreground font-black text-[10px] uppercase tracking-wider flex items-center shadow-[2px_2px_0px_0px_var(--foreground)]"><Package className="w-3 h-3 mr-1" /> Đang chuẩn bị</span>;
+        return <span className="px-3 py-1 bg-accent/10 text-accent rounded-full font-semibold text-xs flex items-center"><Package className="w-3.5 h-3.5 mr-1" /> Đang chuẩn bị</span>;
       case 'DELIVERING':
-        return <span className="px-3 py-1 bg-purple-500 text-white border-2 border-foreground font-black text-[10px] uppercase tracking-wider flex items-center shadow-[2px_2px_0px_0px_var(--foreground)]"><Clock className="w-3 h-3 mr-1" /> Đang giao</span>;
+        return <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-semibold text-xs flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> Đang giao</span>;
       case 'COMPLETED':
-        return <span className="px-3 py-1 bg-emerald-500 text-white border-2 border-foreground font-black text-[10px] uppercase tracking-wider flex items-center shadow-[2px_2px_0px_0px_var(--foreground)]"><CheckCircle2 className="w-3 h-3 mr-1" /> Đã xong</span>;
+        return <span className="px-3 py-1 bg-success/10 text-success rounded-full font-semibold text-xs flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã xong</span>;
       case 'CANCELLED':
-        return <span className="px-3 py-1 bg-red-500 text-white border-2 border-foreground font-black text-[10px] uppercase tracking-wider flex items-center shadow-[2px_2px_0px_0px_var(--foreground)]"><XCircle className="w-3 h-3 mr-1" /> Đã hủy</span>;
+        return <span className="px-3 py-1 bg-danger/10 text-danger rounded-full font-semibold text-xs flex items-center"><XCircle className="w-3.5 h-3.5 mr-1" /> Đã hủy</span>;
       default:
         return null;
     }
@@ -54,124 +54,129 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-7xl animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-fade-in-up">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        {/* Sidebar Profile (Brutalist) */}
-        <aside className="lg:col-span-1 hidden lg:block space-y-8">
-           <div className="solid-card bg-background border-4 p-8 text-center space-y-6 shadow-[8px_8px_0px_0px_var(--foreground)]">
-             <div className="w-24 h-24 bg-primary border-4 border-foreground rounded-none flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_var(--foreground)]">
-                <User className="w-12 h-12 text-primary-foreground" />
+        {/* Sidebar Profile */}
+        <aside className="lg:col-span-1 hidden lg:block space-y-6">
+           <div className="card-elevated bg-card rounded-[var(--radius-xl)] p-6 text-center space-y-4">
+             <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center mx-auto overflow-hidden ring-4 ring-background shadow-sm">
+                <User className="w-10 h-10 text-muted-foreground" />
              </div>
              <div>
-               <h3 className="font-black text-xl uppercase tracking-tighter text-foreground">{user?.name || 'Thành viên'}</h3>
-               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2 px-3 py-1 bg-accent border-2 border-foreground inline-block">Hạng Vàng</p>
+               <h3 className="font-semibold text-lg text-foreground">{user?.name || 'Thành viên'}</h3>
+               <p className="text-xs font-medium text-primary mt-1 bg-primary/10 px-3 py-1 rounded-full inline-block">Hạng Vàng</p>
              </div>
            </div>
 
-           <nav className="solid-card bg-background border-4 p-4 flex flex-col space-y-3 shadow-[8px_8px_0px_0px_var(--foreground)]">
-             <Link href="/profile" className="px-5 py-4 border-2 border-transparent hover:border-foreground hover:bg-secondary transition-all font-black uppercase tracking-widest text-xs">
+           <nav className="card-elevated bg-card rounded-[var(--radius-xl)] p-3 flex flex-col space-y-1.5">
+             <Link href="/profile" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 Hồ sơ tài khoản
              </Link>
-             <Link href="/profile/orders" className="px-5 py-4 border-4 border-foreground bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs shadow-[4px_4px_0px_0px_var(--foreground)] -translate-y-1">
+             <Link href="/profile/orders" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-primary bg-primary/10 transition-colors">
                 Lịch sử đơn hàng
              </Link>
-             <Link href="/profile/notifications" className="px-5 py-4 border-2 border-transparent hover:border-foreground hover:bg-secondary transition-all font-black uppercase tracking-widest text-xs">
+             <Link href="/profile/notifications" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 Thông báo
              </Link>
-             <Link href="/profile/support" className="px-5 py-4 border-2 border-transparent hover:border-foreground hover:bg-secondary transition-all font-black uppercase tracking-widest text-xs">
+             <Link href="/profile/support" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 Trung tâm hỗ trợ
              </Link>
            </nav>
         </aside>
 
         {/* Main Area */}
-        <div className="lg:col-span-3 space-y-10">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b-4 border-foreground pb-8">
-            <div className="space-y-2">
-              <h1 className="text-5xl font-black uppercase tracking-tighter text-foreground">Đơn hàng của tôi</h1>
-              <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs">Theo dõi quá trình vận chuyển và giao dịch.</p>
+        <div className="lg:col-span-3 space-y-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
+            <div className="space-y-1.5">
+              <h1 className="font-heading text-3xl text-foreground">Đơn hàng của tôi</h1>
+              <p className="text-muted-foreground text-sm">Theo dõi quá trình vận chuyển và giao dịch.</p>
             </div>
             
-            <div className="relative border-4 border-foreground bg-background flex items-center min-w-[300px] shadow-[4px_4px_0px_0px_var(--foreground)]">
-              <Search className="w-5 h-5 text-muted-foreground ml-4" />
+            <div className="relative bg-card border border-border rounded-[var(--radius-lg)] flex items-center min-w-[280px] shadow-sm">
+              <Search className="w-4.5 h-4.5 text-muted-foreground ml-3.5" />
               <input 
                 type="text" 
                 placeholder="Tìm mã đơn hàng..." 
-                className="w-full bg-transparent border-none focus:ring-0 text-sm px-4 py-3 font-bold text-foreground placeholder:text-muted-foreground uppercase tracking-widest"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {isLoading ? (
-              <div className="flex flex-col justify-center items-center py-24 space-y-6">
-                <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                <p className="font-black uppercase tracking-widest animate-pulse">Đang tìm đơn hàng...</p>
+              <div className="flex flex-col justify-center items-center py-20 space-y-4">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-sm font-medium text-muted-foreground">Đang tìm đơn hàng...</p>
               </div>
             ) : orders.length === 0 ? (
-              <div className="solid-card bg-accent border-4 p-16 text-center space-y-8 shadow-[12px_12px_0px_0px_var(--foreground)]">
-                <Package className="w-24 h-24 text-muted-foreground/30 mx-auto opacity-20" />
-                <h3 className="text-3xl font-black uppercase tracking-tighter">Bạn chưa có đơn hàng nào</h3>
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm max-w-md mx-auto">Khám phá ngay bộ sưu tập công nghệ mới nhất tại cửa hàng của chúng tôi.</p>
-                <Link href="/shop" className="inline-block">
-                  <Button className="h-16 px-10 text-lg shadow-[6px_6px_0px_0px_var(--foreground)]">Khám phá shop ngay</Button>
+              <div className="card-elevated bg-card rounded-[var(--radius-xl)] p-12 text-center space-y-6">
+                <Package className="w-20 h-20 text-muted opacity-50 mx-auto" />
+                <div className="space-y-2">
+                  <h3 className="font-heading text-2xl text-foreground">Bạn chưa có đơn hàng nào</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">Khám phá ngay bộ sưu tập công nghệ mới nhất tại cửa hàng của chúng tôi.</p>
+                </div>
+                <Link href="/shop" className="inline-block pt-4">
+                  <Button size="lg" className="px-8">Khám phá shop ngay</Button>
                 </Link>
               </div>
             ) : (
               orders.map((order) => (
-                <div key={order.id} className="solid-card bg-background border-4 border-foreground overflow-hidden hover:shadow-[12px_12px_0px_0px_var(--foreground)] hover:-translate-y-1 transition-all shadow-[8px_8px_0px_0px_var(--foreground)]">
-                  <div className="px-8 py-6 bg-accent border-b-4 border-foreground flex flex-wrap justify-between items-center gap-6">
-                     <div className="space-y-1">
-                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Mã giao dịch</span>
-                       <h4 className="font-black text-foreground text-lg uppercase tracking-tighter">#{order.id.slice(0, 12)}...</h4>
+                <div key={order.id} className="card-elevated bg-card border border-border rounded-[var(--radius-xl)] overflow-hidden hover:shadow-md transition-shadow">
+                  {/* Order Header */}
+                  <div className="px-6 py-4 bg-secondary/30 border-b border-border flex flex-wrap justify-between items-center gap-4">
+                     <div>
+                       <span className="text-xs text-muted-foreground font-medium block mb-0.5">Mã giao dịch</span>
+                       <h4 className="font-semibold text-foreground text-sm uppercase tracking-wider">#{order.id.slice(0, 10)}...</h4>
                      </div>
-                     <div className="hidden sm:block space-y-1">
-                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Ngày thanh toán</span>
-                       <p className="font-bold text-sm text-foreground uppercase tracking-wider">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
+                     <div className="hidden sm:block">
+                       <span className="text-xs text-muted-foreground font-medium block mb-0.5">Ngày đặt</span>
+                       <p className="font-medium text-sm text-foreground">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
                      </div>
-                     <div className="flex items-center gap-6">
+                     <div className="flex items-center">
                         {getStatusBadge(order.status)}
                      </div>
                   </div>
 
-                  <div className="p-8">
-                    <div className="space-y-6">
+                  {/* Order Items */}
+                  <div className="p-6">
+                    <div className="space-y-5">
                       {order.items.map((item: any, index: number) => {
                         const image = getImageUrl(item.product.images?.[0]?.url);
                         return (
-                          <div key={index} className="flex items-center space-x-6 group">
-                             <div className="w-20 h-20 border-2 border-foreground overflow-hidden flex-shrink-0 shadow-[4px_4px_0px_0px_var(--foreground)] transition-transform group-hover:scale-105">
-                                <img src={image} alt={item.product.name} className="w-full h-full object-cover" />
+                          <div key={index} className="flex items-center space-x-4">
+                             <div className="w-16 h-16 rounded-[var(--radius-md)] bg-secondary overflow-hidden flex-shrink-0 border border-border">
+                                <img src={image} alt={item.product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" />
                              </div>
-                             <div className="flex-1 space-y-1">
-                                <h5 className="font-black text-foreground text-base uppercase tracking-tighter line-clamp-1">{item.product.name}</h5>
-                                <div className="flex items-center space-x-4">
-                                  <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-secondary border border-foreground">{item.variant.name}</span>
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">SL: {item.quantity}</span>
+                             <div className="flex-1 min-w-0">
+                                <h5 className="font-semibold text-foreground text-sm line-clamp-1">{item.product.name}</h5>
+                                <div className="flex items-center space-x-3 mt-1.5">
+                                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{item.variant.name}</span>
+                                  <span className="text-xs text-muted-foreground">SL: {item.quantity}</span>
                                 </div>
                              </div>
-                             <div className="text-right">
-                               <p className="font-black text-lg text-foreground tracking-tighter">{Number(item.price).toLocaleString('vi-VN')}đ</p>
+                             <div className="text-right shrink-0">
+                               <p className="font-semibold text-base text-foreground">{Number(item.price).toLocaleString('vi-VN')}đ</p>
                              </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="mt-8 pt-8 border-t-4 border-foreground border-dashed flex flex-col sm:flex-row justify-between items-center gap-8">
+                    {/* Order Footer Actions */}
+                    <div className="mt-6 pt-5 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-5">
                       <div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block mb-1">Tổng cộng thanh toán</span>
-                        <strong className="text-4xl font-black text-primary tracking-tighter">{Number(order.totalAmount).toLocaleString('vi-VN')}đ</strong>
+                        <span className="text-xs text-muted-foreground font-medium block mb-1">Tổng cộng thanh toán</span>
+                        <strong className="text-xl font-bold text-primary">{Number(order.totalAmount).toLocaleString('vi-VN')}đ</strong>
                       </div>
-                      <div className="flex gap-4 w-full sm:w-auto">
+                      <div className="flex gap-3 w-full sm:w-auto">
                         <Link href={`/profile/orders/${order.id}`} className="flex-1 sm:flex-none">
-                          <Button variant="outline" className="w-full h-14 px-8 font-black uppercase tracking-widest border-2 shadow-[4px_4px_0px_0px_var(--foreground)] active:shadow-none active:translate-y-[2px]">
+                          <Button variant="outline" className="w-full">
                             Chi tiết
                           </Button>
                         </Link>
-                        <Button className="flex-1 sm:flex-none h-14 px-10 font-black uppercase tracking-widest shadow-[4px_4px_0px_0px_var(--foreground)] active:shadow-none active:translate-y-[2px]">
-                          Mua lại <ArrowRight className="w-5 h-5 ml-2" />
+                        <Button className="flex-1 sm:flex-none">
+                          Mua lại <ArrowRight className="w-4 h-4 ml-2 opacity-70" />
                         </Button>
                       </div>
                     </div>

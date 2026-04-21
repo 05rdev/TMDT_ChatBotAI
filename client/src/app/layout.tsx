@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Inter, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "sonner";
 import Link from "next/link";
 
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" });
+const dmSerif = DM_Serif_Display({ weight: "400", subsets: ["latin"], variable: "--font-serif" });
 
 import { ClientWrapper } from "@/components/ClientWrapper";
 
 export const metadata: Metadata = {
-  title: "UltraShop | Neo-Tech E-commerce",
-  description: "Trải nghiệm mua sắm thông minh với sức mạnh AI.",
+  title: "UltraShop | Mua sắm thông minh",
+  description: "Trải nghiệm mua sắm thông minh với sức mạnh AI — Sản phẩm chất lượng, giao hàng nhanh chóng.",
 };
 
 export default function RootLayout({
@@ -22,32 +23,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={`${spaceGrotesk.className} min-h-screen relative`}>
+      <body className={`${inter.variable} ${dmSerif.variable} font-sans min-h-screen relative`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {/* Neo-brutalist Background Pattern */}
-          <div className="fixed inset-0 -z-10 bg-background transition-colors duration-300"
-               style={{ backgroundImage: 'radial-gradient(var(--border) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
-          </div>
-
           <ClientWrapper>
             {children}
           </ClientWrapper>
 
-          <Toaster 
+          <Toaster
             position="bottom-right"
             toastOptions={{
-              className: 'solid-card',
               style: {
                 background: 'var(--card)',
                 color: 'var(--foreground)',
-                border: '2px solid var(--foreground)',
-                boxShadow: '4px 4px 0px 0px var(--foreground)',
-                borderRadius: '0px'
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
               }
             }}
           />

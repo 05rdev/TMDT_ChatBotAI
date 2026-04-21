@@ -168,6 +168,20 @@ router.post(
   productController.uploadImages
 );
 
+router.delete(
+  '/images/:imageId',
+  authenticate,
+  authorize(['ADMIN']),
+  productController.deleteImage
+);
+
+router.patch(
+  '/:id/images/:imageId/primary',
+  authenticate,
+  authorize(['ADMIN']),
+  productController.setPrimaryImage
+);
+
 // --- Review Routes ---
 
 /**

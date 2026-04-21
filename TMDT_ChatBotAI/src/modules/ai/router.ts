@@ -3,7 +3,7 @@ import { AIController } from './controllers/ai.controller';
 import { RecommendationController } from './controllers/recommendation.controller';
 import { ChatbotController } from './controllers/chatbot.controller';
 import { AdminChatbotController } from './controllers/admin-chatbot.controller';
-import { authenticate } from '../../middlewares/authenticate';
+import { authenticate, optionalAuthenticate } from '../../middlewares/authenticate';
 import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();
@@ -65,9 +65,13 @@ router.get('/similar/:id', recommendationController.getSimilar);
 router.get('/recommendations', authenticate, recommendationController.getPersonalized);
 
 // --- Chatbot ---
-router.post('/chatbot', chatbotController.chat);
+router.post('/chatbot', optionalAuthenticate, chatbotController.chat);
 router.get('/chatbot/history', authenticate, chatbotController.getHistory);
+router.delete('/chatbot/history', authenticate, chatbotController.clearChat);
+
 router.post('/admin/chatbot', authenticate, adminChatbotController.chat);
+router.get('/admin/chatbot/history', authenticate, adminChatbotController.getHistory);
+router.delete('/admin/chatbot/history', authenticate, adminChatbotController.clearChat);
 
 // --- Utils ---
 router.post('/embed', aiController.generateEmbedding);

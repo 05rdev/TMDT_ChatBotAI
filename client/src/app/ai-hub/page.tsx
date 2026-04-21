@@ -40,63 +40,71 @@ export default function AIHubPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-16 pb-20">
-      <section className="text-center space-y-6">
-        <div className="w-24 h-24 bg-primary border-4 border-foreground flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_var(--foreground)]">
-          <Bot className="text-primary-foreground w-12 h-12" />
+    <div className="max-w-5xl mx-auto space-y-12 pb-20 animate-fade-in-up px-4 sm:px-6">
+      <section className="text-center space-y-6 pt-10">
+        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto ring-8 ring-primary/5">
+          <Bot className="text-primary w-10 h-10" />
         </div>
-        <div className="space-y-2">
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-foreground">AI Hub</h1>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs max-w-lg mx-auto leading-relaxed">
-            Trung tâm điều khiển trải nghiệm mua sắm thông minh. Sử dụng hình ảnh và giọng nói để tìm thấy chính xác những gì bạn đang tìm kiếm.
+        <div className="space-y-3">
+          <h1 className="font-heading text-4xl sm:text-5xl text-foreground">AI Hub</h1>
+          <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
+            Trung tâm điều khiển trải nghiệm mua sắm thông minh. Sử dụng hình ảnh và giọng nói để tìm thấy chính xác những gì bạn mong muốn.
           </p>
         </div>
       </section>
 
       {/* Mode Switcher */}
-      <div className="flex flex-wrap items-center justify-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         {[
-          { id: 'chatbot', name: 'Assistant', icon: MessageSquare },
-          { id: 'visual', name: 'Visual Search', icon: Camera },
-          { id: 'voice', name: 'Voice Assistant', icon: Mic },
+          { id: 'chatbot', name: 'Trợ lý ảo', icon: MessageSquare },
+          { id: 'visual', name: 'Tìm bằng ảnh', icon: Camera },
+          { id: 'voice', name: 'Ra lệnh giọng nói', icon: Mic },
         ].map((tab) => (
           <button 
             key={tab.id}
             onClick={() => { setActiveTab(tab.id as any); setResults(null); setPreviewUrl(null); }}
-            className={`flex items-center space-x-3 px-8 py-4 border-4 font-black uppercase tracking-widest text-sm transition-all ${
+            className={`flex items-center space-x-2.5 px-6 py-3 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.id 
-                ? 'bg-primary text-primary-foreground border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] -translate-y-1 translate-x-1' 
-                : 'bg-background text-foreground border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:translate-x-1'
+                ? 'bg-primary text-primary-foreground shadow-md' 
+                : 'bg-card text-muted-foreground border border-border hover:bg-secondary hover:text-foreground'
             }`}
           >
-            <tab.icon className="w-5 h-5" />
+            <tab.icon className="w-4.5 h-4.5" />
             <span>{tab.name}</span>
           </button>
         ))}
       </div>
 
       {/* Content Area */}
-      <div className="solid-card bg-background p-10 min-h-[500px] flex flex-col items-center justify-center relative border-4 shadow-[12px_12px_0px_0px_var(--foreground)]">
+      <div className="card-elevated bg-card rounded-[var(--radius-xl)] p-8 sm:p-12 min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden border border-border">
         
+        {/* Soft Background Decorators */}
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+
         {activeTab === 'visual' && (
-          <div className="w-full space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center space-y-3">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Bạn thích món đồ này?</h2>
-              <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs">Tải ảnh lên để em tìm sản phẩm tương tự cho anh/chị nhé.</p>
+          <div className="w-full space-y-10 relative z-10 animate-fade-in-up">
+            <div className="text-center space-y-2">
+              <h2 className="font-heading text-3xl text-foreground">Bạn thích phong cách này?</h2>
+              <p className="text-muted-foreground text-sm">Tải ảnh lên để hệ thống tìm sản phẩm tương tự cho bạn.</p>
             </div>
 
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="group cursor-pointer border-4 border-dashed border-foreground bg-accent aspect-video flex flex-col items-center justify-center space-y-4 hover:bg-secondary transition-all relative overflow-hidden shadow-[4px_4px_0px_0px_var(--foreground)]"
+              className="group cursor-pointer border-2 border-dashed border-border bg-secondary/30 rounded-[var(--radius-xl)] aspect-video sm:aspect-[21/9] flex flex-col items-center justify-center space-y-4 hover:bg-secondary/60 hover:border-primary/50 transition-all relative overflow-hidden"
             >
               {previewUrl ? (
-                <img src={previewUrl} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
+                <div className="absolute inset-0 p-4">
+                  <div className="w-full h-full rounded-[var(--radius-lg)] overflow-hidden shadow-sm">
+                    <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
+                  </div>
+                </div>
               ) : (
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="w-20 h-20 bg-background border-4 border-foreground flex items-center justify-center group-hover:scale-110 transition-transform shadow-[4px_4px_0px_0px_var(--foreground)]">
-                    <ImageIcon className="text-foreground w-10 h-10" />
+                  <div className="w-16 h-16 bg-card rounded-full shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ImageIcon className="text-muted-foreground w-8 h-8 group-hover:text-primary transition-colors" />
                   </div>
-                  <p className="text-foreground font-black uppercase tracking-widest text-sm">Nhấn để chọn hoặc kéo thả ảnh</p>
+                  <p className="text-foreground font-medium text-sm">Nhấn để chọn hoặc kéo thả ảnh</p>
                 </div>
               )}
               <input 
@@ -109,9 +117,9 @@ export default function AIHubPage() {
             </div>
 
             {isProcessing && (
-              <div className="flex flex-col items-center space-y-4 py-8 bg-primary/10 border-2 border-dashed border-primary p-6">
-                <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                <p className="text-primary font-black uppercase tracking-widest text-xs animate-pulse text-center">Em đang nhìn kỹ ảnh một chút, chờ em xíu nha...</p>
+              <div className="flex flex-col items-center space-y-4 py-8 bg-primary/5 border border-primary/20 rounded-[var(--radius-lg)] p-6">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-primary font-medium text-sm animate-pulse text-center">Đang phân tích hình ảnh và tìm kiếm sản phẩm phù hợp...</p>
               </div>
             )}
 
@@ -120,31 +128,32 @@ export default function AIHubPage() {
         )}
 
         {activeTab === 'voice' && (
-          <div className="w-full text-center space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-3">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Nói cho em biết yêu cầu</h2>
-              <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs">Hãy nhấn nút bên dưới và ra lệnh bằng giọng nói.</p>
+          <div className="w-full text-center space-y-10 relative z-10 animate-fade-in-up">
+            <div className="space-y-2">
+              <h2 className="font-heading text-3xl text-foreground">Nói cho chúng tôi biết yêu cầu</h2>
+              <p className="text-muted-foreground text-sm">Nhấn nút bên dưới và ra lệnh bằng giọng nói.</p>
             </div>
 
             <div className="flex flex-col items-center space-y-12 pt-8">
                <div className="relative">
-                  <button className="relative w-32 h-32 bg-primary border-4 border-foreground flex items-center justify-center shadow-[8px_8px_0px_0px_var(--foreground)] hover:scale-105 active:translate-y-1 active:shadow-[4px_4px_0px_0px_var(--foreground)] transition-all cursor-pointer group">
-                    <Mic className="text-primary-foreground w-12 h-12 group-hover:scale-110 transition-transform" />
+                  <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                  <button className="relative w-28 h-28 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer group">
+                    <Mic className="w-10 h-10 group-hover:scale-110 transition-transform" />
                   </button>
                </div>
                
-               <div className="space-y-6 max-w-md bg-secondary p-6 border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)]">
-                 <p className="text-foreground font-black uppercase tracking-tight italic">"Tìm cho tôi một đôi giày chạy bộ tầm dưới 2 triệu"</p>
-                 <div className="flex items-center justify-center space-x-2">
+               <div className="space-y-6 max-w-md bg-secondary/50 p-6 rounded-[var(--radius-xl)] border border-border">
+                 <p className="text-foreground font-medium italic">"Tìm cho tôi một đôi giày chạy bộ thoải mái, giá dưới 2 triệu"</p>
+                 <div className="flex items-center justify-center space-x-1.5">
                     {[1, 2, 3, 4, 5, 6].map(i => (
-                      <div key={i} className="w-2 h-8 bg-primary border-2 border-foreground animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
+                      <div key={i} className="w-1.5 h-6 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
                     ))}
                  </div>
                </div>
                
                {!isAuthenticated && (
-                 <div className="bg-primary text-primary-foreground border-4 border-foreground p-4 font-black uppercase tracking-widest text-[10px] shadow-[4px_4px_0px_0px_var(--foreground)]">
-                   Dạ, anh/chị hãy đăng nhập để em có thể nhớ được các yêu cầu vừa rồi nhé!
+                 <div className="bg-warning/10 text-warning border border-warning/20 px-4 py-3 rounded-[var(--radius-lg)] font-medium text-sm">
+                   Vui lòng đăng nhập để hệ thống ghi nhớ sở thích của bạn!
                  </div>
                )}
             </div>
@@ -152,17 +161,18 @@ export default function AIHubPage() {
         )}
 
         {activeTab === 'chatbot' && (
-          <div className="w-full text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <div className="w-24 h-24 bg-accent border-4 border-foreground flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_var(--foreground)]">
-               <Sparkles className="text-foreground w-12 h-12" />
+          <div className="w-full text-center space-y-8 relative z-10 animate-fade-in-up">
+             <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mx-auto ring-8 ring-accent/5">
+               <Sparkles className="text-accent w-10 h-10" />
              </div>
              <div className="space-y-4">
-               <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Trợ lý mua sắm RAG</h2>
-               <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs max-w-md mx-auto leading-relaxed">Chào anh/chị! Em có thể giúp gì cho anh/chị hôm nay ạ? Em biết tất cả về kho hàng và các chương trình khuyến mãi hiện có.</p>
+               <h2 className="font-heading text-3xl sm:text-4xl text-foreground">Trợ lý mua sắm AI</h2>
+               <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">Xin chào! Tôi có thể giúp gì cho bạn hôm nay? Tôi biết tất cả về kho hàng và các chương trình khuyến mãi hiện có.</p>
              </div>
-             <Link href="/chatbot" className="inline-block">
-                <Button size="lg" className="px-12 h-16 text-lg font-black uppercase tracking-widest shadow-[8px_8px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:translate-x-1 transition-all">
-                   Bắt đầu hội thoại <ArrowRight className="ml-3 w-6 h-6" />
+             <Link href="/chatbot" className="inline-block pt-4">
+                <Button size="lg" className="px-8 rounded-full shadow-md hover:shadow-lg group">
+                   Bắt đầu trò chuyện 
+                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
              </Link>
           </div>
@@ -174,37 +184,35 @@ export default function AIHubPage() {
 
 function VisualSearchResults({ data }: { data: any }) {
   return (
-    <div className="space-y-8 py-10 border-t-4 border-foreground animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 bg-accent p-3 border-2 border-foreground">
-             <Bot className="w-6 h-6 text-foreground" />
-             <p className="text-xs font-black uppercase tracking-widest text-foreground">Phân tích của em: <span className="text-primary italic font-black">"{data.description}"</span></p>
-          </div>
+    <div className="space-y-8 pt-10 border-t border-border animate-fade-in-up">
+       <div className="flex items-center space-x-3 bg-secondary/50 p-4 rounded-[var(--radius-lg)] border border-border">
+          <Bot className="w-5 h-5 text-primary flex-shrink-0" />
+          <p className="text-sm font-medium text-foreground">Phân tích kết quả: <span className="text-primary">"{data.description}"</span></p>
        </div>
 
        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
           {data.products?.map((p: any) => (
-             <div key={p.id} className="solid-card bg-background flex flex-col group hover:-translate-y-2 transition-all p-0 overflow-hidden border-2 shadow-[4px_4px_0px_0px_var(--foreground)]">
-                <Link href={`/product/${p.slug}`} className="block relative aspect-square border-b-2 border-foreground bg-secondary">
+             <div key={p.id} className="card-elevated bg-card flex flex-col group p-0 overflow-hidden border border-border rounded-[var(--radius-lg)]">
+                <Link href={`/product/${p.slug}`} className="block relative aspect-square bg-secondary/30 overflow-hidden">
                    {p.primaryImage ? (
-                     <img src={p.primaryImage} className="w-full h-full object-cover transition-all duration-500" alt={p.name} />
+                     <img src={p.primaryImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={p.name} />
                    ) : (
-                     <div className="w-full h-full flex items-center justify-center text-foreground font-black uppercase tracking-widest text-[10px]">No Image</div>
+                     <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Không có ảnh</div>
                    )}
                 </Link>
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-1.5">
                   <Link href={`/product/${p.slug}`}>
-                    <h4 className="text-xs font-black uppercase text-foreground line-clamp-1 group-hover:text-primary transition-colors tracking-tight">{p.name}</h4>
+                    <h4 className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{p.name}</h4>
                   </Link>
-                  <p className="text-lg text-foreground font-black">{(p.variants?.[0]?.price || p.minPrice || 0).toLocaleString('vi-VN')}đ</p>
+                  <p className="text-base text-foreground font-bold">{(p.variants?.[0]?.price || p.minPrice || 0).toLocaleString('vi-VN')}đ</p>
                 </div>
              </div>
           ))}
        </div>
-       <div className="flex justify-center">
+       <div className="flex justify-center pt-4">
          <Link href="/shop">
-           <Button variant="outline" className="px-8 border-2 shadow-[4px_4px_0px_0px_var(--foreground)]">
-             Xem thêm trong cửa hàng <Plus className="ml-2 w-4 h-4" />
+           <Button variant="outline" className="px-6 rounded-full">
+             Khám phá thêm sản phẩm <Plus className="ml-2 w-4 h-4" />
            </Button>
          </Link>
        </div>

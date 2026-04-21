@@ -12,13 +12,11 @@ export default function AdminProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
 
-  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
 
@@ -92,89 +90,89 @@ export default function AdminProductsPage() {
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Quản lý Sản phẩm</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Quản lý Sản phẩm</h1>
           <p className="text-sm text-muted-foreground mt-1">Tổng cộng {total} sản phẩm trên UltraShop.</p>
         </div>
         <Button className="flex items-center" onClick={handleAdd}>
-          <Plus className="w-5 h-5 mr-2" /> Thêm sản phẩm mới
+          <Plus className="w-5 h-5 mr-2" /> Thêm sản phẩm
         </Button>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl border-border flex flex-wrap items-center justify-between gap-4">
+      <div className="card-elevated p-4 rounded-[var(--radius-xl)] bg-card border border-border flex flex-wrap items-center justify-between gap-4">
         <div className="relative flex-1 min-w-[250px] max-w-md">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Tìm kiếm sản phẩm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-foreground"
+            className="w-full bg-secondary/50 border border-border rounded-[var(--radius-lg)] pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
           />
         </div>
 
-        <Button variant="outline" className="flex items-center bg-background border-border">
+        <Button variant="outline" className="flex items-center">
           <Filter className="w-4 h-4 mr-2 text-muted-foreground" /> Lọc
         </Button>
       </div>
 
       {/* Table Data */}
-      <div className="glass-card rounded-2xl border-border overflow-hidden">
+      <div className="card-elevated bg-card rounded-[var(--radius-xl)] border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-muted/10 border-b border-border">
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">ID</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Sản phẩm</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Danh mục</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Giá bán</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Tồn kho</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Trạng thái</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-right whitespace-nowrap">Menu</th>
+              <tr className="bg-secondary/50 border-b border-border">
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Sản phẩm</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Danh mục</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Giá bán</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Tồn kho</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Trạng thái</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground text-right whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/50">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-4">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      <p className="font-bold uppercase tracking-widest">Đang tải dữ liệu...</p>
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <p className="font-medium text-sm">Đang tải dữ liệu...</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-4">
-                      <PackageX className="w-12 h-12 text-muted-foreground" />
-                      <p className="font-bold uppercase tracking-widest">Không tìm thấy sản phẩm</p>
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                      <PackageX className="w-10 h-10 opacity-50" />
+                      <p className="font-medium text-sm">Không tìm thấy sản phẩm</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredProducts.map((product) => {
                 const totalStock = product.variants ? product.variants.reduce((sum: number, v: any) => sum + v.stock, 0) : 0;
                 return (
-                  <tr key={product.id} className="hover:bg-muted/5 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  <tr key={product.id} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-6 py-4 text-xs font-medium text-muted-foreground whitespace-nowrap">
                       <span className="truncate max-w-[80px] inline-block">#{product.id.slice(0, 8)}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-foreground line-clamp-1">{product.name}</p>
+                      <p className="text-sm font-semibold text-foreground line-clamp-1">{product.name}</p>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                      {product.category?.name || 'Khác'}
+                      <span className="bg-secondary px-2.5 py-1 rounded-full text-[11px] font-medium">{product.category?.name || 'Khác'}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm font-bold text-emerald-500 whitespace-nowrap">
+                    <td className="px-6 py-4 text-sm font-bold text-foreground whitespace-nowrap">
                       {getMinPrice(product)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground whitespace-nowrap">
+                    <td className="px-6 py-4 text-sm text-foreground whitespace-nowrap font-medium">
                       {totalStock}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                         totalStock > 0
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                          : 'bg-red-500/10 text-red-500 border-red-500/20'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-danger/10 text-danger'
                       }`}>
                         {totalStock > 0 ? 'Hoạt động' : 'Hết hàng'}
                       </span>
@@ -183,11 +181,11 @@ export default function AdminProductsPage() {
                       <div className="flex items-center justify-end space-x-2">
                          <button
                            onClick={() => handleEdit(product.id)}
-                           className="p-2 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                           className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
                          >
                            <Edit className="w-4 h-4" />
                          </button>
-                         <button onClick={() => handleDelete(product.id)} className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
+                         <button onClick={() => handleDelete(product.id)} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors">
                            <Trash2 className="w-4 h-4" />
                          </button>
                       </div>
@@ -200,13 +198,13 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-secondary/20">
            <span>Trang {page} / {totalPages} — Tổng {total} sản phẩm</span>
            <div className="flex items-center space-x-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1 rounded-lg border border-border hover:bg-muted/10 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
               >
                 Trước
               </button>
@@ -216,10 +214,10 @@ export default function AdminProductsPage() {
                   <button
                     key={pageNum}
                     onClick={() => setPage(pageNum)}
-                    className={`px-3 py-1 rounded-lg font-medium ${
+                    className={`px-3 py-1.5 rounded-[var(--radius-md)] font-medium ${
                       page === pageNum
-                        ? 'bg-emerald-500 text-white'
-                        : 'border border-border hover:bg-muted/10 transition-colors'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border hover:bg-secondary transition-colors'
                     }`}
                   >
                     {pageNum}
@@ -229,7 +227,7 @@ export default function AdminProductsPage() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-3 py-1 rounded-lg border border-border hover:bg-muted/10 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
               >
                 Tiếp
               </button>
@@ -237,7 +235,6 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Product Form Modal */}
       <ProductFormModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditProduct(null); }}

@@ -124,6 +124,7 @@ router.get('/products/low-stock', adminStatsController.getLowStock);
  *         description: Danh sách đơn hàng có thể lọc theo trạng thái và thời gian
  */
 router.get('/orders', adminOrderController.getAll);
+router.get('/orders/:id', adminOrderController.getById);
 
 /**
  * @swagger

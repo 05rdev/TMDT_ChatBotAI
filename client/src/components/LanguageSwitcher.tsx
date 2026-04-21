@@ -33,16 +33,16 @@ export const LanguageSwitcher = () => {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 p-2.5 border-2 border-transparent hover:border-foreground hover:bg-foreground hover:text-background transition-all group"
+        className="flex items-center gap-1.5 p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
       >
         <Languages className="w-5 h-5" />
-        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline">{currentLangObj.code}</span>
+        <span className="text-xs font-medium uppercase hidden lg:inline">{currentLangObj.code}</span>
         <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-40 bg-background border-4 border-foreground shadow-[6px_6px_0px_0px_var(--foreground)] z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="p-2 border-b-2 border-foreground bg-accent text-[10px] font-black uppercase tracking-widest">
+        <div className="absolute top-full right-0 mt-2 w-44 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-lg">
+          <div className="px-3 py-2 border-b border-border text-xs font-medium text-muted-foreground">
             Chọn ngôn ngữ
           </div>
           <div className="p-1">
@@ -50,14 +50,14 @@ export const LanguageSwitcher = () => {
               <button
                 key={lang.code}
                 onClick={() => changeLanguage(lang.code)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase transition-colors ${
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-[var(--radius-sm)] transition-colors ${
                   currentLang === lang.code 
                     ? 'bg-primary text-primary-foreground' 
                     : 'hover:bg-secondary text-foreground'
                 }`}
               >
                 <span>{lang.flag} {lang.name}</span>
-                {currentLang === lang.code && <div className="w-1.5 h-1.5 bg-background rounded-full" />}
+                {currentLang === lang.code && <div className="w-1.5 h-1.5 bg-primary-foreground rounded-full" />}
               </button>
             ))}
           </div>

@@ -1,46 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #121212;
-  --primary: #ff4500;
+  --background: #FAFAF8;
+  --foreground: #1A1A1A;
+  --primary: #D4622B;
+  --primary-hover: #B8511F;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #121212;
-  --accent: #ff6a33;
+  --secondary: #F5F0EB;
+  --secondary-foreground: #1A1A1A;
+  --accent: #2D6A4F;
   --accent-foreground: #ffffff;
-  --muted: #a1a1aa;
-  --muted-foreground: #52525b;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #ff4500;
+  --muted: #B8B0A6;
+  --muted-foreground: #6B6560;
+  --border: #E8E2DB;
+  --input: #E8E2DB;
+  --ring: #D4622B;
   --card: #ffffff;
-  --card-foreground: #121212;
-  --radius: 0px; /* Neo-brutalist sharp edges */
+  --card-foreground: #1A1A1A;
+  --success: #2D6A4F;
+  --warning: #E09F3E;
+  --danger: #C1292E;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 }
 
 .dark {
-  --background: #121212;
-  --foreground: #fafafa;
-  --primary: #ff4500;
+  --background: #171614;
+  --foreground: #F0EDE8;
+  --primary: #E07A3D;
+  --primary-hover: #F08B50;
   --primary-foreground: #ffffff;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --accent: #ff6a33;
+  --secondary: #252320;
+  --secondary-foreground: #F0EDE8;
+  --accent: #3D8B6A;
   --accent-foreground: #ffffff;
-  --muted: #71717a;
-  --muted-foreground: #a1a1aa;
-  --border: #3f3f46;
-  --input: #3f3f46;
-  --ring: #ff4500;
-  --card: #18181b;
-  --card-foreground: #fafafa;
+  --muted: #5C5650;
+  --muted-foreground: #9E958C;
+  --border: #3A3632;
+  --input: #3A3632;
+  --ring: #E07A3D;
+  --card: #1E1D1B;
+  --card-foreground: #F0EDE8;
+  --success: #3D8B6A;
+  --warning: #E09F3E;
+  --danger: #E04348;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -53,17 +65,21 @@
   --color-ring: var(--ring);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  
-  --radius-xl: var(--radius);
-  --radius-lg: var(--radius);
-  --radius-md: var(--radius);
-  --radius-sm: var(--radius);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 }
 
 @layer base {
   * {
     border-color: var(--border);
   }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
@@ -72,67 +88,131 @@
     overflow-x: hidden;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
-  
+
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
+
   ::-webkit-scrollbar-track {
     background: var(--background);
   }
+
   ::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 0px;
+    background: var(--muted);
+    border-radius: 999px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent);
+    background: var(--primary);
   }
 }
 
+/* Card utilities */
+@utility card-elevated {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* card-elevated-hover defined in @layer components below (pseudo-class support) */
+
+/* Keep solid-card for backward compat but remap to modern style */
 @utility solid-card {
   background-color: var(--card);
   border: 1px solid var(--border);
-  box-shadow: 4px 4px 0px 0px var(--foreground); /* Brutalist hard shadow */
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 @utility solid-nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: var(--background);
-  border-bottom: 2px solid var(--foreground);
+  background-color: color-mix(in srgb, var(--background) 85%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-primary text-primary-foreground font-bold tracking-wide uppercase
-           border-2 border-transparent hover:border-foreground
-           transition-all duration-200
-           active:translate-y-[2px] cursor-pointer disabled:opacity-50;
-    box-shadow: 2px 2px 0px 0px var(--foreground);
+    @apply px-5 py-2.5 bg-primary text-primary-foreground font-semibold tracking-normal transition-all duration-200 cursor-pointer disabled:opacity-50;
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
-  
+
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
   .btn-primary:active {
-    box-shadow: 0px 0px 0px 0px var(--foreground);
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-background text-foreground font-bold tracking-wide uppercase
-           border-2 border-foreground hover:bg-secondary
-           transition-all duration-200
-           active:translate-y-[2px] cursor-pointer;
-    box-shadow: 2px 2px 0px 0px var(--foreground);
+    @apply px-5 py-2.5 bg-secondary text-secondary-foreground font-semibold tracking-normal transition-all duration-200 cursor-pointer;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
   }
-  
+
+  .btn-secondary:hover {
+    background-color: var(--border);
+  }
+
   .btn-secondary:active {
-    box-shadow: 0px 0px 0px 0px var(--foreground);
+    transform: translateY(1px);
+  }
+
+  /* Heading serif font class */
+  .font-heading {
+    font-family: var(--font-serif), 'DM Serif Display', serif;
+  }
+
+  .card-elevated-hover {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .card-elevated-hover:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
   }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
 }

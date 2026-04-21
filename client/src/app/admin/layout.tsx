@@ -4,28 +4,21 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  LayoutDashboard, 
-  PackageSearch, 
-  ShoppingCart, 
-  Users, 
-  Settings, 
-  LogOut, 
-  Bot,
-  Bell,
-  MessageSquare,
-  Tag,
-  Sparkles
+  LayoutDashboard, PackageSearch, ShoppingCart, Users, Settings, LogOut, Bot,
+  Bell, MessageSquare, Tag, Sparkles, Moon, Sun, Image as ImageIcon
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from 'next-themes';
-import { Moon, Sun } from 'lucide-react';
+import api from '@/lib/api';
 
 const ADMIN_LINKS = [
   { name: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
   { name: 'Sản phẩm', href: '/admin/products', icon: PackageSearch },
+  { name: 'Danh mục', href: '/admin/categories', icon: Tag },
   { name: 'Đơn hàng', href: '/admin/orders', icon: ShoppingCart },
   { name: 'Khách hàng', href: '/admin/users', icon: Users },
   { name: 'Khuyến mãi', href: '/admin/vouchers', icon: Tag },
+  { name: 'Banner', href: '/admin/banners', icon: ImageIcon },
   { name: 'AI Assistant', href: '/admin/ai-assistant', icon: Sparkles },
   { name: 'Hỗ trợ', href: '/admin/support', icon: MessageSquare },
   { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
@@ -37,9 +30,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isAuthenticated, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [supportCount, setSupportCount] = useState(0);
 
   useEffect(() => {
-    // Check if user is logged in and is an ADMIN
     if (!isAuthenticated || user?.role !== 'ADMIN') {
       router.push('/');
     } else {
@@ -47,57 +40,84 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isAuthenticated, user, router]);
 
+  useEffect(() => {
+    const fetchSupportCount = async () => {
+      try {
+        const res = await api.get('/support?status=OPEN');
+        if (res.data.success) {
+          setSupportCount(res.data.data.length);
+        }
+      } catch (err) {
+        console.error('Failed to fetch support count', err);
+      }
+    };
+
+    if (isAuthorized) {
+      fetchSupportCount();
+      const interval = setInterval(fetchSupportCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthorized]);
+
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
 
-  // Prevent flashing the admin UI before auth check
   if (!isAuthorized) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-16 h-16 border-4 border-foreground border-t-primary rounded-full animate-spin"></div>
+      <div className="w-10 h-10 border-2 border-border border-t-primary rounded-full animate-spin"></div>
     </div>;
   }
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar Focus (Brutalist) */}
-      <aside className="w-64 border-r-4 border-foreground bg-background flex flex-col hidden lg:flex sticky top-0 h-screen z-50">
-        <div className="h-20 flex items-center px-6 border-b-4 border-foreground bg-accent">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-background border-2 border-foreground flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1">
-              <Bot className="text-foreground w-6 h-6" />
+      {/* Sidebar */}
+      <aside className="w-60 border-r border-border bg-card flex flex-col hidden lg:flex sticky top-0 h-screen z-50">
+        <div className="h-16 flex items-center px-5 border-b border-border">
+          <Link href="/" className="flex items-center space-x-2.5 group">
+            <div className="w-8 h-8 bg-primary rounded-[var(--radius-sm)] flex items-center justify-center">
+              <Bot className="text-primary-foreground w-4.5 h-4.5" />
             </div>
-            <span className="font-black tracking-tighter text-foreground uppercase text-xl">Ultra Admin</span>
+            <span className="font-bold tracking-tight text-foreground text-lg">Admin</span>
           </Link>
         </div>
 
-        <nav className="flex-1 p-6 space-y-4 bg-background">
+        <nav className="flex-1 p-3 space-y-1">
           {ADMIN_LINKS.map((link) => {
             const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link 
                 key={link.name} 
                 href={link.href}
-                className={`flex items-center px-4 py-3 border-2 transition-all font-bold uppercase tracking-wider text-sm ${
+                className={`flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] transition-all text-sm font-medium ${
                   isActive 
-                    ? 'bg-primary text-primary-foreground border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] -translate-y-1 translate-x-1' 
-                    : 'border-transparent text-muted-foreground hover:border-foreground hover:bg-secondary hover:text-foreground hover:shadow-[4px_4px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:translate-x-1'
+                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                 }`}
               >
-                <link.icon className={`w-5 h-5 mr-3`} />
-                {link.name}
+                <div className="flex items-center">
+                  <link.icon className="w-4.5 h-4.5 mr-2.5" />
+                  {link.name}
+                </div>
+                {link.name === 'Hỗ trợ' && supportCount > 0 && (
+                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                     isActive ? 'bg-white text-primary' : 'bg-primary text-white'
+                   }`}>
+                     {supportCount}
+                   </span>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-6 border-t-4 border-foreground bg-secondary">
+        <div className="p-3 border-t border-border">
           <button 
             onClick={handleLogout}
-            className="flex w-full items-center px-4 py-3 border-2 border-transparent hover:border-foreground hover:bg-background text-sm font-bold uppercase tracking-wider text-red-500 hover:text-red-600 transition-all hover:shadow-[4px_4px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:translate-x-1"
+            className="flex w-full items-center px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium text-danger hover:bg-danger/10 transition-all"
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-4.5 h-4.5 mr-2.5" />
             Đăng xuất
           </button>
         </div>
@@ -105,32 +125,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-screen relative">
-        {/* Top Header Admin */}
-        <header className="h-20 border-b-4 border-foreground bg-background flex items-center justify-between px-6 lg:px-10 sticky top-0 z-40">
-          <h2 className="font-black text-2xl uppercase tracking-tighter text-foreground">
+        <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40">
+          <h2 className="font-semibold text-lg text-foreground">
             {ADMIN_LINKS.find(l => pathname === l.href)?.name || 'Dashboard'}
           </h2>
           
-          <div className="flex items-center space-x-6">
-             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 border-2 border-transparent hover:border-foreground hover:bg-foreground hover:text-background transition-all">
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          <div className="flex items-center space-x-3">
+             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors">
+                {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
              </button>
-             <button className="p-2 border-2 border-transparent hover:border-foreground hover:bg-foreground hover:text-background transition-all flex relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-2 -right-2 w-4 h-4 bg-primary border-2 border-foreground" />
+             <button className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors relative">
+                <Bell className="w-4.5 h-4.5" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
              </button>
-             <div className="w-[2px] h-8 bg-foreground mx-2" />
-             <div className="flex items-center space-x-3 cursor-pointer group">
-               <div className="w-10 h-10 bg-accent border-2 border-foreground flex items-center justify-center text-foreground font-black group-hover:shadow-[2px_2px_0px_0px_var(--foreground)] group-hover:-translate-y-1 transition-all">
+             <div className="w-px h-6 bg-border mx-1" />
+             <div className="flex items-center space-x-2.5 cursor-pointer group">
+               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-semibold text-sm">
                  {user?.name?.charAt(0) || 'A'}
                </div>
-               <span className="text-sm font-bold uppercase tracking-wider hidden sm:block text-foreground group-hover:text-primary transition-colors">{user?.name || 'Admin'}</span>
+               <span className="text-sm font-medium hidden sm:block text-foreground">{user?.name || 'Admin'}</span>
              </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="p-6 lg:p-10 flex-1 bg-background" style={{ backgroundImage: 'radial-gradient(var(--border) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+        <div className="p-6 lg:p-8 flex-1 bg-background">
           {children}
         </div>
       </main>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Loader2, Upload } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Upload, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -148,6 +148,15 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
 
     setIsSubmitting(true);
     try {
+      // Frontend Validation
+      if (!form.name.trim()) return toast.error('Vui lòng nhập tên sản phẩm');
+      if (!form.slug.trim()) return toast.error('Vui lòng nhập đường dẫn (slug)');
+      if (!form.categoryId) return toast.error('Vui lòng chọn danh mục cho sản phẩm');
+      if (form.variants.length === 0) return toast.error('Phải có ít nhất 1 phân loại (Phiên bản)');
+      
+      const hasInvalidVariant = form.variants.some(v => !v.name || !v.sku || Number(v.price) < 0 || Number(v.stock) < 0);
+      if (hasInvalidVariant) return toast.error('Thông tin phiên bản không hợp lệ (Tên, SKU, Giá hoặc Tồn kho)');
+
       const payload = {
         name: form.name,
         slug: form.slug,
@@ -195,170 +204,230 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-foreground/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-background border-4 border-foreground shadow-[8px_8px_0px_0px_var(--foreground)] m-4">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-card border border-border rounded-[var(--radius-xl)] shadow-xl custom-scrollbar animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-accent border-b-4 border-foreground px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-black uppercase tracking-tighter text-foreground">
+        <div className="sticky top-0 z-10 bg-secondary/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-heading text-foreground">
             {isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}
           </h2>
-          <button onClick={onClose} className="p-2 border-2 border-foreground bg-background hover:bg-primary hover:text-primary-foreground transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-background/80 text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Name */}
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-foreground">Tên sản phẩm *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className="w-full bg-background border-2 border-foreground p-3 font-bold text-foreground focus:outline-none focus:shadow-[4px_4px_0px_0px_var(--primary)] transition-all"
-              placeholder="Nhập tên sản phẩm..."
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Name */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Tên sản phẩm <span className="text-danger">*</span></label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+                placeholder="Nhập tên sản phẩm..."
+                required
+              />
+            </div>
 
-          {/* Category */}
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-foreground">Danh mục *</label>
-            <select
-              value={form.categoryId}
-              onChange={(e) => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
-              className="w-full bg-background border-2 border-foreground p-3 font-bold text-foreground focus:outline-none focus:shadow-[4px_4px_0px_0px_var(--primary)] transition-all"
-              required
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            {/* Category */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Danh mục <span className="text-danger">*</span></label>
+              <select
+                value={form.categoryId}
+                onChange={(e) => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+                required
+              >
+                <option value="">-- Chọn danh mục --</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-foreground">Mô tả</label>
+            <label className="text-sm font-semibold text-foreground">Mô tả</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
               rows={3}
-              className="w-full bg-background border-2 border-foreground p-3 font-bold text-foreground focus:outline-none focus:shadow-[4px_4px_0px_0px_var(--primary)] transition-all resize-none"
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none text-foreground custom-scrollbar"
               placeholder="Mô tả sản phẩm..."
             />
           </div>
 
           {/* Images */}
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-foreground">Ảnh sản phẩm</label>
-            <div className="flex items-center gap-4">
-              <label className="cursor-pointer flex items-center gap-2 px-4 py-3 border-2 border-dashed border-foreground bg-secondary hover:bg-accent transition-colors font-bold text-sm uppercase tracking-wider">
-                <Upload className="w-4 h-4" />
-                Chọn ảnh ({imageFiles.length})
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
-                />
-              </label>
-              {imageFiles.length > 0 && (
-                <button type="button" onClick={() => setImageFiles([])} className="text-xs font-bold text-red-500 hover:underline uppercase">
-                  Xóa tất cả
-                </button>
-              )}
+          <div className="space-y-4 pt-4 border-t border-border">
+            <label className="text-sm font-semibold text-foreground">Hình ảnh sản phẩm</label>
+            
+            {/* Existing Images */}
+            {isEdit && editProduct.images && editProduct.images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                {editProduct.images.map((img: any) => (
+                  <div key={img.id} className="relative group aspect-square rounded-[var(--radius-lg)] border border-border overflow-hidden bg-secondary/10">
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {!img.isPrimary && (
+                        <button 
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await api.patch(`/products/${editProduct.id}/images/${img.id}/primary`);
+                              toast.success('Đã đổi ảnh chính');
+                              onSuccess(); // Refresh product detail might be needed or just re-fetch
+                              onClose(); // Simplest is to close and re-open/refresh
+                            } catch (err) { toast.error('Lỗi khi đổi ảnh chính'); }
+                          }}
+                          className="p-1.5 bg-white text-primary rounded-full hover:scale-110 transition-transform" 
+                          title="Đặt làm ảnh chính"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          if (confirm('Xóa ảnh này?')) {
+                            try {
+                              await api.delete(`/products/images/${img.id}`);
+                              toast.success('Đã xóa ảnh');
+                              onSuccess();
+                              onClose();
+                            } catch (err) { toast.error('Lỗi khi xóa ảnh'); }
+                          }
+                        }}
+                        className="p-1.5 bg-white text-danger rounded-full hover:scale-110 transition-transform" 
+                        title="Xóa ảnh"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {img.isPrimary && (
+                      <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-full">
+                        CHÍNH
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground italic">Tải ảnh mới lên (tối đa 5 ảnh một lần):</p>
+              <div className="flex items-center gap-4">
+                <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] border border-dashed border-border bg-secondary/50 hover:bg-secondary transition-colors text-sm font-medium text-foreground">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  Chọn ảnh mới ({imageFiles.length})
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+                  />
+                </label>
+                {imageFiles.length > 0 && (
+                  <button type="button" onClick={() => setImageFiles([])} className="text-sm font-medium text-danger hover:underline">
+                    Xóa tất cả
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Variants */}
-          <div className="space-y-4">
+          <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-widest text-foreground">Phiên bản sản phẩm *</label>
+              <label className="text-sm font-semibold text-foreground">Phiên bản sản phẩm <span className="text-danger">*</span></label>
               <button
                 type="button"
                 onClick={addVariant}
-                className="flex items-center gap-1 px-3 py-1.5 border-2 border-foreground bg-accent text-foreground font-bold text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-0.5 transition-transform"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-secondary/50 hover:bg-secondary text-sm font-medium text-foreground transition-colors"
               >
-                <Plus className="w-3 h-3" /> Thêm
+                <Plus className="w-3.5 h-3.5" /> Thêm bản
               </button>
             </div>
 
-            {form.variants.map((variant, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-3 items-end p-4 border-2 border-foreground bg-secondary">
-                <div className="col-span-12 sm:col-span-3 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tên</span>
-                  <input
-                    type="text"
-                    value={variant.name}
-                    onChange={(e) => updateVariant(idx, 'name', e.target.value)}
-                    className="w-full bg-background border-2 border-foreground p-2 text-sm font-bold focus:outline-none"
-                    placeholder="VD: Đỏ, XL"
-                  />
+            <div className="space-y-3">
+              {form.variants.map((variant, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-3 items-end p-4 rounded-[var(--radius-lg)] border border-border bg-secondary/20">
+                  <div className="col-span-12 sm:col-span-3 space-y-1.5">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Tên phân loại</span>
+                    <input
+                      type="text"
+                      value={variant.name}
+                      onChange={(e) => updateVariant(idx, 'name', e.target.value)}
+                      className="w-full bg-background border border-border rounded-[var(--radius-md)] p-2 text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
+                      placeholder="VD: Đỏ, XL"
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-3 space-y-1.5">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">SKU *</span>
+                    <input
+                      type="text"
+                      value={variant.sku}
+                      onChange={(e) => updateVariant(idx, 'sku', e.target.value)}
+                      className="w-full bg-background border border-border rounded-[var(--radius-md)] p-2 text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
+                      placeholder="SKU-001"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-2 space-y-1.5">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Giá (₫)</span>
+                    <input
+                      type="number"
+                      value={variant.price}
+                      onChange={(e) => updateVariant(idx, 'price', Number(e.target.value))}
+                      className="w-full bg-background border border-border rounded-[var(--radius-md)] p-2 text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
+                      min={0}
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-2 space-y-1.5">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Tồn kho</span>
+                    <input
+                      type="number"
+                      value={variant.stock}
+                      onChange={(e) => updateVariant(idx, 'stock', Number(e.target.value))}
+                      className="w-full bg-background border border-border rounded-[var(--radius-md)] p-2 text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
+                      min={0}
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-2 flex justify-end pb-1">
+                    {form.variants.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(idx)}
+                        className="p-2 rounded-[var(--radius-md)] text-muted-foreground hover:bg-danger/10 hover:text-danger transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="col-span-6 sm:col-span-3 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">SKU *</span>
-                  <input
-                    type="text"
-                    value={variant.sku}
-                    onChange={(e) => updateVariant(idx, 'sku', e.target.value)}
-                    className="w-full bg-background border-2 border-foreground p-2 text-sm font-bold focus:outline-none"
-                    placeholder="SKU-001"
-                    required
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-2 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Giá (₫)</span>
-                  <input
-                    type="number"
-                    value={variant.price}
-                    onChange={(e) => updateVariant(idx, 'price', Number(e.target.value))}
-                    className="w-full bg-background border-2 border-foreground p-2 text-sm font-bold focus:outline-none"
-                    min={0}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-2 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tồn kho</span>
-                  <input
-                    type="number"
-                    value={variant.stock}
-                    onChange={(e) => updateVariant(idx, 'stock', Number(e.target.value))}
-                    className="w-full bg-background border-2 border-foreground p-2 text-sm font-bold focus:outline-none"
-                    min={0}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-2 flex justify-end">
-                  {form.variants.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeVariant(idx)}
-                      className="p-2 border-2 border-foreground bg-background hover:bg-red-500 hover:text-white transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-4 border-t-4 border-foreground">
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-border mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 border-2 border-foreground bg-background font-bold text-sm uppercase tracking-wider hover:bg-secondary transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]"
+              className="px-6 py-2.5 rounded-full text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               Hủy
             </button>
-            <Button type="submit" disabled={isSubmitting} className="px-8 py-3 text-sm shadow-[4px_4px_0px_0px_var(--foreground)]">
-              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              {isEdit ? 'Cập nhật' : 'Tạo mới'}
+            <Button type="submit" disabled={isSubmitting} className="px-8 py-2.5 rounded-full">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {isEdit ? 'Cập nhật' : 'Thêm sản phẩm'}
             </Button>
           </div>
         </form>

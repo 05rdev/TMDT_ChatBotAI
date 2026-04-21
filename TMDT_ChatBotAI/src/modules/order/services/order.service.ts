@@ -33,7 +33,8 @@ export class OrderService {
     if (data.voucherCode) {
       const voucherService = new VoucherService();
       const uniqueCategoryIds = Array.from(new Set(cartItems.map(item => item.product.categoryId)));
-      const result = await voucherService.validateVoucher(data.voucherCode, totalAmount, uniqueCategoryIds);
+      const uniqueProductIds = Array.from(new Set(cartItems.map(item => item.productId)));
+      const result = await voucherService.validateVoucher(data.voucherCode, totalAmount, uniqueCategoryIds, userId, uniqueProductIds);
       totalAmount = Math.max(0, totalAmount - result.discountAmount);
       appliedVoucherId = result.voucher.id;
     }
@@ -128,7 +129,7 @@ export class OrderService {
         include: {
           items: {
             include: {
-              product: { select: { name: true } },
+              product: { select: { name: true, images: { where: { isPrimary: true }, take: 1 } } },
               variant: { select: { name: true } }
             }
           },

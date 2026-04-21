@@ -18,4 +18,20 @@ export class AdminOrderController {
       next(error);
     }
   }
+
+  /**
+   * Chi tiết đơn hàng (Admin)
+   */
+  async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const order = await orderService.getOrderById(id as string);
+      return res.json({
+        success: true,
+        data: order
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

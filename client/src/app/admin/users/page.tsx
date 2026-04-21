@@ -82,17 +82,20 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="flex items-center bg-background border-2 border-foreground p-1 shadow-[2px_2px_0px_0px_var(--foreground)] w-full max-w-md">
-          <div className="px-3 text-muted-foreground">
-            <Search className="w-5 h-5" />
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Người dùng</h1>
+          <p className="text-sm text-muted-foreground mt-1">Quản lý tài khoản khách hàng và phân quyền.</p>
+        </div>
+        
+        <div className="flex items-center bg-card border border-border rounded-[var(--radius-lg)] shadow-sm px-3 w-full sm:w-80">
+          <Search className="w-4.5 h-4.5 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Tìm kiếm khách hàng..."
-            className="bg-transparent border-none focus:outline-none text-sm font-bold w-full py-2 placeholder:font-normal text-foreground"
+            placeholder="Tìm kiếm email, tên..."
+            className="bg-transparent border-none focus:outline-none text-sm w-full py-2.5 pl-3 text-foreground"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -100,93 +103,96 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="solid-card bg-background overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b-4 border-foreground bg-accent text-foreground uppercase tracking-widest text-xs font-black">
-              <th className="p-4 border-r-2 border-foreground">ID</th>
-              <th className="p-4 border-r-2 border-foreground">Người dùng</th>
-              <th className="p-4 border-r-2 border-foreground">Vai trò</th>
-              <th className="p-4 border-r-2 border-foreground text-center">Trạng thái</th>
-              <th className="p-4 border-r-2 border-foreground">Ngày tham gia</th>
-              <th className="p-4 text-center">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="p-8 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="font-bold uppercase tracking-widest">Đang tải dữ liệu...</p>
-                  </div>
-                </td>
+      <div className="card-elevated bg-card rounded-[var(--radius-xl)] border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-secondary/50 border-b border-border">
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Người dùng</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Vai trò</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap text-center">Trạng thái</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Ngày tham gia</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap text-center">Thao tác</th>
               </tr>
-            ) : filteredUsers.map((user) => (
-              <tr key={user.id} className="border-b-2 border-foreground hover:bg-secondary transition-colors group">
-                <td className="p-4 border-r-2 border-foreground font-black text-xs uppercase">
-                  <span className="truncate max-w-[80px] inline-block">{user.id.slice(0, 8)}</span>
-                </td>
-                <td className="p-4 border-r-2 border-foreground">
-                  <p className="font-bold text-foreground text-sm uppercase">{user.name}</p>
-                  <p className="text-xs font-bold text-muted-foreground mt-1">{user.email}</p>
-                </td>
-                <td className="p-4 border-r-2 border-foreground">
-                  <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-foreground inline-flex items-center gap-1 ${
-                    user.role === 'ADMIN' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground'
-                  }`}>
-                    {user.role === 'ADMIN' && <ShieldCheck className="w-3 h-3" />}
-                    {user.role}
-                  </span>
-                </td>
-                <td className="p-4 border-r-2 border-foreground text-center">
-                  <button
-                    onClick={() => toggleStatus(user)}
-                    className={`px-3 py-1 text-xs font-bold uppercase tracking-widest border-2 border-foreground transition-all hover:-translate-y-1 ${
-                      user.isActive ? 'bg-emerald-400 text-emerald-950 shadow-[2px_2px_0px_0px_#059669]' : 'bg-red-400 text-red-950 shadow-[2px_2px_0px_0px_#dc2626]'
-                    }`}
-                  >
-                    {user.isActive ? 'ACTIVE' : 'LOCKED'}
-                  </button>
-                </td>
-                <td className="p-4 border-r-2 border-foreground text-xs font-bold text-muted-foreground uppercase">
-                  {new Date(user.createdAt).toLocaleDateString('vi-VN')}
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center justify-center gap-2 transition-opacity">
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <p className="font-medium text-sm">Đang tải dữ liệu...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.map((user) => (
+                <tr key={user.id} className="hover:bg-secondary/30 transition-colors group">
+                  <td className="px-6 py-4 text-xs font-medium text-muted-foreground">
+                    <span className="truncate max-w-[80px] inline-block">{user.id.slice(0, 8)}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-foreground text-sm">{user.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{user.email}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 text-[11px] font-semibold rounded-full inline-flex items-center gap-1.5 ${
+                      user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary text-foreground'
+                    }`}>
+                      {user.role === 'ADMIN' && <ShieldCheck className="w-3.5 h-3.5" />}
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
                     <button
-                      onClick={() => handleEdit(user)}
-                      className="p-2 border-2 border-foreground bg-accent hover:bg-primary hover:text-primary-foreground transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]"
-                      title="Chỉnh sửa"
+                      onClick={() => toggleStatus(user)}
+                      className={`px-3 py-1.5 text-[11px] font-semibold rounded-full transition-all ${
+                        user.isActive 
+                          ? 'bg-success/10 text-success hover:bg-success/20' 
+                          : 'bg-danger/10 text-danger hover:bg-danger/20'
+                      }`}
                     >
-                      <Edit2 className="w-4 h-4" />
+                      {user.isActive ? 'Hoạt động' : 'Đã khóa'}
                     </button>
-                    <button
-                      onClick={() => deleteUser(user.id)}
-                      className="p-2 border-2 border-foreground bg-accent hover:bg-red-500 hover:text-white transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]"
-                      title="Xóa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!isLoading && filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-8 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-4">
-                    <UserX className="w-12 h-12" />
-                    <p className="font-bold uppercase tracking-widest">Không tìm thấy khách hàng nào</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
+                    {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
+                        title="Chỉnh sửa"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteUser(user.id)}
+                        className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!isLoading && filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                      <UserX className="w-10 h-10 opacity-50" />
+                      <p className="font-medium text-sm">Không tìm thấy khách hàng nào</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* User Edit Modal */}
       <UserEditModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditUser(null); }}

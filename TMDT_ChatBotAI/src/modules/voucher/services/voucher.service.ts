@@ -27,7 +27,25 @@ export class VoucherService {
     const existing = await prisma.voucher.findUnique({ where: { code: data.code } });
     if (existing) throw new AppError(400, 'Mã voucher đã tồn tại');
 
-    return prisma.voucher.create({ data });
+    const voucher = await prisma.voucher.create({ data });
+
+    // Tự động gửi thông báo đến toàn bộ người dùng
+    try {
+      const allUsers = await prisma.user.findMany({ select: { id: true }, where: { role: 'USER' } });
+      if (allUsers.length > 0) {
+        const notifications = allUsers.map(user => ({
+          userId: user.id,
+          title: '🎁 Mã giảm giá mới dành cho bạn!',
+          content: `Mã ${voucher.code} giảm giá ${voucher.discountType === 'PERCENT' ? voucher.discountValue + '%' : Number(voucher.discountValue).toLocaleString() + 'đ'}. Đừng bỏ lỡ!`,
+          type: 'PROMOTION'
+        }));
+        await prisma.notification.createMany({ data: notifications });
+      }
+    } catch (err) {
+      console.error('Lỗi gửi thông báo Voucher:', err);
+    }
+
+    return voucher;
   }
 
   async update(id: string, data: any) {
@@ -41,7 +59,7 @@ export class VoucherService {
     });
   }
 
-  async validateVoucher(code: string, orderValue: number, categoryIds: string[]) {
+  async validateVoucher(code: string, orderValue: number, categoryIds: string[], userId?: string, productIds?: string[]) {
     const voucher = await prisma.voucher.findUnique({ where: { code } });
     if (!voucher) throw new AppError(404, 'Mã giảm giá không tồn tại');
     
@@ -53,7 +71,21 @@ export class VoucherService {
     }
 
     if (voucher.usedCount >= voucher.usageLimit) {
-      throw new AppError(400, 'Mã giảm giá đã hết lượt sử dụng');
+      throw new AppError(400, 'Mã giảm giá đã hết lượt sử dụng chung');
+    }
+
+    // Nếu truyền userId, kiểm tra xem người dùng đã từng xài mã này chưa (Chỉ được xài 1 lần/user)
+    if (userId) {
+      const existingOrder = await prisma.order.findFirst({
+        where: {
+          userId,
+          voucherId: voucher.id,
+          status: { not: 'CANCELLED' } // Bỏ qua đơn đã hủy
+        }
+      });
+      if (existingOrder) {
+        throw new AppError(400, 'Bạn đã sử dụng mã giảm giá này rồi. Mỗi người chỉ được dùng 1 lần!');
+      }
     }
 
     if (voucher.minOrderValue && orderValue < Number(voucher.minOrderValue)) {
@@ -61,8 +93,13 @@ export class VoucherService {
     }
 
     // Nếu voucher yêu cầu danh mục cụ thể
-    if (voucher.categoryId && !categoryIds.includes(voucher.categoryId)) {
-      throw new AppError(400, 'Mã giảm giá không áp dụng cho sản phẩm trong giỏ hàng');
+    if (voucher.categoryId && categoryIds && !categoryIds.includes(voucher.categoryId)) {
+      throw new AppError(400, 'Mã giảm giá không áp dụng cho danh mục sản phẩm trong giỏ hàng');
+    }
+
+    // Nếu voucher yêu cầu sản phẩm cụ thể
+    if ((voucher as any).productId && productIds && !productIds.includes((voucher as any).productId)) {
+      throw new AppError(400, 'Mã giảm giá không áp dụng cho sản phẩm này');
     }
 
     let discountAmount = 0;

@@ -32,4 +32,38 @@ export class AdminChatbotController {
       next(error);
     }
   }
+
+  /**
+   * Lấy lịch sử trò chuyện Admin
+   */
+  async getHistory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const adminId = req.user!.id;
+      const history = await adminChatbotService.getHistory(adminId);
+      
+      return res.json({
+        success: true,
+        data: history
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Làm mới cuộc hội thoại Admin
+   */
+  async clearChat(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const adminId = req.user!.id;
+      await adminChatbotService.clearHistory(adminId);
+      
+      return res.json({
+        success: true,
+        message: 'Đã xóa lịch sử trò chuyện'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

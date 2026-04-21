@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot, Loader2, Info } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import api from '@/lib/api';
@@ -73,25 +73,25 @@ export default function CartPage() {
   // Auth Guard: yêu cầu đăng nhập khi chưa login
   if (!user) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
-        <div className="w-32 h-32 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] flex items-center justify-center">
-          <ShoppingCart className="w-16 h-16 text-foreground" />
-        </div>
-        <div className="text-center space-y-4">
-          <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Vui lòng đăng nhập</h2>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm max-w-md mx-auto">
-            Bạn cần đăng nhập để xem và quản lý giỏ hàng của mình.
-          </p>
-        </div>
-        <div className="flex justify-center gap-4 pt-4">
-          <Link href="/login">
-            <Button size="lg" className="px-8 py-6 text-lg">Đăng nhập ngay</Button>
-          </Link>
-          <Link href="/register">
-            <Button size="lg" variant="outline" className="px-8 py-6 text-lg bg-accent">
-              Đăng ký
-            </Button>
-          </Link>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md card-elevated rounded-[var(--radius-xl)] p-10 text-center space-y-6 animate-fade-in-up">
+          <div className="w-20 h-20 bg-secondary rounded-[var(--radius-lg)] flex items-center justify-center mx-auto">
+            <ShoppingCart className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-heading text-3xl text-foreground">Vui lòng đăng nhập</h2>
+            <p className="text-muted-foreground text-sm">
+              Bạn cần đăng nhập để xem và quản lý giỏ hàng của mình.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 pt-4">
+            <Link href="/login" className="w-full">
+              <Button size="lg" className="w-full">Đăng nhập ngay</Button>
+            </Link>
+            <Link href="/register" className="w-full">
+              <Button size="lg" variant="outline" className="w-full">Đăng ký</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -112,101 +112,102 @@ export default function CartPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
-        <Loader2 className="w-16 h-16 animate-spin text-primary" />
-        <p className="font-bold uppercase tracking-widest text-muted-foreground">Đang tải giỏ hàng...</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Đang tải giỏ hàng...</p>
       </div>
     );
   }
 
-
   if (items.length === 0) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8">
-        <div className="w-32 h-32 bg-accent border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)] flex items-center justify-center">
-          <ShoppingCart className="w-16 h-16 text-foreground" />
-        </div>
-        <div className="text-center space-y-4">
-          <h2 className="text-4xl font-black uppercase tracking-tighter text-foreground">Giỏ hàng trống</h2>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm max-w-md mx-auto">
-            Chưa có sản phẩm nào trong giỏ hàng. Hãy để AI Assistant gợi ý cho bạn một vài lựa chọn thú vị nhé!
-          </p>
-        </div>
-        <div className="flex justify-center gap-4 pt-4">
-          <Link href="/shop">
-            <Button size="lg" className="px-8 py-6 text-lg">Tiếp tục mua hàng</Button>
-          </Link>
-          <Link href="/ai-hub">
-            <Button size="lg" variant="outline" className="px-8 py-6 text-lg bg-accent">
-              <Sparkles className="w-5 h-5 mr-2 text-primary" /> Trợ lý AI
-            </Button>
-          </Link>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-lg card-elevated p-12 rounded-[var(--radius-xl)] text-center space-y-6 animate-fade-in-up">
+          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <ShoppingCart className="w-12 h-12 text-primary" />
+          </div>
+          <div className="space-y-3">
+            <h2 className="font-heading text-3xl text-foreground">Giỏ hàng trống</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
+              Chưa có sản phẩm nào trong giỏ hàng. Hãy để AI Assistant gợi ý cho bạn một vài lựa chọn thú vị nhé!
+            </p>
+          </div>
+          <div className="flex justify-center gap-4 pt-6">
+            <Link href="/shop">
+              <Button size="lg">Tiếp tục mua hàng</Button>
+            </Link>
+            <Link href="/ai-hub">
+              <Button size="lg" variant="outline" className="gap-2">
+                <Sparkles className="w-4.5 h-4.5 text-primary" /> Trợ lý AI
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-10 space-y-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-4 border-foreground pb-6">
-        <div className="space-y-2">
-          <h1 className="text-5xl font-black tracking-tighter uppercase text-foreground">Giỏ hàng</h1>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm">Có {items.length} nhóm sản phẩm đang chờ thanh toán</p>
+    <div className="space-y-8 pb-20 animate-fade-in-up">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6">
+        <div className="space-y-1">
+          <h1 className="font-heading text-4xl tracking-tight text-foreground">Giỏ hàng</h1>
+          <p className="text-muted-foreground text-sm font-medium">Có {items.length} sản phẩm đang chờ thanh toán</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Product List */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="hidden sm:grid grid-cols-12 gap-4 text-sm font-black uppercase tracking-widest text-foreground bg-accent p-4 border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] mb-6">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="hidden sm:grid grid-cols-12 gap-4 text-xs font-semibold text-muted-foreground bg-secondary px-6 py-3 rounded-[var(--radius-lg)]">
             <div className="col-span-6">Sản phẩm</div>
             <div className="col-span-3 text-center">Số lượng</div>
             <div className="col-span-3 text-right">Tạm tính</div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="solid-card bg-background p-4 grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+              <div key={item.id} className="card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
                 {/* Info */}
                 <div className="col-span-1 sm:col-span-6 flex gap-4">
-                  <div className="w-24 h-24 border-2 border-foreground bg-secondary flex-shrink-0 flex items-center justify-center overflow-hidden">
+                  <Link href={`/product/${item.productId}`} className="w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden">
                     {item.image ? (
-                      <img src={item.image} alt={item.name} className="object-cover w-full h-full" />
+                      <img src={item.image} alt={item.name} className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <Bot className="w-8 h-8 text-muted-foreground" />
+                      <Bot className="w-8 h-8 text-muted" />
                     )}
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <Link href={`/product/${item.productId}`} className="font-black text-lg uppercase tracking-tight text-foreground hover:text-primary transition-colors line-clamp-2 leading-tight">
+                  </Link>
+                  <div className="flex flex-col justify-center min-w-0">
+                    <Link href={`/product/${item.productId}`} className="font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug">
                       {item.name}
                     </Link>
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-2 bg-accent inline-block w-max px-2 py-1 border border-foreground">
+                    <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full mt-2 inline-block w-max">
                       {item.variant}
-                    </p>
-                    <p className="text-primary font-black text-lg mt-2 sm:hidden">{item.price.toLocaleString('vi-VN')}đ</p>
+                    </span>
+                    <p className="text-primary font-bold mt-2 sm:hidden">{item.price.toLocaleString('vi-VN')}đ</p>
                   </div>
                 </div>
 
                 {/* Controller */}
                 <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-center">
-                  <div className="flex items-center bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)]">
-                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-r-2 border-foreground">
-                      <Minus className="w-4 h-4 text-foreground" />
+                  <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
+                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, -1)} className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm">
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="w-10 text-center font-black text-base">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors border-l-2 border-foreground">
-                      <Plus className="w-4 h-4 text-foreground" />
+                    <span className="w-10 text-center font-medium text-sm">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm">
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] transition-all sm:hidden">
-                    <Trash2 className="w-5 h-5" />
+                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-sm)] transition-all sm:hidden">
+                    <Trash2 className="w-4.5 h-4.5" />
                   </button>
                 </div>
 
                 {/* Price & Delete */}
-                <div className="hidden sm:flex col-span-3 items-center justify-end gap-6">
-                  <span className="font-black text-xl text-foreground">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
-                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 bg-accent border-2 border-foreground text-foreground hover:bg-primary hover:text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] hover:-translate-y-1 transition-all">
+                <div className="hidden sm:flex col-span-3 items-center justify-end gap-4">
+                  <span className="font-semibold text-lg text-foreground">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
+                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-all">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -215,39 +216,42 @@ export default function CartPage() {
           </div>
         </div>
 
-        {/* Cột Tính tiền */}
+        {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="solid-card bg-accent p-6 space-y-6 sticky top-32">
-            <h3 className="font-black text-2xl uppercase tracking-tighter text-foreground border-b-4 border-foreground pb-4">
-              Tổng quan
+          <div className="card-elevated bg-card p-6 rounded-[var(--radius-xl)] space-y-6 sticky top-24">
+            <h3 className="font-semibold text-lg text-foreground border-b border-border pb-4">
+              Tóm tắt đơn hàng
             </h3>
             
-            <div className="space-y-4 text-sm font-bold uppercase tracking-wider text-foreground">
-              <div className="flex justify-between">
-                <span>Tạm tính ({items.length} item)</span>
-                <span>{totalAmount.toLocaleString('vi-VN')}đ</span>
+            <div className="space-y-3.5 text-sm font-medium text-foreground">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Tạm tính ({items.length} sp)</span>
+                <span className="text-foreground">{totalAmount.toLocaleString('vi-VN')}đ</span>
               </div>
-              <div className="flex justify-between">
-                <span>Phí vận chuyển chuẩn</span>
-                <span className="text-primary">Miễn phí</span>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Phí vận chuyển</span>
+                <span className="text-primary font-semibold">Miễn phí</span>
               </div>
             </div>
 
-            <div className="border-t-4 border-foreground pt-6 flex justify-between items-end">
-              <span className="font-black text-xl uppercase tracking-tighter text-foreground">Tổng cộng</span>
-              <span className="text-3xl font-black text-primary">{totalAmount.toLocaleString('vi-VN')}đ</span>
+            <div className="border-t border-border pt-5 flex justify-between items-end">
+              <span className="font-semibold text-foreground">Tổng cộng</span>
+              <span className="text-2xl font-bold text-primary">{totalAmount.toLocaleString('vi-VN')}đ</span>
             </div>
 
-            <Link href="/checkout" className="block w-full pt-4">
-              <Button className="w-full h-16 text-lg flex justify-between items-center px-6">
-                <span>Tiến hành thanh toán</span>
-                <ArrowRight className="w-6 h-6" />
-              </Button>
-            </Link>
+            <div className="pt-2">
+              <Link href="/checkout" className="block w-full">
+                <Button size="lg" className="w-full flex justify-between items-center px-6">
+                  <span>Tiến hành thanh toán</span>
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
 
-            <div className="pt-4 border-t-2 border-dashed border-foreground text-center">
-              <p className="text-[10px] text-foreground uppercase tracking-widest font-black flex items-center justify-center bg-background py-2 border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)]">
-                <Sparkles className="w-4 h-4 mr-2 text-primary" /> Được bảo vệ bởi Ultra AI Shield
+            <div className="pt-4 border-t border-border flex items-start gap-3 bg-secondary/50 p-4 rounded-[var(--radius-md)]">
+              <Info className="w-5 h-5 text-primary shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Đơn hàng được áp dụng chính sách đổi trả miễn phí trong vòng 30 ngày và bảo vệ bởi <span className="font-semibold text-foreground">UltraShop Guarantee</span>.
               </p>
             </div>
           </div>

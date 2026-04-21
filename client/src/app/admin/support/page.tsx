@@ -41,29 +41,29 @@ export default function AdminSupportPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'OPEN': return <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 px-2 py-1 text-[10px] font-black uppercase">Mới</span>;
-      case 'IN_PROGRESS': return <span className="bg-primary/10 text-primary border border-primary/30 px-2 py-1 text-[10px] font-black uppercase">Đang xử lý</span>;
-      case 'RESOLVED': return <span className="bg-blue-500/10 text-blue-500 border border-blue-500/30 px-2 py-1 text-[10px] font-black uppercase">Đã xong</span>;
-      default: return <span className="bg-muted text-muted-foreground border border-border px-2 py-1 text-[10px] font-black uppercase">Đã đóng</span>;
+      case 'OPEN': return <span className="bg-warning/10 text-warning px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center w-fit"><AlertCircle className="w-3.5 h-3.5 mr-1" /> Mới</span>;
+      case 'IN_PROGRESS': return <span className="bg-primary/10 text-primary px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center w-fit"><Clock className="w-3.5 h-3.5 mr-1" /> Đang xử lý</span>;
+      case 'RESOLVED': return <span className="bg-success/10 text-success px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center w-fit"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã xong</span>;
+      default: return <span className="bg-secondary text-muted-foreground px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center w-fit">Đã đóng</span>;
     }
   };
 
   return (
-    <div className="space-y-8 p-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-foreground pb-8">
-        <div className="space-y-2">
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-foreground flex items-center">
-            Quản lý Hỗ trợ <MessageSquare className="ml-4 w-10 h-10 text-primary" />
+    <div className="space-y-8 animate-fade-in-up">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-6">
+        <div className="space-y-1">
+          <h1 className="font-heading text-3xl sm:text-4xl text-foreground flex items-center">
+            Quản lý Hỗ trợ
           </h1>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-xs">Phản hồi và xử lý các yêu cầu từ khách hàng</p>
+          <p className="text-muted-foreground text-sm">Phản hồi và xử lý các yêu cầu từ khách hàng</p>
         </div>
 
-        <div className="flex items-center gap-4 bg-accent p-2 border-4 border-foreground shadow-[4px_4px_0px_0px_var(--foreground)]">
-           <Filter className="w-5 h-5 ml-2 text-foreground" />
+        <div className="flex items-center gap-3 bg-card border border-border rounded-[var(--radius-lg)] p-1.5 shadow-sm">
+           <Filter className="w-4 h-4 ml-2 text-muted-foreground" />
            <select 
              value={filterStatus} 
              onChange={(e) => setFilterStatus(e.target.value)}
-             className="bg-transparent font-black uppercase tracking-widest text-xs focus:outline-none p-2 cursor-pointer"
+             className="bg-transparent text-sm font-medium focus:outline-none p-1.5 cursor-pointer text-foreground appearance-none pr-8"
            >
              <option value="">Tất cả trạng thái</option>
              <option value="OPEN">Chưa xử lý</option>
@@ -76,51 +76,58 @@ export default function AdminSupportPage() {
 
       <div className="grid grid-cols-1 gap-6">
         {isLoading ? (
-          <div className="h-[400px] flex flex-col items-center justify-center space-y-6">
-            <Loader2 className="w-16 h-16 animate-spin text-primary" />
-            <p className="text-xl font-black uppercase tracking-widest animate-pulse">Đang tải dữ liệu yêu cầu...</p>
+          <div className="h-[400px] flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">Đang tải dữ liệu yêu cầu...</p>
           </div>
         ) : tickets.length === 0 ? (
-          <div className="h-[400px] solid-card bg-background flex flex-col items-center justify-center space-y-6 text-center border-4">
-             <CheckCircle2 className="w-20 h-20 text-emerald-500 opacity-20" />
-             <h3 className="text-3xl font-black uppercase tracking-tighter">Tuyệt vời!</h3>
-             <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm">Hiện không có yêu cầu hỗ trợ nào cần xử lý.</p>
+          <div className="h-[400px] card-elevated bg-card rounded-[var(--radius-xl)] flex flex-col items-center justify-center space-y-5 text-center border border-border">
+             <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+               <CheckCircle2 className="w-8 h-8 text-success" />
+             </div>
+             <div className="space-y-1">
+               <h3 className="font-heading text-2xl text-foreground">Tuyệt vời!</h3>
+               <p className="text-muted-foreground text-sm">Hiện không có yêu cầu hỗ trợ nào cần xử lý.</p>
+             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {tickets.map((ticket) => (
               <div 
                 key={ticket.id} 
-                className="solid-card bg-background border-4 shadow-[8px_8px_0px_0px_var(--foreground)] hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_var(--foreground)] transition-all flex flex-col group overflow-hidden"
+                className="card-elevated bg-card border border-border rounded-[var(--radius-xl)] hover:shadow-md transition-shadow flex flex-col group overflow-hidden relative"
               >
-                <div className="p-6 space-y-4 flex-1">
+                {/* Decorative Background Element */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none" />
+
+                <div className="p-6 space-y-5 flex-1 relative z-10">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         {getStatusBadge(ticket.status)}
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">#{ticket.id.slice(0, 8)}</span>
+                        <span className="text-[11px] font-medium text-muted-foreground">#{ticket.id.slice(0, 8)}</span>
                       </div>
-                      <h3 className="text-xl font-black text-foreground uppercase tracking-tight line-clamp-1">{ticket.subject}</h3>
+                      <h3 className="text-lg font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{ticket.subject}</h3>
                     </div>
-                    <div className="w-10 h-10 border-2 border-foreground bg-accent flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
-                      <MessageSquare className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-5 h-5 text-muted-foreground" />
                     </div>
                   </div>
 
-                  <div className="bg-secondary p-4 border-2 border-foreground border-dashed">
-                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Khách hàng:</p>
-                     <p className="font-black text-foreground uppercase">{ticket.user.name}</p>
+                  <div className="bg-secondary/30 p-4 rounded-[var(--radius-md)] border border-border/50">
+                     <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Khách hàng</p>
+                     <p className="font-semibold text-foreground">{ticket.user.name}</p>
                   </div>
 
-                  <div className="flex items-center space-x-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    <Clock className="w-3 h-3" />
+                  <div className="flex items-center space-x-2 text-[11px] font-medium text-muted-foreground">
+                    <Clock className="w-3.5 h-3.5" />
                     <span>Cập nhật: {new Date(ticket.updatedAt).toLocaleString('vi-VN')}</span>
                   </div>
                 </div>
 
-                <Link href={`/admin/support/${ticket.id}`} className="block">
-                  <button className="w-full bg-foreground text-background py-4 font-black uppercase tracking-widest text-sm hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-2">
-                    Xử lý yêu cầu <ArrowRight className="w-5 h-5" />
+                <Link href={`/admin/support/${ticket.id}`} className="block mt-auto relative z-10 border-t border-border">
+                  <button className="w-full bg-secondary/20 text-foreground py-3.5 font-semibold text-sm hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-2">
+                    Xử lý yêu cầu <ArrowRight className="w-4 h-4" />
                   </button>
                 </Link>
               </div>

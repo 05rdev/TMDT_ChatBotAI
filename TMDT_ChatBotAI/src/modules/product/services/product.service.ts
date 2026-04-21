@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../../middlewares/error.middleware';
-import { cacheSet, cacheGet } from '../../../lib/redis';
+import { cacheSet, cacheGet, cacheDelPattern } from '../../../lib/redis';
 
 export class ProductService {
   /**
@@ -56,7 +56,7 @@ export class ProductService {
       prisma.product.findMany({
         where,
         include: {
-          images: { where: { isPrimary: true }, take: 1 },
+          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
           variants: { orderBy: { price: 'asc' }, take: 1 }, // Lấy giá thấp nhất để hiển thị
           category: { select: { name: true } },
           _count: { select: { reviews: true } }
@@ -70,8 +70,28 @@ export class ProductService {
       prisma.product.count({ where }),
     ]);
 
+    // Lấy tổng số lượng đã bán từ OrderItem cho các sản phẩm này
+    const soldCounts = await prisma.orderItem.groupBy({
+      by: ['productId'],
+      _sum: { quantity: true },
+      where: {
+        productId: { in: products.map(p => p.id) },
+        order: { status: { not: 'CANCELLED' } }
+      }
+    });
+
+    const productsWithStats = products.map(p => {
+      const soldData = soldCounts.find(s => s.productId === p.id);
+      return {
+        ...p,
+        soldCount: soldData?._sum?.quantity || 0,
+        primaryImage: p.images[0]?.url || null,
+        minPrice: p.variants[0]?.price || 0
+      };
+    });
+
     const result = {
-      products,
+      products: productsWithStats,
       pagination: {
         total,
         page,
@@ -176,7 +196,7 @@ export class ProductService {
     const products = await prisma.product.findMany({
       where: { id: { in: ids }, isDeleted: false },
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         variants: { orderBy: { price: 'asc' }, take: 1 },
         category: { select: { name: true } },
       },
@@ -196,7 +216,7 @@ export class ProductService {
     return prisma.product.findMany({
       where: { isDeleted: false },
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         variants: { orderBy: { price: 'asc' }, take: 1 },
         category: { select: { name: true } },
       },
@@ -215,7 +235,7 @@ export class ProductService {
     const existing = await prisma.product.findUnique({ where: { slug } });
     if (existing) throw new AppError(400, 'Slug sản phẩm đã tồn tại');
 
-    return prisma.product.create({
+    const product = await prisma.product.create({
       data: {
         name,
         slug,
@@ -227,6 +247,9 @@ export class ProductService {
       },
       include: { variants: true }
     });
+
+    await this.clearProductCache();
+    return product;
   }
 
   /**
@@ -237,7 +260,7 @@ export class ProductService {
 
     // Nếu có variants, ta sẽ cập nhật hoặc tạo mới (Để đơn giản ở đây ta xóa cũ tạo mới nếu truyền mảng mới)
     // Trong thực tế nên xử lý update từng variant id
-    return prisma.product.update({
+    const product = await prisma.product.update({
       where: { id },
       data: {
         ...productData,
@@ -250,16 +273,34 @@ export class ProductService {
       },
       include: { variants: true }
     });
+
+    await this.clearProductCache();
+    return product;
   }
 
   /**
    * Xóa mềm sản phẩm
    */
   async softDelete(id: string) {
-    return prisma.product.update({
+    const product = await prisma.product.update({
       where: { id },
       data: { isDeleted: true }
     });
+
+    await this.clearProductCache();
+    return product;
+  }
+
+  /**
+   * Xóa tất cả cache liên quan đến danh sách sản phẩm
+   */
+  private async clearProductCache() {
+    try {
+      await cacheDelPattern('products:list:*');
+      console.log('🧹 Product cache cleared');
+    } catch (error) {
+      console.error('❌ Failed to clear product cache:', error);
+    }
   }
 
   /**
@@ -289,5 +330,32 @@ export class ProductService {
       ORDER BY p.embedding <=> ${vectorString}::vector ASC
       LIMIT ${limit}
     `);
+  }
+
+  /**
+   * Xóa ảnh sản phẩm
+   */
+  async deleteImage(imageId: string) {
+    return prisma.productImage.delete({
+      where: { id: imageId }
+    });
+  }
+
+  /**
+   * Đặt ảnh làm ảnh chính
+   */
+  async setPrimaryImage(productId: string, imageId: string) {
+    return prisma.$transaction([
+      // 1. Reset tất cả ảnh của sản phẩm này về false
+      prisma.productImage.updateMany({
+        where: { productId },
+        data: { isPrimary: false }
+      }),
+      // 2. Đặt ảnh được chọn thành true
+      prisma.productImage.update({
+        where: { id: imageId },
+        data: { isPrimary: true }
+      })
+    ]);
   }
 }

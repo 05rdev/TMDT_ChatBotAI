@@ -65,13 +65,13 @@ export class ChatbotService {
       console.warn('⚠️ RAG Enhancement Failed, continuing with basic chat:', ragError);
     }
 
-    // 5. Lấy lịch sử hội thoại
+    // 5. Lấy lịch sử hội thoại (lấy 7 tin nhắn gần nhất bao gồm cả tin nhắn vừa lưu)
     let history: any[] = [];
     if (userId) {
       history = await prisma.chatMessage.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: 6
+        take: 7
       });
       history.reverse();
     }
@@ -94,9 +94,13 @@ export class ChatbotService {
 
     const chatMessages = [
       { role: 'system', content: systemPrompt },
-      ...history.map(h => ({ role: h.role, content: h.content })),
-      { role: 'user', content: message }
+      ...history.map(h => ({ role: h.role, content: h.content }))
     ];
+
+    // Nếu không có userId (Guest), chúng ta vẫn cần gửi tin nhắn hiện tại
+    if (!userId) {
+      chatMessages.push({ role: 'user', content: message });
+    }
 
     try {
       const response = await fetch(this.ollamaUrl, {
@@ -116,8 +120,20 @@ export class ChatbotService {
 
       // 7. Lưu phản hồi của AI
       if (userId) {
+        const productsData = relevantProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          image: p.primaryImage
+        }));
+
         await prisma.chatMessage.create({
-          data: { userId, role: 'assistant', content: aiResponse }
+          data: { 
+            userId, 
+            role: 'assistant', 
+            content: aiResponse,
+            suggestedProducts: productsData as any
+          }
         });
       }
 

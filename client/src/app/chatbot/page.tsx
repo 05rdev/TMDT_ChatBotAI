@@ -83,34 +83,34 @@ export default function ChatbotPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto h-[80vh] flex flex-col space-y-6">
+    <div className="max-w-4xl mx-auto h-[85vh] flex flex-col space-y-6 py-6 px-4 sm:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between border-b-4 border-foreground pb-6">
+      <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center space-x-4">
           <Link href="/ai-hub">
-            <Button variant="outline" size="sm" className="w-10 h-10 p-0 flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
+            <Button variant="outline" size="icon" className="rounded-full shrink-0 hover:bg-secondary transition-colors border-border shadow-sm">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-black uppercase tracking-tighter text-foreground flex items-center">
-              Ultra Assistant <Sparkles className="ml-2 w-6 h-6 text-primary animate-pulse" />
+            <h1 className="text-2xl font-heading font-semibold text-foreground flex items-center">
+              Ultra Assistant <Sparkles className="ml-2 w-5 h-5 text-primary animate-pulse" />
             </h1>
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Chào mừng bạn đến với hệ thống chatbot AI</p>
+            <p className="text-sm text-muted-foreground mt-1">Trợ lý ảo mua sắm thông minh của bạn</p>
           </div>
         </div>
         <div className="hidden sm:flex items-center space-x-6">
           {isAuthenticated && (
             <button
               onClick={handleClearChat}
-              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-red-500 transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-danger transition-colors"
             >
-              [ Làm mới chat ]
+              Làm mới trò chuyện
             </button>
           )}
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-emerald-500 border border-foreground rounded-full animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Local AI Active</span>
+          <div className="flex items-center space-x-2 bg-secondary/50 px-3 py-1.5 rounded-full border border-border">
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-xs font-medium text-foreground">Local AI Active</span>
           </div>
         </div>
       </div>
@@ -118,12 +118,15 @@ export default function ChatbotPage() {
       {/* Chat Messages Area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto solid-card bg-accent p-6 space-y-6 scrollbar-thin scrollbar-thumb-foreground scrollbar-track-transparent border-4 shadow-[8px_8px_0px_0px_var(--foreground)]"
+        className="flex-1 overflow-y-auto bg-card rounded-[var(--radius-xl)] border border-border p-6 space-y-6 shadow-sm custom-scrollbar"
       >
         {messages.length === 0 && !isLoading && (
-          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-            <Bot className="w-12 h-12" />
-            <p className="font-bold uppercase tracking-widest text-sm">Bắt đầu trò chuyện với em nhé!</p>
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-60">
+            <div className="w-16 h-16 rounded-full bg-secondary border border-border flex items-center justify-center mb-2">
+               <Bot className="w-8 h-8 text-primary" />
+            </div>
+            <p className="font-medium text-foreground text-lg">Xin chào! Em có thể giúp gì cho bạn hôm nay?</p>
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">Bạn có thể hỏi về sản phẩm, mã giảm giá, trạng thái đơn hàng hoặc yêu cầu tư vấn mua sắm.</p>
           </div>
         )}
 
@@ -133,33 +136,33 @@ export default function ChatbotPage() {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
             <div className={`flex max-w-[85%] space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
-              <div className={`w-10 h-10 border-2 border-foreground flex-shrink-0 flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)] ${msg.role === 'user' ? 'bg-primary' : 'bg-background'}`}>
-                {msg.role === 'user' ? <User className="w-6 h-6 text-primary-foreground" /> : <Bot className="w-6 h-6 text-foreground" />}
+              <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary border border-border text-foreground'}`}>
+                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
-              <div className="space-y-4 flex-1">
-                <div className={`p-4 border-2 border-foreground font-bold text-sm leading-relaxed shadow-[4px_4px_0px_0px_var(--foreground)] ${msg.role === 'user' ? 'bg-background text-foreground' : 'bg-secondary text-foreground'}`}>
+              <div className="space-y-3 flex-1">
+                <div className={`p-4 rounded-[var(--radius-lg)] text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 border border-border text-foreground'}`}>
                   {msg.content}
                 </div>
 
                 {/* Suggested Products */}
                 {msg.role === 'assistant' && msg.suggestedProducts && msg.suggestedProducts.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-500">
                     {msg.suggestedProducts.map((p: any) => (
                       <Link
                         key={p.id}
                         href={`/product/${p.slug}`}
-                        className="flex items-center space-x-3 p-2 bg-background border-2 border-foreground hover:-translate-y-1 transition-transform shadow-[2px_2px_0px_0px_var(--foreground)] group"
+                        className="flex items-center space-x-3 p-2 bg-card rounded-[var(--radius-md)] border border-border hover:border-primary/50 hover:shadow-md transition-all group overflow-hidden"
                       >
-                        <div className="w-12 h-12 border border-foreground bg-accent flex-shrink-0">
+                        <div className="w-12 h-12 rounded-[var(--radius-sm)] bg-secondary flex-shrink-0 overflow-hidden">
                           {p.image ? (
-                            <img src={p.image} alt={p.name} className="w-full h-full object-cover transition-all" />
+                            <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           ) : (
                             <Bot className="w-full h-full p-2 opacity-30" />
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-black uppercase text-foreground truncate">{p.name}</p>
-                          <p className="text-[10px] font-bold text-primary">Xem chi tiết →</p>
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                          <p className="text-xs font-medium text-primary mt-0.5 group-hover:underline">Xem chi tiết →</p>
                         </div>
                       </Link>
                     ))}
@@ -172,11 +175,12 @@ export default function ChatbotPage() {
         {isLoading && (
           <div className="flex justify-start animate-in fade-in duration-300">
             <div className="flex space-x-3">
-              <div className="w-10 h-10 border-2 border-foreground bg-background flex items-center justify-center shadow-[2px_2px_0px_0px_var(--foreground)]">
-                <Bot className="w-6 h-6 text-foreground" />
+              <div className="w-10 h-10 rounded-full border border-border bg-secondary flex items-center justify-center shadow-sm">
+                <Bot className="w-5 h-5 text-foreground" />
               </div>
-              <div className="p-4 border-2 border-foreground bg-secondary shadow-[4px_4px_0px_0px_var(--foreground)]">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <div className="px-4 py-3 rounded-[var(--radius-lg)] border border-border bg-secondary/50 shadow-sm flex items-center space-x-3">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Đang suy nghĩ...</span>
               </div>
             </div>
           </div>
@@ -184,7 +188,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSend} className="flex space-x-4 items-end pb-4">
+      <form onSubmit={handleSend} className="flex space-x-3 items-end">
         <div className="flex-1 relative">
           <textarea
             rows={1}
@@ -196,16 +200,16 @@ export default function ChatbotPage() {
                 handleSend(e);
               }
             }}
-            placeholder="Đặt câu hỏi về sản phẩm, mã giảm giá hoặc đơn hàng..."
-            className="w-full bg-background border-4 border-foreground p-4 font-bold text-foreground focus:outline-none focus:shadow-[4px_4px_0px_0px_var(--primary)] transition-all resize-none min-h-[60px]"
+            placeholder="Nhập tin nhắn hoặc yêu cầu của bạn..."
+            className="w-full bg-card border border-border rounded-[var(--radius-lg)] px-4 py-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none min-h-[52px] shadow-sm custom-scrollbar"
           />
         </div>
         <Button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="h-[60px] px-8 shadow-[4px_4px_0px_0px_var(--foreground)] active:translate-y-1 active:translate-x-[-1px] transition-all"
+          className="h-[52px] px-6 rounded-[var(--radius-lg)] shadow-sm flex-shrink-0"
         >
-          <Send className="w-6 h-6" />
+          <Send className="w-5 h-5" />
         </Button>
       </form>
     </div>

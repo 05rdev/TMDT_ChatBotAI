@@ -18,8 +18,9 @@ export class VoucherController {
   // Checkout - Validate voucher
   async checkValid(req: Request, res: Response, next: NextFunction) {
     try {
-      const { code, orderValue, categoryIds } = req.body;
-      const result = await voucherService.validateVoucher(code, orderValue, categoryIds || []);
+      const { code, orderValue, categoryIds, productIds } = req.body;
+      const userId = (req as any).user?.id;
+      const result = await voucherService.validateVoucher(code, orderValue, categoryIds || [], userId, productIds || []);
       return res.json({
         success: true,
         message: 'Áp dụng mã giảm giá thành công',

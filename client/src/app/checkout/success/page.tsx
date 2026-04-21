@@ -4,47 +4,48 @@ import React from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { CheckCircle2, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight } from 'lucide-react';
 
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
 
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 text-center bg-card p-10 rounded-3xl shadow-xl border border-border relative overflow-hidden">
-        {/* Background Decoration */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl" />
+    <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4 animate-fade-in-up">
+      <div className="max-w-md w-full card-elevated p-10 rounded-[var(--radius-xl)] text-center relative overflow-hidden bg-card">
+        {/* Soft Background Decoration */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative">
-          <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-emerald-100 dark:bg-emerald-500/20 mb-6">
-            <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+        <div className="relative z-10">
+          <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 mb-6">
+            <CheckCircle2 className="h-10 w-10 text-primary" />
           </div>
           
-          <h2 className="mt-6 text-3xl font-extrabold text-foreground">
+          <h2 className="font-heading text-3xl text-foreground">
             Thanh toán thành công!
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Cảm ơn bạn đã mua sắm tại UltraShop. Đơn hàng của bạn đang được xử lý.
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+            Cảm ơn bạn đã mua sắm tại UltraShop. Đơn hàng của bạn đang được hệ thống xử lý nhanh chóng.
           </p>
           
           {orderId && (
-            <div className="mt-6 p-4 bg-muted rounded-2xl border border-border">
-              <p className="text-sm font-medium text-foreground">Mã đơn hàng của bạn:</p>
-              <p className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1">{orderId}</p>
+            <div className="mt-6 p-4 bg-secondary/50 rounded-[var(--radius-lg)] border border-border">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Mã đơn hàng của bạn</p>
+              <p className="font-mono text-primary font-semibold text-lg tracking-wide">{orderId}</p>
             </div>
           )}
 
-          <div className="mt-8 space-y-4">
+          <div className="mt-8 space-y-3">
             <Link href={`/profile/orders`} className="block">
-              <Button className="w-full py-6 text-lg font-bold rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white">
+              <Button size="lg" className="w-full group">
                 Xem chi tiết đơn hàng
+                <ArrowRight className="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
               </Button>
             </Link>
             <Link href="/" className="block">
-              <Button variant="outline" className="w-full py-6 text-lg font-bold rounded-xl flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 mr-2" /> Tiếp tục mua sắm
+              <Button variant="outline" size="lg" className="w-full">
+                <ShoppingBag className="w-4.5 h-4.5 mr-2" /> Tiếp tục mua sắm
               </Button>
             </Link>
           </div>

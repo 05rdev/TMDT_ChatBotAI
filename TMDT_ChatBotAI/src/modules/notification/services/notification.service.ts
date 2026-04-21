@@ -79,4 +79,14 @@ export class NotificationService {
       data: notifications
     });
   }
+
+  async deleteNotification(id: string, userId: string) {
+    const notification = await prisma.notification.findUnique({ where: { id } });
+    if (!notification) throw new AppError(404, 'Thông báo không tồn tại');
+    if (notification.userId !== userId) throw new AppError(403, 'Không có quyền truy cập');
+
+    return prisma.notification.delete({
+      where: { id }
+    });
+  }
 }

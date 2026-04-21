@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
   Loader2, Star, ShoppingCart, ShieldCheck, Truck, 
   RotateCcw, Sparkles, ChevronRight, ChevronLeft, 
-  Plus, Minus, ArrowRight
+  Plus, Minus, ArrowRight, Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
@@ -39,6 +39,7 @@ export default function ProductDetailPage() {
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   
   const addToCart = useCartStore((state) => state.addItem);
+  const fetchCart = useCartStore((state) => state.fetchCart);
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -54,17 +55,15 @@ export default function ProductDetailPage() {
       const productData = response.data.data;
       setProduct(productData);
       
-      // Fetch AI Similar Products
       let similar = [];
       try {
         const similarRes = await api.get(`/ai/similar/${productData.id}`);
         similar = similarRes.data.data || [];
       } catch (err) {
-        console.error('Failed to fetch AI similar products, falling back to category match');
+        console.error('Failed to fetch AI similar products');
       }
       
       if (similar.length === 0) {
-        // Fallback: fetch products in the same category
         try {
           const fallbackRes = await api.get(`/products?categoryId=${productData.category.id}`);
           similar = (fallbackRes.data.data || []).filter((p: any) => p.id !== productData.id).slice(0, 6);
@@ -86,12 +85,13 @@ export default function ProductDetailPage() {
     
     if (user) {
       try {
-        await api.post('/cart', {
-          productId: product.id,
-          productVariantId: variant.id,
-          quantity: quantity
-        });
-        toast.success('Đã thêm vào giỏ hàng');
+          await api.post('/cart', {
+            productId: product.id,
+            productVariantId: variant.id,
+            quantity: quantity
+          });
+          await fetchCart();
+          toast.success('Đã thêm vào giỏ hàng');
       } catch (error) {
         toast.error('Lỗi khi thêm vào giỏ hàng');
       }
@@ -102,7 +102,7 @@ export default function ProductDetailPage() {
         name: product.name,
         price: variant.price,
         quantity: quantity,
-        image: product.images[0]?.url || 'https://via.placeholder.com/800',
+        image: product.images[0]?.url || '',
         variant: variant.name
       });
       toast.success('Đã thêm vào giỏ hàng cục bộ');
@@ -116,26 +116,28 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="h-[70vh] flex flex-col items-center justify-center space-y-6">
-        <Loader2 className="w-16 h-16 text-primary animate-spin" />
-        <p className="font-black text-2xl uppercase tracking-widest animate-pulse">Đang tải...</p>
+      <div className="h-[70vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-sm font-medium text-muted-foreground">Đang tải thông tin sản phẩm...</p>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="h-[70vh] flex flex-col items-center justify-center space-y-6 text-center">
-        <div className="w-24 h-24 bg-accent border-4 border-foreground flex items-center justify-center shadow-[4px_4px_0px_0px_var(--foreground)]">
-          <ShieldCheck className="w-12 h-12 text-foreground" />
+      <div className="h-[70vh] flex flex-col items-center justify-center p-4">
+        <div className="card-elevated p-12 rounded-[var(--radius-xl)] max-w-lg text-center space-y-6">
+          <div className="w-20 h-20 bg-secondary rounded-[var(--radius-lg)] flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-heading text-3xl text-foreground">Không tìm thấy sản phẩm</h2>
+            <p className="text-muted-foreground text-sm">Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không đúng.</p>
+          </div>
+          <Link href="/shop" className="inline-block pt-4">
+            <Button size="lg" className="px-8">Quay lại cửa hàng</Button>
+          </Link>
         </div>
-        <div className="space-y-2">
-          <h2 className="text-4xl font-black uppercase tracking-tighter">Không tìm thấy sản phẩm</h2>
-          <p className="text-muted-foreground font-bold tracking-widest uppercase text-sm">Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không đúng.</p>
-        </div>
-        <Link href="/shop">
-          <Button size="lg" className="px-8 mt-4">Quay lại cửa hàng</Button>
-        </Link>
       </div>
     );
   }
@@ -143,58 +145,58 @@ export default function ProductDetailPage() {
   const currentVariant = product.variants[selectedVariant] || product.variants[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-20">
+    <div className="space-y-16 pb-20 animate-fade-in-up">
       {/* Breadcrumbs */}
-      <nav className="flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-muted-foreground bg-accent p-4 border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] w-max">
-        <Link href="/" className="hover:text-foreground hover:underline underline-offset-4 transition-all">Trang chủ</Link>
-        <ChevronRight className="w-4 h-4" />
-        <Link href="/shop" className="hover:text-foreground hover:underline underline-offset-4 transition-all">Cửa hàng</Link>
-        <ChevronRight className="w-4 h-4" />
+      <nav className="flex items-center space-x-2 text-xs font-medium text-muted-foreground mb-6">
+        <Link href="/" className="hover:text-foreground transition-colors">Trang chủ</Link>
+        <ChevronRight className="w-3.5 h-3.5" />
+        <Link href="/shop" className="hover:text-foreground transition-colors">Cửa hàng</Link>
+        <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-primary truncate max-w-[200px]">{product.name}</span>
       </nav>
 
-      {/* Hero Section: Gallery & Info */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20">
-        {/* Left: Image Gallery */}
-        <div className="space-y-6">
-          <div className="relative aspect-square solid-card bg-background overflow-hidden group">
+      {/* Hero Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-16">
+        {/* Left: Gallery */}
+        <div className="space-y-4">
+          <div className="relative aspect-square card-elevated rounded-[var(--radius-xl)] bg-secondary overflow-hidden group">
             <AnimatePresence mode="wait">
               <motion.img 
                 key={selectedImage}
-                initial={{ opacity: 0, scale: 1.1 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.4 }}
-                src={product.images[selectedImage]?.url || 'https://via.placeholder.com/800'} 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                src={product.images[selectedImage]?.url || ''} 
                 alt={product.name}
-                className="w-full h-full object-cover transition-all duration-500"
+                className="w-full h-full object-cover"
               />
             </AnimatePresence>
             
-            {/* Gallery Navigation */}
+            {/* Gallery Nav */}
             <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                <button 
                 onClick={() => setSelectedImage(prev => prev > 0 ? prev - 1 : product.images.length - 1)}
-                className="w-12 h-12 bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] flex items-center justify-center hover:bg-secondary hover:translate-y-[-2px] transition-all"
+                className="w-10 h-10 bg-background/90 backdrop-blur-sm rounded-full shadow-sm flex items-center justify-center hover:bg-background text-foreground transition-all"
                >
-                 <ChevronLeft className="w-6 h-6 text-foreground" />
+                 <ChevronLeft className="w-5 h-5" />
                </button>
                <button 
                 onClick={() => setSelectedImage(prev => prev < product.images.length - 1 ? prev + 1 : 0)}
-                className="w-12 h-12 bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] flex items-center justify-center hover:bg-secondary hover:translate-y-[-2px] transition-all"
+                className="w-10 h-10 bg-background/90 backdrop-blur-sm rounded-full shadow-sm flex items-center justify-center hover:bg-background text-foreground transition-all"
                >
-                 <ChevronRight className="w-6 h-6 text-foreground" />
+                 <ChevronRight className="w-5 h-5" />
                </button>
             </div>
           </div>
 
           {/* Thumbnails */}
-          <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
+          <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
             {product.images.map((img, idx) => (
               <button 
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`flex-shrink-0 w-24 h-24 overflow-hidden border-2 transition-all shadow-[2px_2px_0px_0px_var(--foreground)] ${selectedImage === idx ? 'border-primary -translate-y-1' : 'border-foreground hover:bg-secondary hover:-translate-y-1'}`}
+                className={`flex-shrink-0 w-20 h-20 rounded-[var(--radius-md)] overflow-hidden transition-all ${selectedImage === idx ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'opacity-70 hover:opacity-100'}`}
               >
                 <img src={img.url} alt="" className="w-full h-full object-cover" />
               </button>
@@ -202,227 +204,221 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Right: Product Info */}
+        {/* Right: Info */}
         <div className="flex flex-col space-y-8">
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center space-x-3">
-              <span className="px-3 py-1 bg-accent border-2 border-foreground text-foreground text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_var(--foreground)]">
+              <span className="px-3 py-1 bg-secondary text-foreground text-xs font-medium rounded-full">
                 {product.category.name}
               </span>
-              <div className="flex items-center space-x-1">
-                <div className="flex text-primary">
+              <div className="flex items-center space-x-1.5">
+                <div className="flex text-warning">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className={`w-4 h-4 ${i < Math.round(product.averageRating) ? 'fill-current' : 'text-muted-foreground'}`} />
+                    <Star key={i} className={`w-4 h-4 ${i < Math.round(product.averageRating) ? 'fill-current' : 'text-muted-foreground/30'}`} />
                   ))}
                 </div>
-                <span className="ml-2 text-sm text-foreground font-bold tracking-widest">({product.totalReviews})</span>
+                <span className="text-sm text-muted-foreground font-medium">({product.totalReviews} đánh giá)</span>
               </div>
             </div>
             
-            <h1 className="text-4xl xl:text-6xl font-black tracking-tighter uppercase text-foreground leading-none">
+            <h1 className="font-heading text-4xl xl:text-5xl text-foreground leading-[1.1] tracking-tight">
               {product.name}
             </h1>
 
-            <div className="flex items-baseline space-x-4 bg-secondary p-4 border-l-8 border-primary border-y-2 border-r-2 border-y-foreground border-r-foreground">
-               <span className="text-4xl xl:text-5xl font-black text-foreground">
+            <div className="flex items-baseline space-x-4 pt-2">
+               <span className="text-3xl xl:text-4xl font-bold text-foreground">
                  {currentVariant.price.toLocaleString('vi-VN')}đ
                </span>
-               <span className="text-muted-foreground font-bold tracking-widest line-through text-lg">
+               <span className="text-muted-foreground font-medium line-through text-lg">
                  {(currentVariant.price * 1.2).toLocaleString('vi-VN')}đ
                </span>
             </div>
           </div>
 
-          <div className="solid-card p-6 bg-background">
-            <p className="text-foreground font-medium text-lg leading-relaxed line-clamp-4">
-              {product.description}
-            </p>
-          </div>
+          <p className="text-muted-foreground text-base leading-relaxed line-clamp-3">
+            {product.description}
+          </p>
 
           {/* Variants */}
           <div className="space-y-4">
-            <h4 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center">
-              <Plus className="w-4 h-4 mr-2" /> Chọn phiên bản
+            <h4 className="text-sm font-semibold text-foreground flex items-center">
+              Chọn phiên bản
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {product.variants.map((variant, idx) => (
                 <button
                   key={variant.id}
                   onClick={() => setSelectedVariant(idx)}
-                  className={`p-4 text-left transition-all border-2 border-foreground font-bold uppercase ${selectedVariant === idx ? 'bg-primary text-primary-foreground shadow-[2px_2px_0px_0px_var(--foreground)] translate-y-[-2px]' : 'bg-background text-foreground hover:bg-secondary hover:shadow-[2px_2px_0px_0px_var(--foreground)] hover:translate-y-[-2px]'}`}
+                  className={`p-3 text-left rounded-[var(--radius-md)] border transition-all ${selectedVariant === idx ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-foreground/30'}`}
                 >
-                  <p className="text-sm line-clamp-1">{variant.name}</p>
-                  <p className="text-xs mt-1 opacity-80">{variant.price.toLocaleString('vi-VN')}đ</p>
+                  <p className={`text-sm font-semibold line-clamp-1 ${selectedVariant === idx ? 'text-primary' : 'text-foreground'}`}>{variant.name}</p>
+                  <p className="text-xs mt-1 text-muted-foreground">{variant.price.toLocaleString('vi-VN')}đ</p>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Quantity & Actions */}
-          <div className="space-y-6 pt-6 border-t-4 border-foreground">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center bg-background border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)]">
+          <div className="space-y-6 pt-6 border-t border-border">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-muted-foreground">Số lượng:</span>
+              <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
                 <button 
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-12 h-12 flex items-center justify-center hover:bg-secondary transition-colors border-r-2 border-foreground"
+                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground"
                 >
-                  <Minus className="w-5 h-5" />
+                  <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-16 text-center font-black text-xl">{quantity}</span>
+                <span className="w-12 text-center font-semibold text-base">{quantity}</span>
                 <button 
                   onClick={() => setQuantity(q => q + 1)}
-                  className="w-12 h-12 flex items-center justify-center hover:bg-secondary transition-colors border-l-2 border-foreground"
+                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                Còn <span className="text-primary font-black text-lg">{currentVariant.stock}</span> SP
+              <p className="text-xs text-muted-foreground">
+                Còn {currentVariant.stock} sản phẩm
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-               <Button onClick={handleAddToCart} className="flex-1 h-16 text-lg" variant="outline">
-                 <ShoppingCart className="w-6 h-6 mr-3" />
+               <Button onClick={handleAddToCart} size="lg" className="flex-1" variant="outline">
+                 <ShoppingCart className="w-5 h-5 mr-2" />
                  Thêm vào giỏ
                </Button>
-               <Button onClick={handleBuyNow} className="flex-1 h-16 text-lg">
+               <Button onClick={handleBuyNow} size="lg" className="flex-1">
                  Mua ngay
                </Button>
             </div>
           </div>
 
           {/* Benefits */}
-          <div className="grid grid-cols-3 gap-4 pt-6">
-             <div className="text-center space-y-3 group border-2 border-foreground p-4 hover:bg-secondary transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]">
-                <ShieldCheck className="w-8 h-8 mx-auto text-foreground" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Bảo mật tuyệt đối</p>
+          <div className="grid grid-cols-3 gap-3 pt-4">
+             <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
+                <ShieldCheck className="w-6 h-6 mx-auto text-primary" />
+                <p className="text-xs font-medium text-foreground">Bảo vệ 100%</p>
              </div>
-             <div className="text-center space-y-3 group border-2 border-foreground p-4 hover:bg-secondary transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]">
-                <Truck className="w-8 h-8 mx-auto text-foreground" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Giao hàng 2H</p>
+             <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
+                <Truck className="w-6 h-6 mx-auto text-primary" />
+                <p className="text-xs font-medium text-foreground">Giao trong 2H</p>
              </div>
-             <div className="text-center space-y-3 group border-2 border-foreground p-4 hover:bg-secondary transition-colors shadow-[2px_2px_0px_0px_var(--foreground)]">
-                <RotateCcw className="w-8 h-8 mx-auto text-foreground" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Đổi trả 30 ngày</p>
+             <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
+                <RotateCcw className="w-6 h-6 mx-auto text-primary" />
+                <p className="text-xs font-medium text-foreground">Đổi trả 30 ngày</p>
              </div>
           </div>
         </div>
       </div>
 
-      {/* Recommendations Section */}
-      <section className="space-y-10 border-t-8 border-foreground pt-12">
+      {/* Recommendations */}
+      <section className="space-y-8 pt-10 border-t border-border">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h2 className="text-4xl font-black uppercase tracking-tighter flex items-center text-foreground">
-              <Sparkles className="w-8 h-8 mr-3 text-primary" /> Sản phẩm liên quan
-            </h2>
-          </div>
+          <h2 className="font-heading text-3xl text-foreground flex items-center">
+            <Sparkles className="w-6 h-6 mr-3 text-primary" /> Gợi ý cho bạn
+          </h2>
           <Link href="/shop">
-            <Button variant="outline" className="hidden sm:flex">
-              Xem tất cả <ArrowRight className="w-4 h-4 ml-2" />
+            <Button variant="outline" size="sm" className="hidden sm:flex">
+              Xem thêm <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
           {similarProducts.map((p) => (
-            <div key={p.id} className="solid-card bg-background flex flex-col group hover:-translate-y-2 transition-transform cursor-pointer relative p-0 overflow-hidden">
-              <Link href={`/product/${p.slug}`} className="block relative aspect-square border-b-2 border-foreground bg-secondary">
-                <img src={p.images?.[0]?.url || p.primaryImage || 'https://via.placeholder.com/200'} alt={p.name} className="w-full h-full object-cover transition-transform duration-500" />
+            <div key={p.id} className="card-elevated-hover bg-card flex flex-col group cursor-pointer overflow-hidden">
+              <Link href={`/product/${p.slug}`} className="block relative aspect-square bg-secondary">
+                {p.images?.[0]?.url || p.primaryImage ? (
+                  <img src={p.images?.[0]?.url || p.primaryImage} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Bot className="w-8 h-8 text-muted opacity-30"/></div>
+                )}
               </Link>
-              <div className="p-3 space-y-2">
+              <div className="p-3.5 space-y-1.5">
                 <Link href={`/product/${p.slug}`}>
-                  <h4 className="text-sm font-black uppercase text-foreground line-clamp-2 group-hover:text-primary transition-colors leading-tight">{p.name}</h4>
+                  <h4 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors leading-tight">{p.name}</h4>
                 </Link>
-                <p className="text-lg text-foreground font-black">{(p.variants?.[0]?.price || p.minPrice || 0).toLocaleString('vi-VN')}đ</p>
+                <p className="text-base text-foreground font-bold">{(p.variants?.[0]?.price || p.minPrice || 0).toLocaleString('vi-VN')}đ</p>
               </div>
             </div>
-          ))}
-          {similarProducts.length === 0 && Array.from({ length: 6 }).map((_, i) => (
-             <div key={i} className="solid-card bg-muted aspect-[3/4] animate-pulse flex items-center justify-center">
-               <span className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Loading...</span>
-             </div>
           ))}
         </div>
       </section>
 
-      {/* Product Details Tabs (Description & Reviews) */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-12 pt-12 border-t-8 border-foreground">
-        <div className="lg:col-span-2 space-y-12">
-           <div className="space-y-6">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground bg-primary text-primary-foreground px-4 py-2 w-max shadow-[4px_4px_0px_0px_var(--foreground)] border-2 border-foreground">
-                Mô tả chi tiết
-              </h2>
-              <div className="solid-card p-8 bg-background leading-relaxed text-lg font-medium">
-                {product.description}
-                <div className="mt-8 pt-6 border-t-4 border-dashed border-foreground text-sm font-bold uppercase tracking-widest text-muted-foreground">
+      {/* Tabs / Content */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t border-border">
+        <div className="lg:col-span-2 space-y-10">
+           {/* Description */}
+           <div className="space-y-5">
+              <h3 className="font-semibold text-xl text-foreground">Mô tả chi tiết</h3>
+              <div className="text-muted-foreground leading-relaxed space-y-4">
+                <p>{product.description}</p>
+                <div className="mt-6 p-4 bg-secondary/50 rounded-[var(--radius-md)] text-sm italic">
                    * Lưu ý: Sản phẩm thực tế có thể thay đổi nhẹ tùy theo phiên bản và khu vực phân phối.
                 </div>
               </div>
            </div>
 
-           <div className="space-y-8">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground bg-secondary px-4 py-2 w-max shadow-[4px_4px_0px_0px_var(--foreground)] border-2 border-foreground">
-                Đánh giá ({product.reviews.length})
-              </h2>
-              <div className="space-y-6">
-                {product.reviews.map((review, i) => (
-                  <div key={review.id} className="solid-card p-6 bg-background flex space-x-6">
-                    <div className="w-16 h-16 bg-accent border-2 border-foreground shadow-[2px_2px_0px_0px_var(--foreground)] flex-shrink-0 flex items-center justify-center overflow-hidden">
-                      <img src={review.user.avatar || 'https://via.placeholder.com/64'} alt="" className="w-full h-full object-cover" />
+           {/* Reviews */}
+           <div className="space-y-6 pt-6 border-t border-border">
+              <h3 className="font-semibold text-xl text-foreground">Đánh giá khách hàng ({product.reviews.length})</h3>
+              <div className="space-y-4">
+                {product.reviews.map((review) => (
+                  <div key={review.id} className="p-5 bg-card border border-border rounded-[var(--radius-lg)] flex space-x-4">
+                    <div className="w-12 h-12 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      {review.user.avatar ? (
+                        <img src={review.user.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-semibold text-muted-foreground">{review.user.name.charAt(0)}</span>
+                      )}
                     </div>
                     <div className="space-y-2 flex-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <h4 className="font-black text-lg uppercase tracking-wider text-foreground">{review.user.name}</h4>
-                        <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <h4 className="font-semibold text-foreground">{review.user.name}</h4>
+                        <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
                       </div>
-                      <div className="flex text-primary">
+                      <div className="flex text-warning">
                         {Array.from({ length: 5 }).map((_, j) => (
-                          <Star key={j} className={`w-4 h-4 ${j < review.rating ? 'fill-current' : 'text-muted-foreground'}`} />
+                          <Star key={j} className={`w-3.5 h-3.5 ${j < review.rating ? 'fill-current' : 'text-muted-foreground/30'}`} />
                         ))}
                       </div>
-                      <p className="text-base font-medium text-foreground pt-2">{review.comment}</p>
+                      <p className="text-sm text-foreground pt-1">{review.comment}</p>
                     </div>
                   </div>
                 ))}
                 {product.reviews.length === 0 && (
-                  <div className="solid-card p-12 bg-background text-center">
-                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-lg">Chưa có đánh giá nào cho siêu phẩm này.</p>
+                  <div className="py-10 text-center">
+                    <p className="text-muted-foreground text-sm">Chưa có đánh giá nào cho sản phẩm này.</p>
                   </div>
                 )}
               </div>
            </div>
         </div>
 
-        {/* Sidebar Info */}
-        <div className="space-y-8">
-           <div className="solid-card p-8 bg-accent">
-              <h3 className="text-2xl font-black uppercase tracking-tighter mb-6 text-foreground border-b-4 border-foreground pb-4">
-                Bảo hành Ultra
+        {/* Sidebar */}
+        <div className="space-y-6">
+           <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card border border-border">
+              <h3 className="font-semibold text-lg mb-5 text-foreground">
+                Chính sách cửa hàng
               </h3>
-              <ul className="space-y-6 text-sm font-bold text-foreground">
-                <li className="flex items-start">
-                  <div className="w-8 h-8 bg-primary border-2 border-foreground flex items-center justify-center mr-4 shadow-[2px_2px_0px_0px_var(--foreground)] flex-shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <span className="pt-1 leading-snug">Cam kết chính hãng 100% được xác thực bởi AI.</span>
+              <ul className="space-y-5 text-sm text-muted-foreground">
+                <li className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
+                  <span className="leading-snug text-foreground">Cam kết chính hãng 100% được xác thực bởi AI.</span>
                 </li>
-                <li className="flex items-start">
-                  <div className="w-8 h-8 bg-background border-2 border-foreground flex items-center justify-center mr-4 shadow-[2px_2px_0px_0px_var(--foreground)] flex-shrink-0">
-                    <Truck className="w-4 h-4 text-foreground" />
-                  </div>
-                  <span className="pt-1 leading-snug">Giao hàng siêu tốc trong 2h tại khu vực nội thành.</span>
+                <li className="flex items-start gap-3">
+                  <Truck className="w-5 h-5 text-primary shrink-0" />
+                  <span className="leading-snug text-foreground">Giao hàng siêu tốc trong 2h tại khu vực nội thành.</span>
                 </li>
-                <li className="flex items-start">
-                  <div className="w-8 h-8 bg-background border-2 border-foreground flex items-center justify-center mr-4 shadow-[2px_2px_0px_0px_var(--foreground)] flex-shrink-0">
-                    <RotateCcw className="w-4 h-4 text-foreground" />
-                  </div>
-                  <span className="pt-1 leading-snug">Đổi trả miễn phí trong 30 ngày nếu phát hiện lỗi.</span>
+                <li className="flex items-start gap-3">
+                  <RotateCcw className="w-5 h-5 text-primary shrink-0" />
+                  <span className="leading-snug text-foreground">Đổi trả miễn phí trong 30 ngày nếu phát hiện lỗi.</span>
                 </li>
               </ul>
-              <Link href="/ai-hub" className="block mt-8">
-                <Button className="w-full h-14 text-base">Chat với trợ lý AI</Button>
+              <Link href="/ai-hub" className="block mt-6">
+                <Button variant="outline" className="w-full gap-2">
+                  <Bot className="w-4.5 h-4.5" /> Hỏi trợ lý AI
+                </Button>
               </Link>
            </div>
         </div>

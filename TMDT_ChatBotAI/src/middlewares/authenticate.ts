@@ -41,3 +41,35 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
     }
   }
 };
+
+export const optionalAuthenticate = async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = verifyAccessToken(token);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { isActive: true }
+    });
+
+    if (user && user.isActive) {
+      req.user = decoded;
+    }
+  } catch (error) {
+    // Bỏ qua lỗi token, coi như là guest
+  }
+  next();
+};
+
+export const authorize = (...roles: string[]) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new AppError(403, 'Bạn không có quyền thực hiện hành động này'));
+    }
+    next();
+  };
+};

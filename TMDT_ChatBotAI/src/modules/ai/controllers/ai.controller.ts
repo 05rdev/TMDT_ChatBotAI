@@ -37,7 +37,7 @@ export class AIController {
         return res.status(400).json({ success: false, message: 'Vui lòng cung cấp từ khóa tìm kiếm (q)' });
       }
 
-      const results = await aiService.searchSemantic(query);
+      const results = await aiService.intelligentSearch(query);
       
       return res.json({
         success: true,

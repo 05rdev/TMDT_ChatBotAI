@@ -70,12 +70,12 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-10">
+    <div className="max-w-7xl mx-auto py-10 space-y-8 animate-fade-in-up">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar Profile */}
         <aside className="lg:col-span-1 space-y-6">
-           <div className="glass-card rounded-3xl p-6 text-center space-y-4">
-             <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500/50 overflow-hidden">
+           <div className="card-elevated rounded-[var(--radius-xl)] p-6 text-center space-y-4 bg-card">
+             <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center mx-auto overflow-hidden ring-4 ring-background shadow-sm">
                 {user.avatar ? (
                   <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -83,19 +83,19 @@ export default function ProfilePage() {
                 )}
              </div>
              <div>
-               <h3 className="font-bold text-foreground">{user.name}</h3>
-               <p className="text-sm text-muted-foreground mt-1">Thành viên Hạng Vàng</p>
+               <h3 className="font-semibold text-lg text-foreground">{user.name}</h3>
+               <p className="text-xs font-medium text-primary mt-1 bg-primary/10 px-3 py-1 rounded-full inline-block">Thành viên Hạng Vàng</p>
              </div>
            </div>
 
-           <nav className="glass-card rounded-3xl p-4 flex flex-col space-y-2">
-             <Link href="/profile" className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-500 bg-emerald-500/10 transition-colors">
+           <nav className="card-elevated rounded-[var(--radius-xl)] p-3 flex flex-col space-y-1.5 bg-card">
+             <Link href="/profile" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-primary bg-primary/10 transition-colors">
                Thông tin tài khoản
              </Link>
-             <Link href="/profile/orders" className="px-4 py-3 rounded-xl text-sm font-medium text-foreground/70 hover:bg-muted/10 transition-colors">
+             <Link href="/profile/orders" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                Lịch sử đơn hàng
              </Link>
-             <Link href="/profile/wishlist" className="px-4 py-3 rounded-xl text-sm font-medium text-foreground/70 hover:bg-muted/10 transition-colors">
+             <Link href="/profile/wishlist" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                Sản phẩm yêu thích
              </Link>
            </nav>
@@ -104,88 +104,88 @@ export default function ProfilePage() {
         {/* Main Area */}
         <div className="lg:col-span-3 space-y-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Thông tin tài khoản</h1>
-            <p className="text-muted-foreground text-sm mt-1">Cập nhật thông tin cá nhân và bảo mật tài khoản.</p>
+            <h1 className="font-heading text-3xl text-foreground">Thông tin tài khoản</h1>
+            <p className="text-muted-foreground text-sm mt-1.5">Cập nhật thông tin cá nhân và bảo mật tài khoản.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Form Cập nhật thông tin */}
-            <div className="glass-card rounded-3xl p-8 border-border">
-              <h2 className="text-xl font-bold mb-6 flex items-center">
+            <div className="card-elevated rounded-[var(--radius-xl)] p-8 border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6 flex items-center text-foreground">
                 <User className="w-5 h-5 mr-2 text-primary" /> Thông tin cơ bản
               </h2>
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-muted-foreground mb-1 uppercase tracking-wider">Email (Không thể đổi)</label>
+              <form onSubmit={handleUpdateProfile} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Email <span className="text-muted-foreground text-xs font-normal">(Không thể đổi)</span></label>
                   <input 
                     type="email" 
                     value={user.email} 
                     disabled
-                    className="w-full bg-muted/20 border-2 border-border p-3 font-bold text-muted-foreground cursor-not-allowed rounded-xl"
+                    className="w-full bg-secondary/50 border border-border px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed rounded-[var(--radius-md)]"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1 uppercase tracking-wider">Họ và tên</label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Họ và tên</label>
                   <input 
                     type="text" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-background border-2 border-border p-3 font-bold text-foreground focus:outline-none focus:border-primary transition-all rounded-xl"
+                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all rounded-[var(--radius-md)]"
                     placeholder="Nhập họ và tên..."
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1 uppercase tracking-wider">URL Ảnh đại diện (Tùy chọn)</label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">URL Ảnh đại diện <span className="text-muted-foreground text-xs font-normal">(Tùy chọn)</span></label>
                   <input 
                     type="text" 
                     value={avatar}
                     onChange={(e) => setAvatar(e.target.value)}
-                    className="w-full bg-background border-2 border-border p-3 font-bold text-foreground focus:outline-none focus:border-primary transition-all rounded-xl"
+                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all rounded-[var(--radius-md)]"
                     placeholder="https://..."
                   />
                 </div>
                 <Button 
                   type="submit" 
                   disabled={isUpdatingProfile}
-                  className="w-full h-12 shadow-[4px_4px_0px_0px_var(--foreground)] mt-4"
+                  className="w-full mt-2"
                 >
-                  {isUpdatingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Lưu thông tin</>}
+                  {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Lưu thông tin</>}
                 </Button>
               </form>
             </div>
 
             {/* Form Đổi mật khẩu */}
-            <div className="glass-card rounded-3xl p-8 border-border">
-              <h2 className="text-xl font-bold mb-6 flex items-center">
-                <Lock className="w-5 h-5 mr-2 text-red-500" /> Đổi mật khẩu
+            <div className="card-elevated rounded-[var(--radius-xl)] p-8 border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6 flex items-center text-foreground">
+                <Lock className="w-5 h-5 mr-2 text-danger" /> Đổi mật khẩu
               </h2>
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1 uppercase tracking-wider">Mật khẩu cũ</label>
+              <form onSubmit={handleChangePassword} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Mật khẩu cũ</label>
                   <input 
                     type="password" 
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full bg-background border-2 border-border p-3 font-bold text-foreground focus:outline-none focus:border-red-500 transition-all rounded-xl"
+                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-danger/20 transition-all rounded-[var(--radius-md)]"
                     placeholder="Nhập mật khẩu hiện tại..."
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1 uppercase tracking-wider">Mật khẩu mới</label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Mật khẩu mới</label>
                   <input 
                     type="password" 
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-background border-2 border-border p-3 font-bold text-foreground focus:outline-none focus:border-red-500 transition-all rounded-xl"
+                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-danger/20 transition-all rounded-[var(--radius-md)]"
                     placeholder="Nhập mật khẩu mới..."
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full h-12 shadow-[4px_4px_0px_0px_var(--foreground)] mt-4 bg-red-500 hover:bg-red-600 text-white"
+                  className="w-full mt-2 bg-danger hover:bg-danger/90 text-white"
                   disabled={isUpdatingPassword}
                 >
-                  {isUpdatingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Cập nhật mật khẩu</>}
+                  {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Cập nhật mật khẩu</>}
                 </Button>
               </form>
             </div>

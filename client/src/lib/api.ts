@@ -40,10 +40,12 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Nếu refresh token cũng lỗi -> Logout
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        // Chỉ logout nếu thực sự có lỗi từ server (không phải lỗi kết nối)
+        if (axios.isAxiosError(refreshError) && refreshError.response) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }
