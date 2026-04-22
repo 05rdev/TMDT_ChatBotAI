@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useTranslation } from '@/hooks/useTranslation';
 import api from '@/lib/api';
 import { Bot, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -23,17 +25,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Lỗi xác nhận', { description: 'Mật khẩu xác nhận không khớp.' });
+      toast.error(t('register.passwordMismatch'), { description: t('register.passwordMismatchDesc') });
       setIsLoading(false);
       return;
     }
     try {
       await api.post('/auth/register', { name: formData.name, email: formData.email, password: formData.password });
       setSuccess(true);
-      toast.success('Đăng ký thành công', { description: 'Tài khoản của bạn đã được tạo!' });
+      toast.success(t('register.success'), { description: t('register.successDesc') });
       setTimeout(() => router.push('/login'), 2000);
     } catch (err: any) {
-      toast.error('Đăng ký thất bại', { description: err.response?.data?.message || 'Vui lòng kiểm tra lại thông tin.' });
+      toast.error(t('register.failed'), { description: err.response?.data?.message || t('register.failedDesc') });
     } finally {
       setIsLoading(false);
     }
@@ -46,8 +48,8 @@ export default function RegisterPage() {
           <div className="w-14 h-14 bg-primary/10 rounded-[var(--radius-lg)] flex items-center justify-center mx-auto mb-4">
             <Bot className="text-primary w-8 h-8" />
           </div>
-          <h1 className="font-heading text-2xl tracking-tight text-foreground">Tạo tài khoản mới</h1>
-          <p className="text-muted-foreground text-sm">Gia nhập cộng đồng UltraShop để tận hưởng đặc quyền AI</p>
+          <h1 className="font-heading text-2xl tracking-tight text-foreground">{t('register.title')}</h1>
+          <p className="text-muted-foreground text-sm">{t('register.subtitle')}</p>
         </div>
 
         {success ? (
@@ -55,26 +57,26 @@ export default function RegisterPage() {
             <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center mx-auto">
               <Check className="text-white w-6 h-6" />
             </div>
-            <h2 className="text-xl font-semibold text-accent">Đăng ký thành công!</h2>
-            <p className="text-muted-foreground">Đang chuyển hướng bạn tới trang đăng nhập...</p>
+            <h2 className="text-xl font-semibold text-accent">{t('register.success')}!</h2>
+            <p className="text-muted-foreground">{t('register.redirecting')}</p>
           </div>
         ) : (
           <form onSubmit={handleRegister} className="grid grid-cols-1 gap-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input name="name" label="Họ và tên" placeholder="Nguyễn Văn A" value={formData.name} onChange={handleChange} required />
-              <Input name="email" label="Email" type="email" placeholder="example@gmail.com" value={formData.email} onChange={handleChange} required />
+              <Input name="name" label={t('register.fullName')} placeholder="Nguyễn Văn A" value={formData.name} onChange={handleChange} required />
+              <Input name="email" label={t('register.email')} type="email" placeholder="example@gmail.com" value={formData.email} onChange={handleChange} required />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input name="password" label="Mật khẩu" type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
-              <Input name="confirmPassword" label="Xác nhận mật khẩu" type="password" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} required />
+              <Input name="password" label={t('register.password')} type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
+              <Input name="confirmPassword" label={t('register.confirmPassword')} type="password" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} required />
             </div>
-            <Button className="w-full" size="lg" isLoading={isLoading} type="submit">Đăng ký tài khoản</Button>
+            <Button className="w-full" size="lg" isLoading={isLoading} type="submit">{t('register.submitBtn')}</Button>
           </form>
         )}
 
         <div className="mt-8 text-center border-t border-border pt-6">
           <Link href="/login" className="text-muted-foreground hover:text-primary text-sm font-medium inline-flex items-center transition-colors">
-            <ArrowLeft className="mr-2 w-4 h-4" /> Quay lại đăng nhập
+            <ArrowLeft className="mr-2 w-4 h-4" /> {t('register.backToLogin')}
           </Link>
         </div>
       </div>

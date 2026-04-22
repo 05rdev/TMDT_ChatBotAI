@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/useAuthStore';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -84,19 +86,19 @@ export default function ProfilePage() {
              </div>
              <div>
                <h3 className="font-semibold text-lg text-foreground">{user.name}</h3>
-               <p className="text-xs font-medium text-primary mt-1 bg-primary/10 px-3 py-1 rounded-full inline-block">Thành viên Hạng Vàng</p>
+               <p className="text-xs font-medium text-primary mt-1 bg-primary/10 px-3 py-1 rounded-full inline-block">{t('profile.goldMember')}</p>
              </div>
            </div>
 
            <nav className="card-elevated rounded-[var(--radius-xl)] p-3 flex flex-col space-y-1.5 bg-card">
              <Link href="/profile" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-primary bg-primary/10 transition-colors">
-               Thông tin tài khoản
+               {t('profile.accountInfo')}
              </Link>
              <Link href="/profile/orders" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-               Lịch sử đơn hàng
+               {t('profile.orderHistory')}
              </Link>
              <Link href="/profile/wishlist" className="px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-               Sản phẩm yêu thích
+               {t('profile.favoriteProducts')}
              </Link>
            </nav>
         </aside>
@@ -104,19 +106,19 @@ export default function ProfilePage() {
         {/* Main Area */}
         <div className="lg:col-span-3 space-y-8">
           <div>
-            <h1 className="font-heading text-3xl text-foreground">Thông tin tài khoản</h1>
-            <p className="text-muted-foreground text-sm mt-1.5">Cập nhật thông tin cá nhân và bảo mật tài khoản.</p>
+            <h1 className="font-heading text-3xl text-foreground">{t('profile.accountInfo')}</h1>
+            <p className="text-muted-foreground text-sm mt-1.5">{t('profile.accountInfoDesc')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Form Cập nhật thông tin */}
             <div className="card-elevated rounded-[var(--radius-xl)] p-8 border border-border bg-card">
               <h2 className="text-lg font-semibold mb-6 flex items-center text-foreground">
-                <User className="w-5 h-5 mr-2 text-primary" /> Thông tin cơ bản
+                <User className="w-5 h-5 mr-2 text-primary" /> {t('profile.basicInfo')}
               </h2>
               <form onSubmit={handleUpdateProfile} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Email <span className="text-muted-foreground text-xs font-normal">(Không thể đổi)</span></label>
+                  <label className="text-sm font-medium text-foreground">{t('profile.emailLabel')}</label>
                   <input 
                     type="email" 
                     value={user.email} 
@@ -125,17 +127,16 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Họ và tên</label>
+                  <label className="text-sm font-medium text-foreground">{t('profile.fullName')}</label>
                   <input 
                     type="text" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all rounded-[var(--radius-md)]"
-                    placeholder="Nhập họ và tên..."
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">URL Ảnh đại diện <span className="text-muted-foreground text-xs font-normal">(Tùy chọn)</span></label>
+                  <label className="text-sm font-medium text-foreground">{t('profile.avatarUrl')}</label>
                   <input 
                     type="text" 
                     value={avatar}
@@ -149,7 +150,7 @@ export default function ProfilePage() {
                   disabled={isUpdatingProfile}
                   className="w-full mt-2"
                 >
-                  {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Lưu thông tin</>}
+                  {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> {t('profile.saveInfo')}</>}
                 </Button>
               </form>
             </div>
@@ -157,27 +158,27 @@ export default function ProfilePage() {
             {/* Form Đổi mật khẩu */}
             <div className="card-elevated rounded-[var(--radius-xl)] p-8 border border-border bg-card">
               <h2 className="text-lg font-semibold mb-6 flex items-center text-foreground">
-                <Lock className="w-5 h-5 mr-2 text-danger" /> Đổi mật khẩu
+                <Lock className="w-5 h-5 mr-2 text-danger" /> {t('profile.changePassword')}
               </h2>
               <form onSubmit={handleChangePassword} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Mật khẩu cũ</label>
+                  <label className="text-sm font-medium text-foreground">{t('profile.oldPassword')}</label>
                   <input 
                     type="password" 
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
                     className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-danger/20 transition-all rounded-[var(--radius-md)]"
-                    placeholder="Nhập mật khẩu hiện tại..."
+                    placeholder={t('profile.oldPasswordPlaceholder')}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Mật khẩu mới</label>
+                  <label className="text-sm font-medium text-foreground">{t('profile.newPassword')}</label>
                   <input 
                     type="password" 
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-danger/20 transition-all rounded-[var(--radius-md)]"
-                    placeholder="Nhập mật khẩu mới..."
+                    placeholder={t('profile.newPasswordPlaceholder')}
                   />
                 </div>
                 <Button 
@@ -185,7 +186,7 @@ export default function ProfilePage() {
                   className="w-full mt-2 bg-danger hover:bg-danger/90 text-white"
                   disabled={isUpdatingPassword}
                 >
-                  {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Cập nhật mật khẩu</>}
+                  {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> {t('profile.updatePassword')}</>}
                 </Button>
               </form>
             </div>

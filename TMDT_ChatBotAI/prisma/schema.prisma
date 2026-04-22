@@ -113,6 +113,7 @@ model Order {
   phone       String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  cancelReason String?
   voucherId   String?
   user        User        @relation(fields: [userId], references: [id])
   voucher     Voucher?    @relation(fields: [voucherId], references: [id])

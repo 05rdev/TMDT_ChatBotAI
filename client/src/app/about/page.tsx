@@ -1,8 +1,13 @@
+'use client';
+
 import { Bot, Zap, ShieldCheck, Brain, Sparkles, ArrowRight, Globe, Users, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function AboutPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-32">
       {/* Hero */}
@@ -11,28 +16,27 @@ export default function AboutPage() {
           <div className="space-y-8">
             <div className="inline-flex items-center space-x-2 bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_var(--primary)] w-max">
               <Sparkles className="w-5 h-5 text-primary" />
-              <span>Về chúng tôi</span>
+              <span>{t('about.badge')}</span>
             </div>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter uppercase text-foreground">
-              Mua sắm<br />
-              <span className="text-primary" style={{ WebkitTextStroke: '2px var(--foreground)' }}>Thông minh</span>
+              {t('about.heroTitle1')}<br />
+              <span className="text-primary" style={{ WebkitTextStroke: '2px var(--foreground)' }}>{t('about.heroTitle2')}</span>
             </h1>
 
             <p className="text-xl font-medium max-w-xl border-l-4 border-primary pl-6 py-2 text-foreground/80">
-              UltraShop kết hợp sức mạnh của Trí Tuệ Nhân Tạo với thương mại điện tử, 
-              tạo nên trải nghiệm mua sắm chưa từng có — nhanh, chính xác và cá nhân hóa.
+              {t('about.heroDesc')}
             </p>
 
             <div className="flex flex-wrap gap-4 pt-4">
               <Link href="/shop">
                 <Button size="lg" className="text-lg py-4 px-8 flex items-center group">
-                  Khám phá ngay <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
+                  {t('about.exploreNow')} <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
                 </Button>
               </Link>
               <Link href="/chatbot">
                 <Button variant="outline" size="lg" className="text-lg py-4 px-8">
-                  <Bot className="w-5 h-5 mr-3" /> Chat với AI
+                  <Bot className="w-5 h-5 mr-3" /> {t('about.chatWithAI')}
                 </Button>
               </Link>
             </div>
@@ -55,7 +59,7 @@ export default function AboutPage() {
               </div>
               <div className="absolute bottom-6 left-6 solid-card bg-background px-4 py-3 -rotate-3 hover:rotate-0 transition-transform">
                 <span className="font-black text-2xl text-primary">&lt;0.1s</span>
-                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Phản hồi AI</span>
+                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('about.aiResponse')}</span>
               </div>
             </div>
           </div>
@@ -66,21 +70,16 @@ export default function AboutPage() {
       <section className="border-t-4 border-foreground pt-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
           <div>
-            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground">
-              Sứ mệnh<br />của chúng tôi
+            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground whitespace-pre-line">
+              {t('about.missionTitle')}
             </h2>
           </div>
           <div className="space-y-6">
             <p className="text-xl font-medium text-foreground/80 leading-relaxed">
-              Chúng tôi tin rằng tương lai của thương mại điện tử nằm ở sự kết hợp giữa 
-              con người và trí tuệ nhân tạo. UltraShop được xây dựng với mục tiêu mang đến 
-              trải nghiệm mua sắm hoàn toàn mới — nơi AI không chỉ là công cụ, mà là người 
-              bạn đồng hành thông minh.
+              {t('about.missionDesc1')}
             </p>
             <p className="text-lg font-medium text-foreground/60 leading-relaxed">
-              Từ tư vấn sản phẩm bằng ngôn ngữ tự nhiên, tìm kiếm bằng hình ảnh, đến hệ thống 
-              đề xuất cá nhân hóa — mọi tính năng đều được thiết kế để tiết kiệm thời gian 
-              và nâng cao trải nghiệm của bạn.
+              {t('about.missionDesc2')}
             </p>
           </div>
         </div>
@@ -89,26 +88,26 @@ export default function AboutPage() {
       {/* Core Values */}
       <section className="border-t-4 border-foreground pt-16">
         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground mb-12">
-          Giá trị cốt lõi
+          {t('about.coreValues')}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ValueCard
             icon={<Brain className="w-12 h-12 text-primary" />}
-            title="AI-First"
-            description="Mọi tính năng đều được hỗ trợ bởi AI — từ tìm kiếm ngữ nghĩa, chatbot tư vấn, đến gợi ý sản phẩm thông minh."
+            title={t('about.aiFirst')}
+            description={t('about.aiFirstDesc')}
             className="bg-foreground text-background"
           />
           <ValueCard
             icon={<Zap className="w-12 h-12" />}
-            title="Tốc độ cực nhanh"
-            description="Kiến trúc hiện đại với Redis caching, CDN phân tán và thuật toán tối ưu đảm bảo phản hồi dưới 100ms."
+            title={t('about.superFast')}
+            description={t('about.superFastDesc')}
             className="bg-accent"
           />
           <ValueCard
             icon={<ShieldCheck className="w-12 h-12" />}
-            title="Bảo mật tuyệt đối"
-            description="Mã hóa end-to-end, JWT authentication, và giám sát bảo mật 24/7 bảo vệ mọi giao dịch của bạn."
+            title={t('about.absoluteSecurity')}
+            description={t('about.absoluteSecurityDesc')}
             className="bg-background"
           />
         </div>
@@ -117,17 +116,17 @@ export default function AboutPage() {
       {/* Stats */}
       <section className="border-t-4 border-foreground pt-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <StatCard number="1000+" label="Sản phẩm" icon={<Package className="w-6 h-6" />} />
-          <StatCard number="500+" label="Khách hàng" icon={<Users className="w-6 h-6" />} />
+          <StatCard number="1000+" label={t('about.products')} icon={<Package className="w-6 h-6" />} />
+          <StatCard number="500+" label={t('about.customers')} icon={<Users className="w-6 h-6" />} />
           <StatCard number="99.9%" label="Uptime" icon={<Globe className="w-6 h-6" />} />
-          <StatCard number="<0.1s" label="Tốc độ AI" icon={<Zap className="w-6 h-6" />} />
+          <StatCard number="<0.1s" label={t('about.aiSpeed')} icon={<Zap className="w-6 h-6" />} />
         </div>
       </section>
 
       {/* Tech Stack */}
       <section className="border-t-4 border-foreground pt-16">
         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground mb-12">
-          Công nghệ
+          {t('about.technology')}
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -152,20 +151,20 @@ export default function AboutPage() {
       {/* CTA */}
       <section className="solid-card bg-foreground text-background p-12 md:p-16 text-center space-y-8">
         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">
-          Sẵn sàng trải nghiệm?
+          {t('about.readyToExperience')}
         </h2>
         <p className="text-xl font-medium opacity-80 max-w-2xl mx-auto">
-          Tham gia cùng hàng nghìn khách hàng đang tận hưởng trải nghiệm mua sắm thông minh với UltraShop.
+          {t('about.readyDesc')}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
           <Link href="/shop">
             <Button size="lg" className="text-lg py-4 px-10 bg-primary text-primary-foreground border-2 border-background shadow-[4px_4px_0px_0px_var(--background)]">
-              Mua sắm ngay
+              {t('about.shopNow')}
             </Button>
           </Link>
           <Link href="/register">
             <Button variant="outline" size="lg" className="text-lg py-4 px-10 border-2 border-background text-background hover:bg-background hover:text-foreground">
-              Tạo tài khoản
+              {t('about.createAccount')}
             </Button>
           </Link>
         </div>

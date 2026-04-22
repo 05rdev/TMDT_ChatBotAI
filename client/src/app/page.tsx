@@ -1,8 +1,13 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Bot, Zap, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Home() {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-20 md:space-y-28">
       {/* 
@@ -16,29 +21,29 @@ export default function Home() {
           <div className="lg:col-span-7 flex flex-col justify-center z-20">
             <div className="inline-flex items-center space-x-2 bg-primary/10 text-primary px-4 py-2 rounded-full w-max mb-6 text-sm font-medium">
               <Sparkles className="w-4 h-4" />
-              <span>Trải nghiệm mua sắm thông minh</span>
+              <span>{t('home.badge')}</span>
             </div>
 
             <h1 className="font-heading text-5xl md:text-6xl lg:text-7xl leading-[1.1] tracking-tight text-foreground">
-              Mua sắm dễ dàng,{' '}
-              <span className="text-primary">thông minh hơn</span>
+              {t('home.heroTitle')}{' '}
+              <span className="text-primary">{t('home.heroHighlight')}</span>
             </h1>
 
             <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed">
-              Không cần tìm kiếm mệt mỏi. Trợ lý AI của UltraShop sẽ giúp bạn tìm đúng sản phẩm, đúng giá, đúng lúc.
+              {t('home.heroDesc')}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-8">
               <Link href="/shop" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full flex items-center justify-center gap-2 group">
-                  <span>Khám phá ngay</span>
+                  <span>{t('home.exploreNow')}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/ai-hub" className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full flex items-center justify-center gap-2">
                   <Bot className="w-5 h-5" />
-                  <span>Trợ lý AI</span>
+                  <span>{t('home.aiAssistant')}</span>
                 </Button>
               </Link>
             </div>
@@ -59,8 +64,8 @@ export default function Home() {
                   <Sparkles className="w-6 h-6 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">Gợi ý bởi AI</p>
-                  <p className="text-xs text-muted-foreground">Sản phẩm phù hợp nhất với bạn</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{t('home.aiSuggested')}</p>
+                  <p className="text-xs text-muted-foreground">{t('home.aiSuggestedDesc')}</p>
                 </div>
               </div>
             </div>
@@ -75,10 +80,10 @@ export default function Home() {
       <section className="py-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
           <h2 className="font-heading text-3xl md:text-4xl tracking-tight text-foreground">
-            Tại sao chọn UltraShop?
+            {t('home.whyChoose')}
           </h2>
           <p className="text-muted-foreground max-w-md leading-relaxed">
-            Ba trụ cột đảm bảo trải nghiệm mua sắm hoàn hảo cho bạn.
+            {t('home.whyChooseDesc')}
           </p>
         </div>
 
@@ -86,20 +91,20 @@ export default function Home() {
           <FeatureCard
             icon={<Bot className="w-7 h-7 text-primary" />}
             iconBg="bg-primary/10"
-            title="Tư vấn thông minh"
-            description="Hỏi đáp về sản phẩm bằng ngôn ngữ tự nhiên. AI hiểu ngữ cảnh, đưa ra lời khuyên như một chuyên gia thực thụ."
+            title={t('home.smartConsulting')}
+            description={t('home.smartConsultingDesc')}
           />
           <FeatureCard
             icon={<Zap className="w-7 h-7 text-warning" />}
             iconBg="bg-warning/10"
-            title="Phản hồi tức thì"
-            description="Thuật toán phân tích hành vi siêu tốc, mang đến trải nghiệm mượt mà không độ trễ."
+            title={t('home.instantResponse')}
+            description={t('home.instantResponseDesc')}
           />
           <FeatureCard
             icon={<ShieldCheck className="w-7 h-7 text-accent" />}
             iconBg="bg-accent/10"
-            title="An toàn tuyệt đối"
-            description="Kiểm soát toàn vẹn luồng thanh toán, bảo vệ thông tin cá nhân của bạn."
+            title={t('home.absoluteSecurity')}
+            description={t('home.absoluteSecurityDesc')}
           />
         </div>
       </section>

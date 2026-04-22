@@ -101,6 +101,8 @@ router.get('/:id', orderController.getById);
  *         description: Hủy đơn hàng thành công
  */
 router.patch('/:id/cancel', orderController.cancel);
+router.patch('/:id/info', orderController.updateInfo);
+router.patch('/:id/return', orderController.returnOrder);
 
 // --- Payment Routes ---
 

@@ -1,20 +1,18 @@
-'use client';
+import { useLanguageStore } from '@/store/useLanguageStore';
+import type { TranslationKey } from '@/i18n';
 
-import { useState, useEffect } from 'react';
-import { translateText } from '@/lib/translate';
-
+/**
+ * Hook dịch text - dùng cho static UI text
+ * Usage: const { t, locale } = useTranslation();
+ *        t('nav.shop') → "Cửa hàng" / "Shop" / "ショップ" / "쇼핑"
+ *        t('cart.itemCount', { count: 3 }) → "Có 3 sản phẩm đang chờ thanh toán"
+ */
 export const useTranslation = () => {
-  const [locale, setLocale] = useState('vi');
+  const t = useLanguageStore(state => state.t);
+  const locale = useLanguageStore(state => state.locale);
+  const setLocale = useLanguageStore(state => state.setLocale);
 
-  useEffect(() => {
-    const savedLang = localStorage.getItem('app_lang') || 'vi';
-    setLocale(savedLang);
-  }, []);
-
-  const t = async (text: string) => {
-    if (locale === 'vi') return text; // Default is VI, skip translation
-    return await translateText(text, locale);
-  };
-
-  return { t, locale };
+  return { t, locale, setLocale };
 };
+
+export type { TranslationKey };

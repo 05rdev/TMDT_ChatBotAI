@@ -120,7 +120,7 @@ export class RecommendationService {
     // 3. Lấy Embeddings của các sản phẩm đó
     const productIds = behaviors.map(b => b.productId);
     const productsWithEmbeddings = await prisma.$queryRaw<any[]>`
-      SELECT id, embedding FROM "Product" 
+      SELECT id, embedding::text FROM "Product" 
       WHERE id IN (${Prisma.join(productIds)}) 
         AND embedding IS NOT NULL
     `;

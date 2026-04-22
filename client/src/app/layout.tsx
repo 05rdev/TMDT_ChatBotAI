@@ -10,19 +10,24 @@ const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" 
 const dmSerif = DM_Serif_Display({ weight: "400", subsets: ["latin"], variable: "--font-serif" });
 
 import { ClientWrapper } from "@/components/ClientWrapper";
+import { cookies } from "next/headers";
+import type { Locale } from "@/i18n";
 
 export const metadata: Metadata = {
   title: "UltraShop | Mua sắm thông minh",
   description: "Trải nghiệm mua sắm thông minh với sức mạnh AI — Sản phẩm chất lượng, giao hàng nhanh chóng.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialLang = (cookieStore.get('app_lang')?.value as Locale) || 'vi';
+
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang={initialLang} suppressHydrationWarning>
       <body className={`${inter.variable} ${dmSerif.variable} font-sans min-h-screen relative`}>
         <ThemeProvider
           attribute="class"
@@ -30,7 +35,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ClientWrapper>
+          <ClientWrapper initialLang={initialLang}>
             {children}
           </ClientWrapper>
 

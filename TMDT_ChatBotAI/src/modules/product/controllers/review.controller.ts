@@ -1,22 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { ReviewService } from '../services/review.service';
-import { AuthRequest } from '../../../middlewares/authenticate';
+import { createReviewSchema } from '../dto/review.schema';
+import { AuthRequest } from '../../../middlewares/auth.middleware';
 
 const reviewService = new ReviewService();
 
 export class ReviewController {
-  /**
-   * Tạo đánh giá mới
-   */
   async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const productId = req.params.productId as string;
       const userId = req.user!.id;
-      const review = await reviewService.createReview(userId, productId, req.body);
+      const validatedData = createReviewSchema.parse(req.body);
+      
+      const review = await reviewService.createReview(userId, validatedData);
       
       return res.status(201).json({
         success: true,
-        message: 'Cảm ơn bạn đã đánh giá sản phẩm',
+        message: 'Cảm ơn bạn đã đánh giá sản phẩm!',
         data: review
       });
     } catch (error) {
@@ -24,31 +23,25 @@ export class ReviewController {
     }
   }
 
-  /**
-   * Danh sách đánh giá sản phẩm
-   */
   async getByProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const productId = req.params.productId as string;
-      const result = await reviewService.getProductReviews(productId, req.query);
+      const reviews = await reviewService.getProductReviews(productId);
       
       return res.json({
         success: true,
-        ...result
+        data: reviews
       });
     } catch (error) {
       next(error);
     }
   }
 
-  /**
-   * Sửa đánh giá
-   */
   async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id as string;
       const userId = req.user!.id;
-      const review = await reviewService.updateReview(id, userId, req.body);
+      const id = req.params.id as string;
+      const review = await reviewService.updateReview(userId, id, req.body);
       
       return res.json({
         success: true,
@@ -60,16 +53,11 @@ export class ReviewController {
     }
   }
 
-  /**
-   * Xóa đánh giá
-   */
   async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id as string;
       const userId = req.user!.id;
-      const isAdmin = req.user!.role === 'ADMIN';
-      
-      await reviewService.deleteReview(id, userId, isAdmin);
+      const id = req.params.id as string;
+      await reviewService.deleteReview(userId, id);
       
       return res.json({
         success: true,

@@ -9,19 +9,23 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from 'next-themes';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useLanguageStore } from '@/store/useLanguageStore';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import api from '@/lib/api';
+import type { TranslationKey } from '@/i18n';
 
-const ADMIN_LINKS = [
-  { name: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
-  { name: 'Sản phẩm', href: '/admin/products', icon: PackageSearch },
-  { name: 'Danh mục', href: '/admin/categories', icon: Tag },
-  { name: 'Đơn hàng', href: '/admin/orders', icon: ShoppingCart },
-  { name: 'Khách hàng', href: '/admin/users', icon: Users },
-  { name: 'Khuyến mãi', href: '/admin/vouchers', icon: Tag },
-  { name: 'Banner', href: '/admin/banners', icon: ImageIcon },
-  { name: 'AI Assistant', href: '/admin/ai-assistant', icon: Sparkles },
-  { name: 'Hỗ trợ', href: '/admin/support', icon: MessageSquare },
-  { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
+const ADMIN_LINKS: { nameKey: TranslationKey; href: string; icon: any }[] = [
+  { nameKey: 'admin.overview', href: '/admin', icon: LayoutDashboard },
+  { nameKey: 'admin.products', href: '/admin/products', icon: PackageSearch },
+  { nameKey: 'admin.categories', href: '/admin/categories', icon: Tag },
+  { nameKey: 'admin.orders', href: '/admin/orders', icon: ShoppingCart },
+  { nameKey: 'admin.customers', href: '/admin/users', icon: Users },
+  { nameKey: 'admin.vouchers', href: '/admin/vouchers', icon: Tag },
+  { nameKey: 'admin.banner', href: '/admin/banners', icon: ImageIcon },
+  { nameKey: 'admin.aiAssistant', href: '/admin/ai-assistant', icon: Sparkles },
+  { nameKey: 'admin.support', href: '/admin/support', icon: MessageSquare },
+  { nameKey: 'admin.settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [supportCount, setSupportCount] = useState(0);
 
@@ -79,16 +84,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="w-8 h-8 bg-primary rounded-[var(--radius-sm)] flex items-center justify-center">
               <Bot className="text-primary-foreground w-4.5 h-4.5" />
             </div>
-            <span className="font-bold tracking-tight text-foreground text-lg">Admin</span>
+            <span className="font-bold tracking-tight text-foreground text-lg">{t('nav.admin')}</span>
           </Link>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
           {ADMIN_LINKS.map((link) => {
             const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const name = t(link.nameKey);
             return (
               <Link 
-                key={link.name} 
+                key={link.nameKey} 
                 href={link.href}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] transition-all text-sm font-medium ${
                   isActive 
@@ -98,9 +104,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <div className="flex items-center">
                   <link.icon className="w-4.5 h-4.5 mr-2.5" />
-                  {link.name}
+                  {name}
                 </div>
-                {link.name === 'Hỗ trợ' && supportCount > 0 && (
+                {link.nameKey === 'admin.support' && supportCount > 0 && (
                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                      isActive ? 'bg-white text-primary' : 'bg-primary text-white'
                    }`}>
@@ -118,7 +124,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             className="flex w-full items-center px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium text-danger hover:bg-danger/10 transition-all"
           >
             <LogOut className="w-4.5 h-4.5 mr-2.5" />
-            Đăng xuất
+            {t('admin.logout')}
           </button>
         </div>
       </aside>
@@ -127,10 +133,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 flex flex-col min-h-screen relative">
         <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40">
           <h2 className="font-semibold text-lg text-foreground">
-            {ADMIN_LINKS.find(l => pathname === l.href)?.name || 'Dashboard'}
+            {ADMIN_LINKS.find(l => pathname === l.href)?.nameKey ? t(ADMIN_LINKS.find(l => pathname === l.href)!.nameKey) : 'Dashboard'}
           </h2>
           
           <div className="flex items-center space-x-3">
+             <LanguageSwitcher />
              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors">
                 {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
              </button>

@@ -3,6 +3,10 @@ import { AIService } from './ai.service';
 
 const aiService = new AIService();
 
+// Tag đặc biệt để phân biệt tin nhắn admin vs user chatbot
+// Vì schema ChatMessage không có field type, ta dùng prefix trong content khi query
+const ADMIN_CHAT_PREFIX = '__ADMIN__';
+
 export class AdminChatbotService {
   private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
   private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
@@ -11,40 +15,43 @@ export class AdminChatbotService {
    * Trò chuyện với Admin (Hỗ trợ quản trị hệ thống)
    */
   async askAdminChatbot(adminId: string, message: string) {
-    // 1. Lưu tin nhắn của Admin
+    // 1. Lưu tin nhắn của Admin (với marker để phân biệt với chat user thông thường)
     await prisma.chatMessage.create({
-      data: { userId: adminId, role: 'user', content: message }
+      data: { 
+        userId: adminId, 
+        role: 'user', 
+        content: message,
+        // Dùng suggestedProducts field để đánh dấu đây là admin chat
+        // (Cách tốt hơn là thêm column "chatType" vào schema)
+        suggestedProducts: { isAdminChat: true } as any
+      }
     });
 
     // 2. Lấy dữ liệu thống kê tổng quan
-    const userCount = await prisma.user.count({ where: { isActive: true } });
-    const productCount = await prisma.product.count({ where: { isDeleted: false } });
-    const orderCount = await prisma.order.count();
-    const totalRevenue = await prisma.order.aggregate({
-      where: { status: 'DELIVERED' }, // Prisma enum uses DELIVERED
-      _sum: { totalAmount: true }
-    });
+    const [userCount, productCount, orderCount, totalRevenue, latestOrders, lowStockProducts, pendingTickets] =
+      await Promise.all([
+        prisma.user.count({ where: { isActive: true } }),
+        prisma.product.count({ where: { isDeleted: false } }),
+        prisma.order.count(),
+        prisma.order.aggregate({
+          where: { status: 'DELIVERED' },
+          _sum: { totalAmount: true }
+        }),
+        prisma.order.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          include: { user: { select: { name: true } } }
+        }),
+        prisma.productVariant.findMany({
+          where: { stock: { lt: 10 } },
+          take: 5,
+          include: { product: { select: { name: true } } }
+        }),
+        prisma.supportTicket.count({ where: { status: 'OPEN' } })
+      ]);
 
-    // 3. Lấy danh sách đơn hàng mới nhất
-    const latestOrders = await prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: { user: { select: { name: true } } }
-    });
-
-    // 4. Lấy sản phẩm sắp hết hàng
-    const lowStockProducts = await prisma.productVariant.findMany({
-      where: { stock: { lt: 10 } },
-      take: 5,
-      include: { product: { select: { name: true } } }
-    });
-
-    // 5. Lấy Support Ticket đang chờ
-    const pendingTickets = await prisma.supportTicket.count({ where: { status: 'OPEN' } });
-
-    // 6. Ngữ cảnh Admin
     const revenueAmount = totalRevenue?._sum?.totalAmount ? Number(totalRevenue._sum.totalAmount) : 0;
-    
+
     const adminContext = `
       THỐNG KÊ HỆ THỐNG:
       - Tổng khách hàng (Active): ${userCount}
@@ -57,7 +64,9 @@ export class AdminChatbotService {
       ${latestOrders.map(o => `- Đơn #${o.id.slice(0, 8)}: ${o.user.name} (${Number(o.totalAmount).toLocaleString()}đ) - ${o.status}`).join('\n')}
 
       CẢNH BÁO KHO HÀNG (Sắp hết):
-      ${lowStockProducts.map(p => `- ${p.product.name} (${p.name}): Còn ${p.stock}`).join('\n')}
+      ${lowStockProducts.length > 0 
+        ? lowStockProducts.map(p => `- ${p.product.name} (${p.name}): Còn ${p.stock}`).join('\n')
+        : '- Không có sản phẩm nào sắp hết hàng.'}
     `;
 
     const systemPrompt = `
@@ -72,9 +81,13 @@ export class AdminChatbotService {
       - Trả lời dựa trên số liệu thực tế được cung cấp.
     `;
 
-    // 7. Lấy lịch sử hội thoại
+    // 3. Lấy lịch sử hội thoại ADMIN (lọc theo marker isAdminChat)
     const history = await prisma.chatMessage.findMany({
-      where: { userId: adminId },
+      where: { 
+        userId: adminId,
+        // Chỉ lấy tin nhắn admin chat, không lẫn với chatbot user thông thường
+        suggestedProducts: { path: ['isAdminChat'], equals: true }
+      },
       orderBy: { createdAt: 'desc' },
       take: 7
     });
@@ -99,9 +112,14 @@ export class AdminChatbotService {
       const data: any = await response.json();
       const aiResponse = data.message.content;
 
-      // 8. Lưu phản hồi của AI
+      // 4. Lưu phản hồi của AI (cũng đánh dấu admin chat)
       await prisma.chatMessage.create({
-        data: { userId: adminId, role: 'assistant', content: aiResponse }
+        data: { 
+          userId: adminId, 
+          role: 'assistant', 
+          content: aiResponse,
+          suggestedProducts: { isAdminChat: true } as any
+        }
       });
 
       return aiResponse;
@@ -112,22 +130,28 @@ export class AdminChatbotService {
   }
 
   /**
-   * Lấy lịch sử trò chuyện của Admin
+   * Lấy lịch sử trò chuyện của Admin (chỉ lấy admin chat, không lẫn user chatbot)
    */
   async getHistory(adminId: string) {
     return prisma.chatMessage.findMany({
-      where: { userId: adminId },
+      where: { 
+        userId: adminId,
+        suggestedProducts: { path: ['isAdminChat'], equals: true }
+      },
       orderBy: { createdAt: 'asc' },
       take: 50
     });
   }
 
   /**
-   * Làm trống lịch sử trò chuyện
+   * Làm trống lịch sử trò chuyện Admin
    */
   async clearHistory(adminId: string) {
     return prisma.chatMessage.deleteMany({
-      where: { userId: adminId }
+      where: { 
+        userId: adminId,
+        suggestedProducts: { path: ['isAdminChat'], equals: true }
+      }
     });
   }
 }

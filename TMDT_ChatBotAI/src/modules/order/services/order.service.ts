@@ -129,7 +129,16 @@ export class OrderService {
         include: {
           items: {
             include: {
-              product: { select: { name: true, images: { where: { isPrimary: true }, take: 1 } } },
+              product: { 
+                select: { 
+                  id: true,
+                  name: true, 
+                  images: { 
+                    take: 1,
+                    orderBy: { isPrimary: 'desc' }
+                  } 
+                } 
+              },
               variant: { select: { name: true } }
             }
           },
@@ -162,12 +171,22 @@ export class OrderService {
       include: {
         items: {
           include: {
-            product: { select: { name: true, images: { where: { isPrimary: true }, take: 1 } } },
+            product: { 
+              select: { 
+                id: true,
+                name: true, 
+                images: { 
+                  take: 1,
+                  orderBy: { isPrimary: 'desc' }
+                } 
+              } 
+            },
             variant: { select: { name: true } }
           }
         },
         payment: true,
-        user: { select: { name: true, email: true } }
+        user: { select: { name: true, email: true } },
+        voucher: true
       }
     });
 
@@ -184,21 +203,78 @@ export class OrderService {
   /**
    * Hủy đơn hàng (Chỉ khi PENDING)
    */
-  async cancelOrder(id: string, userId: string) {
+  async cancelOrder(id: string, userId: string, reason?: string) {
     const order = await this.getOrderById(id, userId);
 
-    if (order.status !== 'PENDING') {
-      throw new AppError(400, 'Chỉ có thể hủy đơn hàng đang ở trạng thái Chờ xử lý');
+    if (order.status !== 'PENDING' && order.status !== 'PROCESSING') {
+      throw new AppError(400, 'Chỉ có thể hủy đơn hàng đang chờ duyệt hoặc đang đóng gói');
     }
 
     return prisma.$transaction(async (tx) => {
       // 1. Cập nhật trạng thái
       const updatedOrder = await tx.order.update({
         where: { id },
-        data: { status: 'CANCELLED' }
+        data: { 
+          status: 'CANCELLED',
+          cancelReason: reason
+        } as any
       });
 
       // 2. Hoàn lại tồn kho
+      for (const item of order.items) {
+        await tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stock: { increment: item.quantity } }
+        });
+      }
+
+      return updatedOrder;
+    });
+  }
+
+  /**
+   * Cập nhật thông tin đơn hàng (Chỉ khi PENDING hoặc PROCESSING)
+   */
+  async updateOrderInfo(id: string, userId: string, data: { address?: string, phone?: string }) {
+    const order = await this.getOrderById(id, userId);
+
+    if (order.status !== 'PENDING' && order.status !== 'PROCESSING') {
+      throw new AppError(400, 'Chỉ có thể chỉnh sửa thông tin khi đơn hàng đang chờ duyệt hoặc đang đóng gói');
+    }
+
+    return prisma.order.update({
+      where: { id },
+      data: {
+        ...(data.address && { address: data.address }),
+        ...(data.phone && { phone: data.phone })
+      }
+    });
+  }
+
+  /**
+   * Yêu cầu hoàn trả hàng (Chỉ khi DELIVERED)
+   */
+  async returnOrder(id: string, userId: string) {
+    const order = await this.getOrderById(id, userId);
+
+    // Dựa theo logic hiện tại, ta có thể đánh dấu status là CANCELLED hoặc một trạng thái khác,
+    // Tuy nhiên theo schema ta chỉ có các status chuẩn, tạm thời chuyển status sang CANCELLED
+    // và ghi chú là hoàn trả hoặc nếu có thêm trạng thái RETURNED thì update sau.
+    // Vì yêu cầu là "hoàn trả hàng", ta sẽ đổi status thành CANCELLED và cộng lại kho (hoặc ghi chú).
+    if (order.status !== 'DELIVERED') {
+      throw new AppError(400, 'Chỉ có thể yêu cầu hoàn trả khi đơn hàng đã giao thành công');
+    }
+
+    // Để an toàn không cần đổi schema, ta có thể lưu vào db một ActivityLog hoặc cập nhật status
+    // Ta cập nhật tạm thành CANCELLED để người dùng thấy đơn đã được hoàn, 
+    // trong thực tế có thể cần thêm status RETURNED vào DB.
+    return prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: { status: 'CANCELLED' } // Tạm dùng CANCELLED cho việc hoàn trả
+      });
+
+      // Hoàn lại tồn kho
       for (const item of order.items) {
         await tx.productVariant.update({
           where: { id: item.productVariantId },

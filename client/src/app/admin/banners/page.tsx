@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit, Trash2, Save, X, Image as ImageIcon, 
-  ExternalLink, MoveUp, MoveDown, CheckCircle2, AlertCircle
+  ExternalLink, MoveUp, MoveDown, CheckCircle2, AlertCircle,
+  Upload, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
@@ -23,6 +24,7 @@ export default function AdminBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [currentBanner, setCurrentBanner] = useState<Partial<Banner>>({
     title: '',
     subtitle: '',
@@ -51,17 +53,19 @@ export default function AdminBannersPage() {
   };
 
   const handleSave = async () => {
-    if (!currentBanner.title || !currentBanner.imageUrl) {
-      toast.error('Vui lòng điền tiêu đề và hình ảnh');
+    if (!currentBanner.imageUrl) {
+      toast.error('Vui lòng cung cấp hình ảnh cho banner');
       return;
     }
 
+    const payload = { ...currentBanner, title: currentBanner.title || '' };
+
     try {
-      if (currentBanner.id) {
-        await api.put(`/banners/${currentBanner.id}`, currentBanner);
+      if (payload.id) {
+        await api.put(`/banners/${payload.id}`, payload);
         toast.success('Cập nhật banner thành công');
       } else {
-        await api.post('/banners', currentBanner);
+        await api.post('/banners', payload);
         toast.success('Thêm banner mới thành công');
       }
       setIsEditing(false);
@@ -69,6 +73,32 @@ export default function AdminBannersPage() {
       fetchBanners();
     } catch (err) {
       toast.error('Lỗi khi lưu banner');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await api.post('/banners/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data.success) {
+        setCurrentBanner(prev => ({ ...prev, imageUrl: res.data.data.url }));
+        toast.success('Tải ảnh lên thành công');
+      }
+    } catch (error) {
+      toast.error('Lỗi khi tải ảnh lên');
+    } finally {
+      setIsUploading(false);
+      // Reset input value to allow uploading the same file again if needed
+      e.target.value = '';
     }
   };
 
@@ -151,15 +181,25 @@ export default function AdminBannersPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">URL Hình ảnh</label>
+                <label className="text-sm font-semibold text-foreground">URL Hình ảnh hoặc Tải lên</label>
                 <div className="flex space-x-2">
                   <input 
                     type="text" 
-                    value={currentBanner.imageUrl} 
+                    value={currentBanner.imageUrl || ''} 
                     onChange={e => setCurrentBanner({...currentBanner, imageUrl: e.target.value})}
                     className="flex-1 bg-secondary/50 border border-border px-4 py-2.5 rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                     placeholder="https://example.com/banner.jpg"
                   />
+                  <label className="cursor-pointer flex items-center justify-center bg-secondary border border-border rounded-[var(--radius-md)] px-4 hover:bg-secondary/80 transition-colors">
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Upload className="w-5 h-5 text-muted-foreground" />}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleFileUpload} 
+                      disabled={isUploading}
+                    />
+                  </label>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2">
@@ -241,7 +281,7 @@ export default function AdminBannersPage() {
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-3 mb-1">
-                    <h3 className="font-bold text-lg text-foreground truncate">{banner.title}</h3>
+                    <h3 className="font-bold text-lg text-foreground truncate">{banner.title || 'Không có tiêu đề'}</h3>
                     {banner.isActive ? (
                       <span className="flex items-center text-[10px] font-bold bg-success/10 text-success px-2 py-0.5 rounded-full uppercase tracking-wider">
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Active

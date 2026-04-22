@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Languages, ChevronDown } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Languages, ChevronDown, Check } from 'lucide-react';
+import { useLanguageStore } from '@/store/useLanguageStore';
+import type { Locale } from '@/i18n';
 
-const languages = [
+const languages: { code: Locale; name: string; flag: string }[] = [
   { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'ja', name: '日本語', flag: '🇯🇵' },
@@ -11,53 +13,63 @@ const languages = [
 ];
 
 export const LanguageSwitcher = () => {
-  const [currentLang, setCurrentLang] = useState('vi');
+  const { locale, setLocale } = useLanguageStore();
   const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
+  // Close dropdown on outside click
   useEffect(() => {
-    const savedLang = localStorage.getItem('app_lang') || 'vi';
-    setCurrentLang(savedLang);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const changeLanguage = (code: string) => {
-    setCurrentLang(code);
-    localStorage.setItem('app_lang', code);
+  const changeLanguage = (code: Locale) => {
+    setLocale(code);
     setIsOpen(false);
-    // Reload or trigger global update if needed
-    window.location.reload(); 
   };
 
-  const currentLangObj = languages.find(l => l.code === currentLang) || languages[0];
+  const currentLangObj = languages.find(l => l.code === locale) || languages[0];
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
+        aria-label="Change language"
       >
-        <Languages className="w-5 h-5" />
+        <span className="text-base">{currentLangObj.flag}</span>
         <span className="text-xs font-medium uppercase hidden lg:inline">{currentLangObj.code}</span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-44 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-lg">
+        <div className="absolute top-full right-0 mt-2 w-48 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-lg animate-fade-in-up">
           <div className="px-3 py-2 border-b border-border text-xs font-medium text-muted-foreground">
-            Chọn ngôn ngữ
+            {languages.find(l => l.code === locale)?.code === 'vi' ? 'Chọn ngôn ngữ' :
+             locale === 'en' ? 'Select language' :
+             locale === 'ja' ? '言語を選択' : '언어 선택'}
           </div>
           <div className="p-1">
             {languages.map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => changeLanguage(lang.code)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-[var(--radius-sm)] transition-colors ${
-                  currentLang === lang.code 
+                className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-[var(--radius-sm)] transition-colors ${
+                  locale === lang.code 
                     ? 'bg-primary text-primary-foreground' 
                     : 'hover:bg-secondary text-foreground'
                 }`}
               >
-                <span>{lang.flag} {lang.name}</span>
-                {currentLang === lang.code && <div className="w-1.5 h-1.5 bg-primary-foreground rounded-full" />}
+                <span className="flex items-center gap-2.5">
+                  <span className="text-base">{lang.flag}</span>
+                  <span>{lang.name}</span>
+                </span>
+                {locale === lang.code && <Check className="w-4 h-4" />}
               </button>
             ))}
           </div>

@@ -2,21 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from './ui/Button';
 import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera, MessageSquare } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { Translate } from './Translate';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const cartItems = useCartStore(state => state.items);
   const fetchCart = useCartStore(state => state.fetchCart);
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -64,10 +65,10 @@ export const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-6">
           <Link href="/shop" className="text-foreground/80 font-medium hover:text-primary transition-colors">
-            <Translate>Cửa hàng</Translate>
+            {t('nav.shop')}
           </Link>
           <Link href="/about" className="text-foreground/80 font-medium hover:text-primary transition-colors">
-            <Translate>Giới thiệu</Translate>
+            {t('nav.about')}
           </Link>
         </div>
 
@@ -89,16 +90,16 @@ export const Navbar = () => {
             <Search className="w-4 h-4 text-muted-foreground mr-2" />
             <input
               type="text"
-              placeholder="Tìm laptop dưới 10tr..."
+              placeholder={t('nav.searchPlaceholder')}
               value={navSearchQuery}
               onChange={(e) => setNavSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleNavSearch()}
               className="bg-transparent border-none focus:outline-none text-sm w-44 placeholder:text-muted-foreground/60"
             />
-            <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title="Tìm bằng giọng nói">
+            <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title={t('nav.voiceSearch')}>
               <Mic className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title="Tìm bằng hình ảnh">
+            <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title={t('nav.imageSearch')}>
               <Camera className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -124,11 +125,11 @@ export const Navbar = () => {
             <div className="flex items-center space-x-2">
               {user?.role === 'ADMIN' && (
                 <Link href="/admin" className="hidden lg:flex items-center px-3 py-1.5 bg-foreground text-background rounded-[var(--radius-sm)] text-xs font-medium hover:opacity-90 transition-opacity">
-                  Admin
+                  {t('nav.admin')}
                 </Link>
               )}
 
-              <Link href="/profile/support" className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors" title="Hỗ trợ">
+              <Link href="/profile/support" className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors" title={t('nav.support')}>
                 <MessageSquare className="w-5 h-5" />
               </Link>
 
@@ -136,15 +137,15 @@ export const Navbar = () => {
                 <User className="w-5 h-5" />
                 <span className="text-sm font-medium hidden sm:inline">{user?.name}</span>
               </Link>
-              <Button variant="ghost" size="sm" onClick={logout}>Đăng xuất</Button>
+              <Button variant="ghost" size="sm" onClick={logout}>{t('nav.logout')}</Button>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Link href="/login">
-                <Button variant="ghost" size="sm">Đăng nhập</Button>
+                <Button variant="ghost" size="sm">{t('nav.login')}</Button>
               </Link>
               <Link href="/register">
-                <Button size="sm">Đăng ký</Button>
+                <Button size="sm">{t('nav.register')}</Button>
               </Link>
             </div>
           )}

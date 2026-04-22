@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
+import { T } from '@/components/T';
 
 interface Product {
   id: string;
@@ -41,6 +43,7 @@ export default function ProductDetailPage() {
   const addToCart = useCartStore((state) => state.addItem);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const { user } = useAuthStore();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (slug) {
@@ -81,31 +84,25 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product) return;
+    
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      router.push('/login');
+      return;
+    }
+
     const variant = product.variants[selectedVariant] || product.variants[0];
     
-    if (user) {
-      try {
-          await api.post('/cart', {
-            productId: product.id,
-            productVariantId: variant.id,
-            quantity: quantity
-          });
-          await fetchCart();
-          toast.success('Đã thêm vào giỏ hàng');
-      } catch (error) {
-        toast.error('Lỗi khi thêm vào giỏ hàng');
-      }
-    } else {
-      addToCart({
+    try {
+      await api.post('/cart', {
         productId: product.id,
         productVariantId: variant.id,
-        name: product.name,
-        price: variant.price,
-        quantity: quantity,
-        image: product.images[0]?.url || '',
-        variant: variant.name
+        quantity: quantity
       });
-      toast.success('Đã thêm vào giỏ hàng cục bộ');
+      await fetchCart();
+      toast.success('Đã thêm vào giỏ hàng');
+    } catch (error) {
+      toast.error('Lỗi khi thêm vào giỏ hàng');
     }
   };
 
@@ -118,7 +115,7 @@ export default function ProductDetailPage() {
     return (
       <div className="h-[70vh] flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
-        <p className="text-sm font-medium text-muted-foreground">Đang tải thông tin sản phẩm...</p>
+        <p className="text-sm font-medium text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -131,11 +128,11 @@ export default function ProductDetailPage() {
             <ShieldCheck className="w-10 h-10 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h2 className="font-heading text-3xl text-foreground">Không tìm thấy sản phẩm</h2>
-            <p className="text-muted-foreground text-sm">Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không đúng.</p>
+            <h2 className="font-heading text-3xl text-foreground">{t('notFound.title')}</h2>
+            <p className="text-muted-foreground text-sm">{t('notFound.desc')}</p>
           </div>
           <Link href="/shop" className="inline-block pt-4">
-            <Button size="lg" className="px-8">Quay lại cửa hàng</Button>
+            <Button size="lg" className="px-8">{t('notFound.goHome')}</Button>
           </Link>
         </div>
       </div>
@@ -148,11 +145,11 @@ export default function ProductDetailPage() {
     <div className="space-y-16 pb-20 animate-fade-in-up">
       {/* Breadcrumbs */}
       <nav className="flex items-center space-x-2 text-xs font-medium text-muted-foreground mb-6">
-        <Link href="/" className="hover:text-foreground transition-colors">Trang chủ</Link>
+        <Link href="/" className="hover:text-foreground transition-colors">{t('product.home')}</Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <Link href="/shop" className="hover:text-foreground transition-colors">Cửa hàng</Link>
+        <Link href="/shop" className="hover:text-foreground transition-colors">{t('product.shop')}</Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-primary truncate max-w-[200px]">{product.name}</span>
+        <span className="text-primary truncate max-w-[200px]"><T>{product.name}</T></span>
       </nav>
 
       {/* Hero Section */}
@@ -209,7 +206,7 @@ export default function ProductDetailPage() {
           <div className="space-y-5">
             <div className="flex items-center space-x-3">
               <span className="px-3 py-1 bg-secondary text-foreground text-xs font-medium rounded-full">
-                {product.category.name}
+                <T>{product.category.name}</T>
               </span>
               <div className="flex items-center space-x-1.5">
                 <div className="flex text-warning">
@@ -217,12 +214,12 @@ export default function ProductDetailPage() {
                     <Star key={i} className={`w-4 h-4 ${i < Math.round(product.averageRating) ? 'fill-current' : 'text-muted-foreground/30'}`} />
                   ))}
                 </div>
-                <span className="text-sm text-muted-foreground font-medium">({product.totalReviews} đánh giá)</span>
+                <span className="text-sm text-muted-foreground font-medium">{t('product.reviews', { count: product.totalReviews })}</span>
               </div>
             </div>
             
             <h1 className="font-heading text-4xl xl:text-5xl text-foreground leading-[1.1] tracking-tight">
-              {product.name}
+              <T>{product.name}</T>
             </h1>
 
             <div className="flex items-baseline space-x-4 pt-2">
@@ -236,13 +233,13 @@ export default function ProductDetailPage() {
           </div>
 
           <p className="text-muted-foreground text-base leading-relaxed line-clamp-3">
-            {product.description}
+            <T>{product.description}</T>
           </p>
 
           {/* Variants */}
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center">
-              Chọn phiên bản
+              {t('product.selectVersion')}
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {product.variants.map((variant, idx) => (
@@ -251,7 +248,7 @@ export default function ProductDetailPage() {
                   onClick={() => setSelectedVariant(idx)}
                   className={`p-3 text-left rounded-[var(--radius-md)] border transition-all ${selectedVariant === idx ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-foreground/30'}`}
                 >
-                  <p className={`text-sm font-semibold line-clamp-1 ${selectedVariant === idx ? 'text-primary' : 'text-foreground'}`}>{variant.name}</p>
+                  <p className={`text-sm font-semibold line-clamp-1 ${selectedVariant === idx ? 'text-primary' : 'text-foreground'}`}><T>{variant.name}</T></p>
                   <p className="text-xs mt-1 text-muted-foreground">{variant.price.toLocaleString('vi-VN')}đ</p>
                 </button>
               ))}
@@ -261,7 +258,7 @@ export default function ProductDetailPage() {
           {/* Quantity & Actions */}
           <div className="space-y-6 pt-6 border-t border-border">
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-muted-foreground">Số lượng:</span>
+              <span className="text-sm font-medium text-muted-foreground">{t('product.quantity')}:</span>
               <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
                 <button 
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -278,17 +275,17 @@ export default function ProductDetailPage() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Còn {currentVariant.stock} sản phẩm
+                {t('product.stockAvailable', { count: currentVariant.stock })}
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
                <Button onClick={handleAddToCart} size="lg" className="flex-1" variant="outline">
                  <ShoppingCart className="w-5 h-5 mr-2" />
-                 Thêm vào giỏ
+                 {t('product.addToCart')}
                </Button>
                <Button onClick={handleBuyNow} size="lg" className="flex-1">
-                 Mua ngay
+                 {t('product.buyNow')}
                </Button>
             </div>
           </div>
@@ -297,15 +294,15 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-3 gap-3 pt-4">
              <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
                 <ShieldCheck className="w-6 h-6 mx-auto text-primary" />
-                <p className="text-xs font-medium text-foreground">Bảo vệ 100%</p>
+                <p className="text-xs font-medium text-foreground">{t('product.protection')}</p>
              </div>
              <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
                 <Truck className="w-6 h-6 mx-auto text-primary" />
-                <p className="text-xs font-medium text-foreground">Giao trong 2H</p>
+                <p className="text-xs font-medium text-foreground">{t('product.delivery2h')}</p>
              </div>
              <div className="text-center space-y-2.5 p-4 bg-secondary/50 rounded-[var(--radius-lg)]">
                 <RotateCcw className="w-6 h-6 mx-auto text-primary" />
-                <p className="text-xs font-medium text-foreground">Đổi trả 30 ngày</p>
+                <p className="text-xs font-medium text-foreground">{t('product.return30d')}</p>
              </div>
           </div>
         </div>
@@ -315,11 +312,11 @@ export default function ProductDetailPage() {
       <section className="space-y-8 pt-10 border-t border-border">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-3xl text-foreground flex items-center">
-            <Sparkles className="w-6 h-6 mr-3 text-primary" /> Gợi ý cho bạn
+            <Sparkles className="w-6 h-6 mr-3 text-primary" /> {t('product.suggested')}
           </h2>
           <Link href="/shop">
             <Button variant="outline" size="sm" className="hidden sm:flex">
-              Xem thêm <ArrowRight className="w-4 h-4 ml-2" />
+              {t('product.viewMore')} <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
         </div>
@@ -350,18 +347,18 @@ export default function ProductDetailPage() {
         <div className="lg:col-span-2 space-y-10">
            {/* Description */}
            <div className="space-y-5">
-              <h3 className="font-semibold text-xl text-foreground">Mô tả chi tiết</h3>
+              <h3 className="font-semibold text-xl text-foreground">{t('product.detailDescription')}</h3>
               <div className="text-muted-foreground leading-relaxed space-y-4">
-                <p>{product.description}</p>
+                <p><T>{product.description}</T></p>
                 <div className="mt-6 p-4 bg-secondary/50 rounded-[var(--radius-md)] text-sm italic">
-                   * Lưu ý: Sản phẩm thực tế có thể thay đổi nhẹ tùy theo phiên bản và khu vực phân phối.
+                   {t('product.disclaimer')}
                 </div>
               </div>
            </div>
 
            {/* Reviews */}
            <div className="space-y-6 pt-6 border-t border-border">
-              <h3 className="font-semibold text-xl text-foreground">Đánh giá khách hàng ({product.reviews.length})</h3>
+              <h3 className="font-semibold text-xl text-foreground">{t('product.customerReviews', { count: product.reviews.length })}</h3>
               <div className="space-y-4">
                 {product.reviews.map((review) => (
                   <div key={review.id} className="p-5 bg-card border border-border rounded-[var(--radius-lg)] flex space-x-4">
@@ -388,7 +385,7 @@ export default function ProductDetailPage() {
                 ))}
                 {product.reviews.length === 0 && (
                   <div className="py-10 text-center">
-                    <p className="text-muted-foreground text-sm">Chưa có đánh giá nào cho sản phẩm này.</p>
+                    <p className="text-muted-foreground text-sm">{t('product.noReviews')}</p>
                   </div>
                 )}
               </div>
@@ -399,25 +396,25 @@ export default function ProductDetailPage() {
         <div className="space-y-6">
            <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card border border-border">
               <h3 className="font-semibold text-lg mb-5 text-foreground">
-                Chính sách cửa hàng
+                {t('product.storePolicy')}
               </h3>
               <ul className="space-y-5 text-sm text-muted-foreground">
                 <li className="flex items-start gap-3">
                   <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-                  <span className="leading-snug text-foreground">Cam kết chính hãng 100% được xác thực bởi AI.</span>
+                  <span className="leading-snug text-foreground">{t('product.policyAuthentic')}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <Truck className="w-5 h-5 text-primary shrink-0" />
-                  <span className="leading-snug text-foreground">Giao hàng siêu tốc trong 2h tại khu vực nội thành.</span>
+                  <span className="leading-snug text-foreground">{t('product.policyDelivery')}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <RotateCcw className="w-5 h-5 text-primary shrink-0" />
-                  <span className="leading-snug text-foreground">Đổi trả miễn phí trong 30 ngày nếu phát hiện lỗi.</span>
+                  <span className="leading-snug text-foreground">{t('product.policyReturn')}</span>
                 </li>
               </ul>
               <Link href="/ai-hub" className="block mt-6">
                 <Button variant="outline" className="w-full gap-2">
-                  <Bot className="w-4.5 h-4.5" /> Hỏi trợ lý AI
+                  <Bot className="w-4.5 h-4.5" /> {t('product.askAIAssistant')}
                 </Button>
               </Link>
            </div>

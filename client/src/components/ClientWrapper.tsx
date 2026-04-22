@@ -1,14 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
+import type { Locale } from '@/i18n';
 
-export function ClientWrapper({ children }: { children: React.ReactNode }) {
+export function ClientWrapper({ children, initialLang }: { children: React.ReactNode, initialLang?: Locale }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith('/admin');
+  
+  // Initialize store synchronously with SSR value to prevent hydration mismatch
+  const initialized = React.useRef(false);
+  if (!initialized.current && initialLang) {
+    useLanguageStore.setState({ locale: initialLang, hydrated: true });
+    initialized.current = true;
+  }
 
   if (isAdmin) {
     return <>{children}</>;

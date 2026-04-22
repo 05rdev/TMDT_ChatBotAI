@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { MessageSquare, Plus, Loader2, Clock, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Ticket {
   id: string;
@@ -22,6 +23,7 @@ export default function SupportTicketsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newTicket, setNewTicket] = useState({ subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchTickets();
@@ -75,13 +77,13 @@ export default function SupportTicketsPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-6">
         <div className="space-y-2">
           <Link href="/profile" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors group mb-2">
-            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại hồ sơ
+            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> {t('support.backToProfile')}
           </Link>
-          <h1 className="font-heading text-3xl sm:text-4xl text-foreground">Hỗ trợ khách hàng</h1>
-          <p className="text-muted-foreground text-sm">Trao đổi trực tiếp với đội ngũ quản trị viên UltraShop</p>
+          <h1 className="font-heading text-3xl sm:text-4xl text-foreground">{t('support.title')}</h1>
+          <p className="text-muted-foreground text-sm">{t('support.desc')}</p>
         </div>
         <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full shadow-md hover:shadow-lg">
-          {showCreate ? <><ArrowLeft className="w-4 h-4 mr-2" /> Hủy bỏ</> : <><Plus className="w-4 h-4 mr-2" /> Tạo yêu cầu mới</>}
+          {showCreate ? <><ArrowLeft className="w-4 h-4 mr-2" /> {t('common.cancel')}</> : <><Plus className="w-4 h-4 mr-2" /> {t('support.createNew')}</>}
         </Button>
       </div>
 
@@ -116,7 +118,7 @@ export default function SupportTicketsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-primary" />
-              <p className="text-sm font-medium text-muted-foreground">Đang tải lịch sử hỗ trợ...</p>
+              <p className="text-sm font-medium text-muted-foreground">{t('common.loading')}</p>
             </div>
           ) : tickets.length === 0 ? (
             <div className="card-elevated bg-card rounded-[var(--radius-xl)] p-16 text-center space-y-5 border border-border">
@@ -124,10 +126,10 @@ export default function SupportTicketsPage() {
                 <MessageSquare className="w-8 h-8 text-muted-foreground" />
               </div>
               <div className="space-y-2">
-                <h3 className="font-heading text-2xl text-foreground">Chưa có yêu cầu hỗ trợ nào</h3>
-                <p className="text-sm text-muted-foreground">Nếu bạn gặp vấn đề gì, đừng ngần ngại liên hệ với chúng tôi!</p>
+                <h3 className="font-heading text-2xl text-foreground">{t('support.noRequests')}</h3>
+                <p className="text-sm text-muted-foreground">{t('support.noRequestsDesc')}</p>
               </div>
-              <Button onClick={() => setShowCreate(true)} variant="outline" className="mt-2">Tạo yêu cầu đầu tiên</Button>
+              <Button onClick={() => setShowCreate(true)} variant="outline" className="mt-2">{t('support.createFirst')}</Button>
             </div>
           ) : (
             tickets.map((ticket) => (

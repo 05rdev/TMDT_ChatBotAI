@@ -6,12 +6,15 @@ import { Button } from '@/components/ui/Button';
 import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot, Loader2, Info } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useTranslation } from '@/hooks/useTranslation';
+import { T } from '@/components/T';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
 export default function CartPage() {
   const localCart = useCartStore();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [serverCart, setServerCart] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +36,7 @@ export default function CartPage() {
         setServerTotal(res.data.data.totalAmount);
       }
     } catch (error) {
-      console.error('Lỗi khi tải giỏ hàng', error);
+      console.error('Error loading cart', error);
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +49,7 @@ export default function CartPage() {
         await api.put(`/cart/${variantId}`, { quantity: newQty });
         fetchServerCart();
       } catch (error) {
-        toast.error('Cập nhật số lượng thất bại');
+        toast.error(t('cart.updateFailed'));
       }
     } else {
       localCart.updateQuantity(id, newQty);
@@ -59,7 +62,7 @@ export default function CartPage() {
         await api.delete(`/cart/${variantId}`);
         fetchServerCart();
       } catch (error) {
-        toast.error('Xóa sản phẩm thất bại');
+        toast.error(t('cart.removeFailed'));
       }
     } else {
       localCart.removeItem(id);
@@ -79,17 +82,17 @@ export default function CartPage() {
             <ShoppingCart className="w-10 h-10 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h2 className="font-heading text-3xl text-foreground">Vui lòng đăng nhập</h2>
+            <h2 className="font-heading text-3xl text-foreground">{t('cart.loginRequired')}</h2>
             <p className="text-muted-foreground text-sm">
-              Bạn cần đăng nhập để xem và quản lý giỏ hàng của mình.
+              {t('cart.loginRequiredDesc')}
             </p>
           </div>
           <div className="flex flex-col gap-3 pt-4">
             <Link href="/login" className="w-full">
-              <Button size="lg" className="w-full">Đăng nhập ngay</Button>
+              <Button size="lg" className="w-full">{t('cart.loginNow')}</Button>
             </Link>
             <Link href="/register" className="w-full">
-              <Button size="lg" variant="outline" className="w-full">Đăng ký</Button>
+              <Button size="lg" variant="outline" className="w-full">{t('nav.register')}</Button>
             </Link>
           </div>
         </div>
@@ -114,7 +117,7 @@ export default function CartPage() {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">Đang tải giỏ hàng...</p>
+        <p className="text-sm font-medium text-muted-foreground">{t('cart.loading')}</p>
       </div>
     );
   }
@@ -127,18 +130,18 @@ export default function CartPage() {
             <ShoppingCart className="w-12 h-12 text-primary" />
           </div>
           <div className="space-y-3">
-            <h2 className="font-heading text-3xl text-foreground">Giỏ hàng trống</h2>
+            <h2 className="font-heading text-3xl text-foreground">{t('cart.empty')}</h2>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
-              Chưa có sản phẩm nào trong giỏ hàng. Hãy để AI Assistant gợi ý cho bạn một vài lựa chọn thú vị nhé!
+              {t('cart.emptyDesc')}
             </p>
           </div>
           <div className="flex justify-center gap-4 pt-6">
             <Link href="/shop">
-              <Button size="lg">Tiếp tục mua hàng</Button>
+              <Button size="lg">{t('cart.continueShopping')}</Button>
             </Link>
             <Link href="/ai-hub">
               <Button size="lg" variant="outline" className="gap-2">
-                <Sparkles className="w-4.5 h-4.5 text-primary" /> Trợ lý AI
+                <Sparkles className="w-4.5 h-4.5 text-primary" /> {t('home.aiAssistant')}
               </Button>
             </Link>
           </div>
@@ -151,8 +154,8 @@ export default function CartPage() {
     <div className="space-y-8 pb-20 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6">
         <div className="space-y-1">
-          <h1 className="font-heading text-4xl tracking-tight text-foreground">Giỏ hàng</h1>
-          <p className="text-muted-foreground text-sm font-medium">Có {items.length} sản phẩm đang chờ thanh toán</p>
+          <h1 className="font-heading text-4xl tracking-tight text-foreground">{t('cart.title')}</h1>
+          <p className="text-muted-foreground text-sm font-medium">{t('cart.itemCount', { count: items.length })}</p>
         </div>
       </div>
 
@@ -160,9 +163,9 @@ export default function CartPage() {
         {/* Product List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="hidden sm:grid grid-cols-12 gap-4 text-xs font-semibold text-muted-foreground bg-secondary px-6 py-3 rounded-[var(--radius-lg)]">
-            <div className="col-span-6">Sản phẩm</div>
-            <div className="col-span-3 text-center">Số lượng</div>
-            <div className="col-span-3 text-right">Tạm tính</div>
+            <div className="col-span-6">{t('cart.product')}</div>
+            <div className="col-span-3 text-center">{t('cart.quantity')}</div>
+            <div className="col-span-3 text-right">{t('cart.subtotalCol')}</div>
           </div>
 
           <div className="space-y-4">
@@ -179,10 +182,10 @@ export default function CartPage() {
                   </Link>
                   <div className="flex flex-col justify-center min-w-0">
                     <Link href={`/product/${item.productId}`} className="font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug">
-                      {item.name}
+                      <T>{item.name}</T>
                     </Link>
                     <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full mt-2 inline-block w-max">
-                      {item.variant}
+                      <T>{item.variant}</T>
                     </span>
                     <p className="text-primary font-bold mt-2 sm:hidden">{item.price.toLocaleString('vi-VN')}đ</p>
                   </div>
@@ -220,29 +223,29 @@ export default function CartPage() {
         <div className="lg:col-span-1">
           <div className="card-elevated bg-card p-6 rounded-[var(--radius-xl)] space-y-6 sticky top-24">
             <h3 className="font-semibold text-lg text-foreground border-b border-border pb-4">
-              Tóm tắt đơn hàng
+              {t('cart.orderSummary')}
             </h3>
             
             <div className="space-y-3.5 text-sm font-medium text-foreground">
               <div className="flex justify-between text-muted-foreground">
-                <span>Tạm tính ({items.length} sp)</span>
+                <span>{t('cart.subtotal', { count: items.length })}</span>
                 <span className="text-foreground">{totalAmount.toLocaleString('vi-VN')}đ</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Phí vận chuyển</span>
-                <span className="text-primary font-semibold">Miễn phí</span>
+                <span>{t('cart.shipping')}</span>
+                <span className="text-primary font-semibold">{t('cart.freeShipping')}</span>
               </div>
             </div>
 
             <div className="border-t border-border pt-5 flex justify-between items-end">
-              <span className="font-semibold text-foreground">Tổng cộng</span>
+              <span className="font-semibold text-foreground">{t('cart.total')}</span>
               <span className="text-2xl font-bold text-primary">{totalAmount.toLocaleString('vi-VN')}đ</span>
             </div>
 
             <div className="pt-2">
               <Link href="/checkout" className="block w-full">
                 <Button size="lg" className="w-full flex justify-between items-center px-6">
-                  <span>Tiến hành thanh toán</span>
+                  <span>{t('cart.checkout')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
@@ -251,7 +254,7 @@ export default function CartPage() {
             <div className="pt-4 border-t border-border flex items-start gap-3 bg-secondary/50 p-4 rounded-[var(--radius-md)]">
               <Info className="w-5 h-5 text-primary shrink-0" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Đơn hàng được áp dụng chính sách đổi trả miễn phí trong vòng 30 ngày và bảo vệ bởi <span className="font-semibold text-foreground">UltraShop Guarantee</span>.
+                {t('cart.guarantee')} <span className="font-semibold text-foreground">UltraShop Guarantee</span>.
               </p>
             </div>
           </div>

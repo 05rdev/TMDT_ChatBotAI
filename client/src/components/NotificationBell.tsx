@@ -5,6 +5,7 @@ import { Bell, Check, Loader2, Package, Sparkles, AlertCircle } from 'lucide-rea
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Notification {
   id: string;
@@ -22,6 +23,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -102,7 +104,7 @@ export function NotificationBell() {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-lg">
           <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Thông báo</h3>
+            <h3 className="font-semibold text-foreground">{t('notification.title')}</h3>
             {unreadCount > 0 && (
               <button 
                 onClick={markAllAsRead}
@@ -120,7 +122,7 @@ export function NotificationBell() {
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-sm">
-                Bạn chưa có thông báo nào.
+                {t('notification.empty')}
               </div>
             ) : (
               <div className="divide-y divide-border">
@@ -155,7 +157,7 @@ export function NotificationBell() {
           
           <div className="p-2 border-t border-border text-center">
             <Link href="/profile/notifications" className="text-xs font-medium text-primary hover:underline block py-2 transition-colors">
-              Xem tất cả thông báo →
+              {t('notification.viewAll')}
             </Link>
           </div>
         </div>

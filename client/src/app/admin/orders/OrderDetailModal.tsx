@@ -168,6 +168,20 @@ export default function OrderDetailModal({ isOpen, onClose, orderId }: Props) {
                     </tbody>
                     <tfoot>
                       <tr className="bg-secondary/10">
+                        <td colSpan={3} className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Tạm tính</td>
+                        <td className="px-4 py-3 text-right text-sm font-bold text-foreground">
+                          {order.items.reduce((sum: number, item: any) => sum + (item.quantity * Number(item.price)), 0).toLocaleString('vi-VN')}₫
+                        </td>
+                      </tr>
+                      {order.voucher && (
+                        <tr className="bg-success/5">
+                          <td colSpan={3} className="px-4 py-3 text-right text-xs font-semibold text-success uppercase">Voucher ({order.voucher.code})</td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-success">
+                            - {(order.items.reduce((sum: number, item: any) => sum + (item.quantity * Number(item.price)), 0) - Number(order.totalAmount)).toLocaleString('vi-VN')}₫
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="bg-secondary/20">
                         <td colSpan={3} className="px-4 py-4 text-right text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tổng cộng</td>
                         <td className="px-4 py-4 text-right text-lg font-bold text-primary">
                           {Number(order.totalAmount).toLocaleString('vi-VN')}₫

@@ -1,4 +1,10 @@
+'use client';
+
+import { useTranslation } from '@/hooks/useTranslation';
+
 export default function GlobalLoading() {
+  const { t } = useTranslation();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="flex flex-col items-center space-y-5">
@@ -10,7 +16,7 @@ export default function GlobalLoading() {
         </div>
         <div className="flex flex-col items-center gap-1">
           <h3 className="text-base font-semibold text-foreground">UltraShop</h3>
-          <p className="text-xs text-muted-foreground">Đang tải...</p>
+          <p className="text-xs text-muted-foreground">{t('loading.text')}</p>
         </div>
       </div>
     </div>
