@@ -18,7 +18,11 @@ export class ProductController {
       
       // Nếu có từ khóa tìm kiếm, sử dụng AI Search thông minh
       if (validatedQuery.search) {
-        const aiProducts = await aiService.intelligentSearch(validatedQuery.search, validatedQuery.limit || 20);
+        const aiProducts = await aiService.intelligentSearch(
+          validatedQuery.search, 
+          validatedQuery.limit || 20,
+          validatedQuery.categoryId
+        );
         return res.json({
           success: true,
           data: aiProducts,

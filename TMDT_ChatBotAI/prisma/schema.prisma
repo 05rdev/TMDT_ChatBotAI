@@ -64,6 +64,7 @@ model Product {
   description String?
   categoryId  String
   embedding   Unsupported("vector(768)")?
+  imageEmbedding Unsupported("vector(512)")?
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   isDeleted   Boolean                @default(false)

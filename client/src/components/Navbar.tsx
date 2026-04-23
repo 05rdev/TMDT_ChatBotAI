@@ -99,9 +99,53 @@ export const Navbar = () => {
             <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title={t('nav.voiceSearch')}>
               <Mic className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title={t('nav.imageSearch')}>
+            <button 
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" 
+              title={t('nav.imageSearch')}
+              onClick={() => document.getElementById('navbar-image-upload')?.click()}
+            >
               <Camera className="w-3.5 h-3.5" />
             </button>
+            <input
+              id="navbar-image-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                  const { toast } = await import('sonner');
+                  const api = (await import('@/lib/api')).default;
+                  
+                  const searchPromise = api.post('/ai/visual-search', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                  });
+
+                  toast.promise(searchPromise, {
+                    loading: 'Đang phân tích hình ảnh...',
+                    success: (res) => {
+                      if (res.data.data?.products) {
+                        sessionStorage.setItem('visual_search_results', JSON.stringify(res.data.data.products));
+                        router.push(`/shop?visual=true&t=${Date.now()}`);
+                        return 'Đã tìm thấy sản phẩm tương tự!';
+                      }
+                      return 'Không tìm thấy sản phẩm phù hợp';
+                    },
+                    error: (err) => 'Lỗi: ' + (err.response?.data?.message || err.message)
+                  });
+                } catch (err: any) {
+                  const { toast } = await import('sonner');
+                  toast.error('Lỗi khởi tạo tìm kiếm');
+                } finally {
+                  e.target.value = '';
+                }
+              }}
+            />
           </div>
 
           <button className="lg:hidden p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors">

@@ -100,13 +100,20 @@ export class AIService {
     const q = query.toLowerCase();
 
     // Price regex
-    const maxPriceMatch = q.match(/(?:dưới|u|<=)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+    const maxPriceMatch = q.match(/(?:dưới|u|<=|tầm|khoảng|~|giá|quanh)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
     if (maxPriceMatch) {
       let val = parseFloat(maxPriceMatch[1]);
       const unit = maxPriceMatch[2].toLowerCase();
       if (['tr', 'triệu', 'củ', 'm'].includes(unit)) val *= 1000000;
       else if (unit === 'k') val *= 1000;
-      filters.priceMax = val;
+      
+      // Nếu dùng từ "tầm/khoảng/quanh" -> tạo khoảng giá +/- 20%
+      if (q.match(/(tầm|khoảng|~|quanh|giá)/)) {
+        filters.priceMin = val * 0.8;
+        filters.priceMax = val * 1.2;
+      } else {
+        filters.priceMax = val;
+      }
     }
 
     const minPriceMatch = q.match(/(?:trên|từ|>=)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
@@ -174,8 +181,8 @@ export class AIService {
   /**
    * TÌM KIẾM THÔNG MINH (Hybrid Search)
    */
-  async intelligentSearch(query: string, limit: number = 20) {
-    console.log(`🤖 AI Searching for: "${query}"`);
+  async intelligentSearch(query: string, limit: number = 20, categoryId?: string) {
+    console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'})`);
 
     // 1. Phân tích ý định người dùng (AI + Regex Fallback)
     let aiFilters = await this.parseQueryWithAI(query);
@@ -206,6 +213,9 @@ export class AIService {
     if (aiFilters) {
       if (aiFilters.category) {
         where.category = { name: { contains: aiFilters.category, mode: 'insensitive' } };
+      } else if (categoryId) {
+        // Ưu tiên category từ sidebar nếu AI không trích xuất được category khác
+        where.categoryId = categoryId;
       }
       if (aiFilters.keywords) {
         where.OR = [
@@ -230,7 +240,7 @@ export class AIService {
     if (useSemanticSearch) {
       console.log('🔍 Executing Semantic Search...');
       try {
-        products = await this.searchSemantic(query, poolLimit, aiFilters);
+        products = await this.searchSemantic(query, poolLimit, aiFilters, categoryId);
       } catch (err) {
         console.warn('⚠️ Semantic search failed, falling back to keyword search:', err);
       }
@@ -251,16 +261,21 @@ export class AIService {
       });
     }
 
-    // 4. Fallback cuối: Tìm rộng bằng từ khóa gốc
+    // 4. Fallback cuối: Tìm rộng bằng cách tách từ (Broad Word Search)
     if (products.length === 0) {
-      console.log('🔄 Fallback to broad keyword search...');
+      console.log('🔄 Fallback to broad word search...');
+      const words = query.split(/\s+/).filter(w => w.length > 2); // Chỉ lấy từ > 2 ký tự
+      
       products = await prisma.product.findMany({
         where: {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } }
-          ],
-          isDeleted: false
+          OR: words.map(word => ({
+            OR: [
+              { name: { contains: word, mode: 'insensitive' } },
+              { description: { contains: word, mode: 'insensitive' } }
+            ]
+          })),
+          isDeleted: false,
+          ...(categoryId ? { categoryId } : {})
         },
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
@@ -319,7 +334,7 @@ export class AIService {
   /**
    * Tìm kiếm Semantic (Vector) kết hợp lọc SQL
    */
-  async searchSemantic(query: string, limit: number = 10, filters: any = null) {
+  async searchSemantic(query: string, limit: number = 10, filters: any = null, categoryId?: string) {
     // Sẽ throw nếu embedding service không hoạt động → caller xử lý fallback
     const queryVector = await embeddingHelper.generateEmbedding(query);
     const vectorString = `[${queryVector.join(',')}]`;
@@ -349,7 +364,7 @@ export class AIService {
       ) sold_stats ON p.id = sold_stats."productId"
       WHERE p."isDeleted" = false 
         AND p.embedding IS NOT NULL
-        ${filters?.category ? Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}` : Prisma.empty}
+        ${filters?.category ? Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}` : (categoryId ? Prisma.sql`AND p."categoryId" = ${categoryId}` : Prisma.empty)}
         ${filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty}
         ${filters?.priceMax ? Prisma.sql`AND v.price <= ${filters.priceMax}` : Prisma.empty}
       GROUP BY p.id, c.name, avg_rating.rating, avg_rating.total_reviews, sold_stats.sold

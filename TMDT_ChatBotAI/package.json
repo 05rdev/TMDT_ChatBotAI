@@ -11,11 +11,15 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:push": "prisma db push",
+    "ai:bridge": "scripts\\start-ai-bridge.bat",
+    "ai:reindex": "ts-node -r tsconfig-paths/register scripts/reindex-all-ai.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/form-data": "^2.2.1",
+    "axios": "^1.15.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
     "compression": "^1.7.4",
@@ -23,6 +27,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-rate-limit": "^7.4.0",
+    "form-data": "^4.0.5",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",

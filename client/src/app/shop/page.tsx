@@ -88,8 +88,29 @@ export default function ShopPage() {
   }, [searchQuery, selectedCategory, minPrice, maxPrice, sortBy, selectedRating, page]);
 
   useEffect(() => {
+    // Chỉ ưu tiên kết quả Visual Search nếu không có bộ lọc chủ động nào khác (Category hoặc Search Text)
+    const isVisualMode = searchParams.get('visual') === 'true';
+    const hasActiveFilters = !!(searchQuery || selectedCategory);
+
+    if (isVisualMode && !hasActiveFilters) {
+      const storedResults = sessionStorage.getItem('visual_search_results');
+      if (storedResults) {
+        try {
+          const products = JSON.parse(storedResults);
+          setProducts(formatProducts(products));
+          setIsLoading(false);
+          setTotal(products.length);
+          setTotalPages(1);
+          return;
+        } catch (err) {
+          console.error('Failed to parse visual search results', err);
+        }
+      }
+    }
+    
+    // Nếu có bộ lọc mới hoặc không ở chế độ Visual, tải sản phẩm bình thường
     fetchProducts();
-  }, [page, searchQuery, selectedCategory, selectedRating, sortBy]);
+  }, [page, searchQuery, selectedCategory, selectedRating, sortBy, searchParams.get('visual'), searchParams.get('t')]);
 
   const fetchCategories = async () => {
     try {
@@ -163,6 +184,8 @@ export default function ShopPage() {
     setSearchQuery('');
     setSortBy('newest');
     setPage(1);
+    sessionStorage.removeItem('visual_search_results');
+    router.push('/shop');
   };
 
   const activeFilterCount = [selectedCategory, minPrice, maxPrice, selectedRating].filter(Boolean).length;
