@@ -1,91 +1,233 @@
 import { prisma } from '../../../lib/prisma';
 import { AIService } from './ai.service';
+import { ProductService } from '../../product/services/product.service';
+import { Prisma } from '@prisma/client';
 
 const aiService = new AIService();
-
-// Tag đặc biệt để phân biệt tin nhắn admin vs user chatbot
-// Vì schema ChatMessage không có field type, ta dùng prefix trong content khi query
-const ADMIN_CHAT_PREFIX = '__ADMIN__';
+const productService = new ProductService();
 
 export class AdminChatbotService {
   private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
   private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
 
   /**
-   * Trò chuyện với Admin (Hỗ trợ quản trị hệ thống)
+   * Trò chuyện với Admin - RAG toàn diện từ database
+   * Context: Revenue, Orders, Products, Users, Reviews, Vouchers, Support, Behaviors
    */
   async askAdminChatbot(adminId: string, message: string) {
-    // 1. Lưu tin nhắn của Admin (với marker để phân biệt với chat user thông thường)
+    // 1. Lưu tin nhắn Admin
     await prisma.chatMessage.create({
-      data: { 
-        userId: adminId, 
-        role: 'user', 
+      data: {
+        userId: adminId,
+        role: 'user',
         content: message,
-        // Dùng suggestedProducts field để đánh dấu đây là admin chat
-        // (Cách tốt hơn là thêm column "chatType" vào schema)
         suggestedProducts: { isAdminChat: true } as any
       }
     });
 
-    // 2. Lấy dữ liệu thống kê tổng quan
-    const [userCount, productCount, orderCount, totalRevenue, latestOrders, lowStockProducts, pendingTickets] =
-      await Promise.all([
-        prisma.user.count({ where: { isActive: true } }),
-        prisma.product.count({ where: { isDeleted: false } }),
-        prisma.order.count(),
-        prisma.order.aggregate({
-          where: { status: 'DELIVERED' },
-          _sum: { totalAmount: true }
-        }),
-        prisma.order.findMany({
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          include: { user: { select: { name: true } } }
-        }),
-        prisma.productVariant.findMany({
-          where: { stock: { lt: 10 } },
-          take: 5,
-          include: { product: { select: { name: true } } }
-        }),
-        prisma.supportTicket.count({ where: { status: 'OPEN' } })
-      ]);
+    const msgLower = message.toLowerCase();
 
-    const revenueAmount = totalRevenue?._sum?.totalAmount ? Number(totalRevenue._sum.totalAmount) : 0;
+    // 2. Xây dựng context toàn diện từ database
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const adminContext = `
-      THỐNG KÊ HỆ THỐNG:
-      - Tổng khách hàng (Active): ${userCount}
-      - Tổng sản phẩm: ${productCount}
-      - Tổng đơn hàng: ${orderCount}
-      - Doanh thu (Giao thành công): ${revenueAmount.toLocaleString()}đ
-      - Ticket hỗ trợ đang chờ: ${pendingTickets}
+    // ====== THỐNG KÊ TỔNG QUAN ======
+    const [
+      userCount,
+      newUsersToday,
+      newUsersThisWeek,
+      productCount,
+      totalOrders,
+      ordersToday,
+      ordersPending,
+      ordersProcessing,
+      revenueTotal,
+      revenueToday,
+      revenueThisWeek,
+      revenueThisMonth,
+      pendingTickets,
+      totalReviews,
+    ] = await Promise.all([
+      prisma.user.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
+      prisma.product.count({ where: { isDeleted: false } }),
+      prisma.order.count(),
+      prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'PENDING' } }),
+      prisma.order.count({ where: { status: 'PROCESSING' } }),
+      prisma.order.aggregate({ where: { status: 'DELIVERED' }, _sum: { totalAmount: true } }),
+      prisma.order.aggregate({ where: { status: 'DELIVERED', createdAt: { gte: todayStart } }, _sum: { totalAmount: true } }),
+      prisma.order.aggregate({ where: { status: 'DELIVERED', createdAt: { gte: weekStart } }, _sum: { totalAmount: true } }),
+      prisma.order.aggregate({ where: { status: 'DELIVERED', createdAt: { gte: monthStart } }, _sum: { totalAmount: true } }),
+      prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+      prisma.review.count(),
+    ]);
 
-      ĐƠN HÀNG MỚI NHẤT:
-      ${latestOrders.map(o => `- Đơn #${o.id.slice(0, 8)}: ${o.user.name} (${Number(o.totalAmount).toLocaleString()}đ) - ${o.status}`).join('\n')}
+    const fmt = (v: any) => v?._sum?.totalAmount ? Number(v._sum.totalAmount).toLocaleString() : '0';
 
-      CẢNH BÁO KHO HÀNG (Sắp hết):
-      ${lowStockProducts.length > 0 
-        ? lowStockProducts.map(p => `- ${p.product.name} (${p.name}): Còn ${p.stock}`).join('\n')
-        : '- Không có sản phẩm nào sắp hết hàng.'}
-    `;
+    let overviewContext = `
+📊 THỐNG KÊ TỔNG QUAN:
+- Tổng khách hàng (active): ${userCount} | Mới hôm nay: ${newUsersToday} | Mới tuần này: ${newUsersThisWeek}
+- Tổng sản phẩm (active): ${productCount}
+- Tổng đơn hàng: ${totalOrders} | Hôm nay: ${ordersToday} | Chờ xử lý: ${ordersPending} | Đang xử lý: ${ordersProcessing}
+- 💰 Doanh thu (giao thành công): Tổng: ${fmt(revenueTotal)}đ | Hôm nay: ${fmt(revenueToday)}đ | Tuần: ${fmt(revenueThisWeek)}đ | Tháng: ${fmt(revenueThisMonth)}đ
+- Ticket hỗ trợ đang mở: ${pendingTickets}
+- Tổng đánh giá: ${totalReviews}`;
 
+    // ====== ĐƠN HÀNG MỚI NHẤT ======
+    const latestOrders = await prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 7,
+      include: {
+        user: { select: { name: true, email: true } },
+        items: { include: { product: { select: { name: true } } } },
+        payment: { select: { method: true, status: true } }
+      }
+    });
+    const { translateOrderStatus, translatePaymentStatus } = require('../../../utils/status-mapper');
+    let ordersContext = '\n📦 ĐƠN HÀNG MỚI NHẤT:\n' + latestOrders.map(o =>
+      `- #${o.id.slice(0, 8)}: ${(o as any).user.name} (${(o as any).user.email}) | ${translateOrderStatus(o.status)} | ${Number(o.totalAmount).toLocaleString()}đ | SP: ${o.items.map((i: any) => i.product.name).join(', ')} | TT: ${o.payment ? `${o.payment.method} - ${translatePaymentStatus(o.payment.status)}` : 'Chưa TT'} | ${new Date(o.createdAt).toLocaleDateString('vi-VN')}`
+    ).join('\n');
+
+    // ====== CẢNH BÁO KHO HÀNG ======
+    const lowStockProducts = await prisma.productVariant.findMany({
+      where: { stock: { lt: 10 } },
+      take: 10,
+      include: { product: { select: { name: true } } },
+      orderBy: { stock: 'asc' }
+    });
+    let stockContext = '\n⚠️ CẢNH BÁO KHO (Dưới 10 sản phẩm):\n' +
+      (lowStockProducts.length > 0
+        ? lowStockProducts.map(p => `- ${p.product.name} (${p.name}): Còn ${p.stock} | SKU: ${p.sku}`).join('\n')
+        : '- ✅ Tất cả sản phẩm đều đủ hàng.');
+
+    // ====== TOP SẢN PHẨM BÁN CHẠY ======
+    let topProductsContext = '';
+    const topProductKeywords = ['bán chạy', 'top', 'nổi bật', 'best seller', 'phổ biến', 'sản phẩm nào'];
+    if (topProductKeywords.some(k => msgLower.includes(k)) || true) {
+      const topProducts = await productService.getHotProducts(10);
+      if (topProducts.length > 0) {
+        topProductsContext = '\n🏆 TOP SẢN PHẨM BÁN CHẠY:\n' + topProducts.map((p: any, i: number) => {
+          return `${i + 1}. ${p.name || 'N/A'}: ${p.soldCount || 0} sản phẩm đã bán`;
+        }).join('\n');
+      }
+    }
+
+    // ====== ĐÁNH GIÁ / REVIEWS ======
+    let reviewsContext = '';
+    const reviewKeywords = ['đánh giá', 'review', 'rating', 'phản hồi', 'sao', 'hài lòng'];
+    if (reviewKeywords.some(k => msgLower.includes(k)) || true) {
+      const avgRating = await prisma.review.aggregate({ _avg: { rating: true } });
+      const recentBadReviews = await prisma.review.findMany({
+        where: { rating: { lte: 2 } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { user: { select: { name: true } }, product: { select: { name: true } } }
+      });
+      reviewsContext = `\n⭐ ĐÁNH GIÁ TỔNG QUAN:
+- Tổng đánh giá: ${totalReviews} | Rating trung bình: ${avgRating._avg.rating ? avgRating._avg.rating.toFixed(1) : 'N/A'}/5`;
+      if (recentBadReviews.length > 0) {
+        reviewsContext += '\n- ⚠️ Đánh giá thấp gần đây:\n' + recentBadReviews.map(r =>
+          `  + ${r.product.name}: ${r.rating}⭐ bởi ${r.user.name} - "${r.comment?.substring(0, 80) || 'Không comment'}"`
+        ).join('\n');
+      }
+    }
+
+    // ====== VOUCHER ANALYTICS ======
+    let voucherContext = '';
+    const voucherKeywords = ['voucher', 'mã giảm', 'khuyến mãi', 'ưu đãi', 'giảm giá'];
+    if (voucherKeywords.some(k => msgLower.includes(k)) || true) {
+      const activeVouchers = await prisma.voucher.findMany({
+        where: { isActive: true },
+        orderBy: { usedCount: 'desc' },
+        take: 10
+      });
+      voucherContext = '\n🎟️ VOUCHER ĐANG HOẠT ĐỘNG:\n' +
+        (activeVouchers.length > 0
+          ? activeVouchers.map(v =>
+              `- "${v.code}": Giảm ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Đã dùng: ${v.usedCount}/${v.usageLimit} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')} | ${new Date(v.endDate) < now ? '⛔ Hết hạn' : '✅ Còn hiệu lực'}`
+            ).join('\n')
+          : '- Chưa có voucher nào đang hoạt động.');
+    }
+
+    // ====== DOANH THU THEO DANH MỤC ======
+    let categoryRevenueContext = '';
+    const catRevKeywords = ['danh mục', 'category', 'phân loại', 'ngành hàng'];
+    if (catRevKeywords.some(k => msgLower.includes(k)) || true) {
+      const categories = await prisma.category.findMany({
+        where: { isDeleted: false },
+        select: {
+          name: true,
+          _count: { select: { products: { where: { isDeleted: false } } } }
+        }
+      });
+      categoryRevenueContext = '\n📂 SẢN PHẨM THEO DANH MỤC:\n' + categories.map(c =>
+        `- ${c.name}: ${c._count.products} sản phẩm`
+      ).join('\n');
+    }
+
+    // ====== SUPPORT TICKETS ======
+    let supportContext = '';
+    if (true) {
+      const recentTickets = await prisma.supportTicket.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          user: { select: { name: true, email: true } },
+          _count: { select: { messages: true } }
+        }
+      });
+      supportContext = '\n🎫 TICKET HỖ TRỢ GẦN ĐÂY:\n' +
+        (recentTickets.length > 0
+          ? recentTickets.map(t =>
+              `- "${t.subject}" bởi ${t.user.name} (${t.user.email}) | ${t.status === 'OPEN' ? '🟢 Đang mở' : '🔴 Đã đóng'} | ${t._count.messages} tin nhắn | ${new Date(t.createdAt).toLocaleDateString('vi-VN')}`
+            ).join('\n')
+          : '- Không có ticket nào.');
+    }
+
+    // 3. System Prompt
     const systemPrompt = `
-      Bạn là "Ultra Admin Assistant" - Cố vấn quản trị hệ thống UltraShop.
-      Bạn có quyền truy cập vào dữ liệu quản trị sau:
-      
-      ${adminContext}
+Bạn là "Ultra Admin Assistant" - Cố vấn quản trị hệ thống UltraShop cấp cao.
+Bạn có QUYỀN TRUY CẬP TOÀN BỘ dữ liệu quản trị sau:
 
-      QUY TẮC:
-      - Luôn trả lời bằng tiếng Việt, chuyên nghiệp, súc tích.
-      - Hỗ trợ Admin phân tích dữ liệu, đưa ra cảnh báo hoặc gợi ý hành động (Vd: Nhập thêm hàng, phản hồi ticket).
-      - Trả lời dựa trên số liệu thực tế được cung cấp.
+${overviewContext}
+${ordersContext}
+${stockContext}
+${topProductsContext}
+${reviewsContext}
+${voucherContext}
+${categoryRevenueContext}
+${supportContext}
+
+QUY TẮC ADMIN ASSISTANT:
+1. Luôn trả lời bằng tiếng Việt, chuyên nghiệp, súc tích. Xưng hô "Em" và gọi admin là "Sếp".
+2. Trả lời DỰA TRÊN SỐ LIỆU THỰC TẾ. Không bịa đặt dữ liệu.
+3. Khi được hỏi phân tích, hãy:
+   - Chỉ ra xu hướng (tăng/giảm so với kỳ trước)
+   - Đưa ra GỢI Ý HÀNH ĐỘNG cụ thể (VD: "Nên nhập thêm hàng cho SP X", "Cần phản hồi ticket")
+   - Cảnh báo rủi ro nếu có
+4. Format trả lời rõ ràng, dùng bullet points, emoji vừa phải.
+5. Nếu được hỏi về thông tin không có trong dữ liệu, nói rõ "Em chưa có dữ liệu về phần này".
+6. Khi so sánh doanh thu: So sánh hôm nay vs hôm qua, tuần này vs tuần trước khi có thể.
+7. Chủ động cảnh báo nếu phát hiện: Hàng sắp hết, đơn chờ xử lý nhiều, đánh giá thấp.
+
+CÁC LOẠI CÂU HỎI THƯỜNG GẶP:
+- "Doanh thu hôm nay?" → Báo cáo doanh thu chi tiết
+- "Sản phẩm bán chạy?" → Liệt kê top sản phẩm + số lượng
+- "Kiểm tra kho?" → Cảnh báo sản phẩm sắp hết
+- "Báo cáo tổng quan?" → Tổng hợp toàn bộ số liệu
+- "Đơn hàng chờ?" → Liệt kê đơn pending/processing
+- "Đánh giá khách hàng?" → Rating trung bình + đánh giá thấp cần chú ý
     `;
 
-    // 3. Lấy lịch sử hội thoại ADMIN (lọc theo marker isAdminChat)
+    // 4. Lấy lịch sử admin chat
     const history = await prisma.chatMessage.findMany({
-      where: { 
+      where: {
         userId: adminId,
-        // Chỉ lấy tin nhắn admin chat, không lẫn với chatbot user thông thường
         suggestedProducts: { path: ['isAdminChat'], equals: true }
       },
       orderBy: { createdAt: 'desc' },
@@ -112,11 +254,11 @@ export class AdminChatbotService {
       const data: any = await response.json();
       const aiResponse = data.message.content;
 
-      // 4. Lưu phản hồi của AI (cũng đánh dấu admin chat)
+      // 5. Lưu phản hồi AI
       await prisma.chatMessage.create({
-        data: { 
-          userId: adminId, 
-          role: 'assistant', 
+        data: {
+          userId: adminId,
+          role: 'assistant',
           content: aiResponse,
           suggestedProducts: { isAdminChat: true } as any
         }
@@ -125,16 +267,16 @@ export class AdminChatbotService {
       return aiResponse;
     } catch (error) {
       console.error('❌ Admin Chatbot Error:', error);
-      return 'Dạ, hiện tại em không thể truy xuất dữ liệu hệ thống. Anh/chị vui lòng kiểm tra lại kết nối Ollama.';
+      return 'Dạ, hiện tại em không thể truy xuất dữ liệu hệ thống. Sếp vui lòng kiểm tra lại kết nối Ollama.';
     }
   }
 
   /**
-   * Lấy lịch sử trò chuyện của Admin (chỉ lấy admin chat, không lẫn user chatbot)
+   * Lấy lịch sử trò chuyện Admin
    */
   async getHistory(adminId: string) {
     return prisma.chatMessage.findMany({
-      where: { 
+      where: {
         userId: adminId,
         suggestedProducts: { path: ['isAdminChat'], equals: true }
       },
@@ -148,7 +290,7 @@ export class AdminChatbotService {
    */
   async clearHistory(adminId: string) {
     return prisma.chatMessage.deleteMany({
-      where: { 
+      where: {
         userId: adminId,
         suggestedProducts: { path: ['isAdminChat'], equals: true }
       }

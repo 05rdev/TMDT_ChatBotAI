@@ -340,12 +340,13 @@ export class OrderService {
 
     // Tạo thông báo cho user
     try {
+      const { translateOrderStatus } = require('../../../utils/status-mapper');
       const NotificationService = require('../../notification/services/notification.service').NotificationService;
       const notificationService = new NotificationService();
       await notificationService.createNotification(
         order.userId,
         'Cập nhật đơn hàng',
-        `Đơn hàng #${order.id.slice(0, 8)} của bạn đã chuyển sang trạng thái: ${status}`,
+        `Đơn hàng #${order.id.slice(0, 8)} của bạn đã chuyển sang trạng thái: ${translateOrderStatus(status)}`,
         'ORDER'
       );
     } catch (err) {

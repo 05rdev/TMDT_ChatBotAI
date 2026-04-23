@@ -155,7 +155,7 @@ export default function AdminAIChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="lg:col-span-3 flex flex-col space-y-4 h-full">
+        <div className="lg:col-span-3 flex flex-col space-y-4 h-full min-h-0">
             <div 
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto card-elevated bg-card p-6 space-y-6 rounded-[var(--radius-xl)] border border-border custom-scrollbar"

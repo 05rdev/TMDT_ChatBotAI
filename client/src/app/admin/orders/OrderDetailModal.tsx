@@ -49,6 +49,16 @@ export default function OrderDetailModal({ isOpen, onClose, orderId }: Props) {
     }
   };
 
+  const getPaymentStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PENDING': return 'Chờ thanh toán';
+      case 'SUCCESS': return 'Thành công';
+      case 'FAILED': return 'Thất bại';
+      case 'REFUNDED': return 'Đã hoàn tiền';
+      default: return status;
+    }
+  };
+
   const statusInfo = order ? getStatusInfo(order.status) : null;
 
   return (
@@ -92,7 +102,7 @@ export default function OrderDetailModal({ isOpen, onClose, orderId }: Props) {
                     <CreditCard className="w-4 h-4 text-muted-foreground" />
                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Thanh toán</span>
                   </div>
-                  <p className="text-sm font-semibold">{order.payment?.method} - {order.payment?.status}</p>
+                  <p className="text-sm font-semibold">{order.payment?.method} - {getPaymentStatusLabel(order.payment?.status)}</p>
                 </div>
                 <div className={`p-4 rounded-[var(--radius-lg)] border border-border ${statusInfo?.color}`}>
                   <div className="flex items-center gap-3 mb-2">

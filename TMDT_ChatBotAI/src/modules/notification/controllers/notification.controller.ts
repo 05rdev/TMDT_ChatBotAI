@@ -91,4 +91,27 @@ export class NotificationController {
       next(error);
     }
   }
+
+  // Admin xem tất cả thông báo
+  async getAllForAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const data = await notificationService.getAllForAdmin(page, limit);
+      return res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin xóa thông báo
+  async deleteGlobalNotification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      await notificationService.deleteGlobalNotification(id);
+      return res.json({ success: true, message: 'Đã xóa thông báo hệ thống' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

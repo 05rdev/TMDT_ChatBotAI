@@ -3,12 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
-import { Search, Loader2, Filter, Star, Zap, DollarSign, ChevronDown, SlidersHorizontal, PackageX, Check, X } from 'lucide-react';
+import { Loader2, Star, ChevronDown, SlidersHorizontal, PackageX, X, ShoppingCart, Eye, Flame, Sparkles, ArrowUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { BannerCarousel } from '@/components/BannerCarousel';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { T } from '@/components/T';
+import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from 'sonner';
 
 interface Product {
   id: string;
@@ -21,6 +24,8 @@ interface Product {
   averageRating?: number;
   totalReviews?: number;
   soldCount?: number;
+  createdAt?: string;
+  variants?: { id: string; price: number; stock: number }[];
 }
 
 interface Category {
@@ -30,10 +35,9 @@ interface Category {
 
 type SortOption = 'relevant' | 'newest' | 'best_selling' | 'price_asc' | 'price_desc';
 
-
-
 export default function ShopPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -59,11 +63,9 @@ export default function ShopPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 12;
+  const limit = 16;
 
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-
-
 
   useEffect(() => {
     fetchCategories();
@@ -103,7 +105,6 @@ export default function ShopPage() {
       ...p,
       primaryImage: p.primaryImage || p.images?.[0]?.url,
       minPrice: p.minPrice || (p.variants?.[0]?.price ? Number(p.variants[0].price) : 0),
-      rating: p.rating || 5, // Default to 5 stars if no reviews
       soldCount: p.soldCount || 0
     }));
   };
@@ -120,7 +121,6 @@ export default function ShopPage() {
       if (minPrice) queryParams.append('minPrice', minPrice);
       if (maxPrice) queryParams.append('maxPrice', maxPrice);
       
-      // Map sort options to API logic (assuming backend handles these, or we handle via UI sorting if backend doesn't support yet)
       if (sortBy === 'price_asc') queryParams.append('sort', 'price_asc');
       if (sortBy === 'price_desc') queryParams.append('sort', 'price_desc');
       if (sortBy === 'newest') queryParams.append('sort', 'newest');
@@ -165,33 +165,27 @@ export default function ShopPage() {
     setPage(1);
   };
 
+  const activeFilterCount = [selectedCategory, minPrice, maxPrice, selectedRating].filter(Boolean).length;
+
   const renderStars = (count: number) => {
     return Array(5).fill(0).map((_, i) => (
-      <Star key={i} className={`w-3.5 h-3.5 ${i < count ? 'text-orange-400 fill-orange-400' : 'text-muted-foreground'}`} />
+      <Star key={i} className={`w-3.5 h-3.5 ${i < count ? 'text-orange-400 fill-orange-400' : 'text-muted-foreground/30'}`} />
     ));
   };
 
-  return (
-    <div className="min-h-screen bg-background pb-20 animate-fade-in-up">
-      {/* Hero Banner Area */}
-      <section className="mb-4">
-        <BannerCarousel height="h-[300px] md:h-[400px]" />
-      </section>
-
-      {/* Main Shop Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        
-        {/* Horizontal Categories */}
-        <div className="flex overflow-x-auto gap-4 pb-6 mb-8 custom-scrollbar scroll-smooth no-scrollbar">
-          <button 
-            onClick={() => {
-              setSelectedCategory(null);
-              setPage(1);
-            }}
-            className={`shrink-0 px-6 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase transition-all duration-300 border ${
-              selectedCategory === null 
-                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' 
-                : 'bg-secondary/50 text-foreground/70 border-border/80 hover:border-primary/50 hover:text-foreground hover:bg-secondary'
+  // Filter sidebar content - reusable for both desktop & mobile
+  const FilterContent = () => (
+    <div className="space-y-7">
+      {/* Categories */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-widest">{'Danh mục'}</h4>
+        <div className="space-y-1">
+          <button
+            onClick={() => { setSelectedCategory(null); setPage(1); }}
+            className={`w-full text-left px-3 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-all ${
+              selectedCategory === null
+                ? 'bg-primary/10 text-primary border border-primary/20'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
             }`}
           >
             {t('shop.allCategories')}
@@ -199,60 +193,166 @@ export default function ShopPage() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                setSearchQuery('');
-                setPage(1);
-              }}
-              className={`shrink-0 px-6 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase transition-all duration-300 border ${
-                selectedCategory === cat.id 
-                  ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' 
-                  : 'bg-secondary/50 text-foreground/70 border-border/80 hover:border-primary/50 hover:text-foreground hover:bg-secondary'
+              onClick={() => { setSelectedCategory(cat.id); setSearchQuery(''); setPage(1); }}
+              className={`w-full text-left px-3 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-all ${
+                selectedCategory === cat.id
+                  ? 'bg-primary/10 text-primary border border-primary/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
               }`}
             >
               <T>{cat.name}</T>
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Title and Sorting */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div className="space-y-2">
+      {/* Price Filter */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-widest">{t('shop.priceRange')}</h4>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              placeholder={t('shop.minPrice')}
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+            <input
+              type="number"
+              placeholder={t('shop.maxPrice')}
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
+          <Button
+            onClick={() => { handleApplyPriceFilter(); setIsMobileFiltersOpen(false); }}
+            variant="outline"
+            className="w-full rounded-[var(--radius-md)] text-xs h-9"
+          >
+            {t('shop.applyPrice')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Rating Filter */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-widest">{t('shop.rating')}</h4>
+        <div className="space-y-2">
+          {[5, 4, 3].map((rating) => (
+            <label key={rating} className="flex items-center justify-between cursor-pointer group px-2 py-1.5 rounded-[var(--radius-sm)] hover:bg-secondary/40 transition-colors">
+              <div className="flex items-center space-x-2.5">
+                <input
+                  type="radio"
+                  name="rating"
+                  checked={selectedRating === rating}
+                  onChange={() => { setSelectedRating(rating); setIsMobileFiltersOpen(false); }}
+                  className="w-3.5 h-3.5 text-primary border-border focus:ring-primary bg-background accent-primary"
+                />
+                <div className="flex items-center gap-0.5">
+                  {renderStars(rating)}
+                </div>
+              </div>
+              <span className="text-[11px] text-muted-foreground">{t('shop.andAbove')}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Clear Filters */}
+      {activeFilterCount > 0 && (
+        <Button
+          variant="outline"
+          onClick={() => { handleClearFilters(); setIsMobileFiltersOpen(false); }}
+          className="w-full rounded-[var(--radius-md)] text-xs h-9 border-danger/30 text-danger hover:bg-danger/5"
+        >
+          {t('shop.clearAll')} ({activeFilterCount})
+        </Button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background pb-20 animate-fade-in-up">
+      {/* Hero Banner Area */}
+      <section className="mb-4">
+        <BannerCarousel height="h-[260px] md:h-[360px]" />
+      </section>
+
+      {/* Main Shop Layout */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Top Bar: Title + Sort + Filter Toggle */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-1.5">
             <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] opacity-80">Collection</p>
-            <h2 className="text-4xl md:text-5xl font-heading text-foreground tracking-tighter flex items-baseline gap-4">
-               {selectedCategory ? <T>{categories.find(c => c.id === selectedCategory)?.name || 'Tất cả sản phẩm'}</T> : t('shop.allCategories')}
-               <span className="text-lg font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
+            <h2 className="text-3xl md:text-4xl font-heading text-foreground tracking-tighter flex items-baseline gap-3">
+              {selectedCategory ? <T>{categories.find(c => c.id === selectedCategory)?.name || 'Tất cả sản phẩm'}</T> : t('shop.allCategories')}
+              <span className="text-base font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
             </h2>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex items-center space-x-3 bg-secondary/40 backdrop-blur-sm px-5 py-2.5 rounded-full border border-border/40 shadow-sm">
-               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('shop.sortBy')}</span>
-               <div className="relative">
-                 <select 
-                   value={sortBy} 
-                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                   className="appearance-none bg-transparent border-none text-foreground text-[11px] font-bold uppercase tracking-wider pr-6 focus:outline-none cursor-pointer"
-                 >
-                   {searchQuery && <option value="relevant">{t('shop.mostRelevant')}</option>}
-                   <option value="newest">{t('shop.newest')}</option>
-                   <option value="best_selling">{t('shop.bestSelling')}</option>
-                   <option value="price_asc">{t('shop.priceLowHigh')}</option>
-                   <option value="price_desc">{t('shop.priceHighLow')}</option>
-                 </select>
-                 <ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-               </div>
+          <div className="flex items-center gap-3">
+            {/* Sort */}
+            <div className="flex items-center space-x-2 bg-card border border-border px-4 py-2 rounded-[var(--radius-md)] shadow-sm">
+              <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="appearance-none bg-transparent border-none text-foreground text-sm font-medium pr-5 focus:outline-none cursor-pointer"
+                >
+                  {searchQuery && <option value="relevant">{t('shop.mostRelevant')}</option>}
+                  <option value="newest">{t('shop.newest')}</option>
+                  <option value="best_selling">{t('shop.bestSelling')}</option>
+                  <option value="price_asc">{t('shop.priceLowHigh')}</option>
+                  <option value="price_desc">{t('shop.priceHighLow')}</option>
+                </select>
+                <ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
             </div>
 
-            <Button onClick={() => setIsMobileFiltersOpen(true)} variant="outline" className="gap-2 rounded-full px-8 py-6 h-auto border-border/60 hover:border-primary/50 text-[11px] font-bold uppercase tracking-widest w-full sm:w-auto shadow-sm transition-all duration-300">
-               <SlidersHorizontal className="w-4 h-4" /> {t('shop.filter')}
+            {/* Mobile Filter Toggle */}
+            <Button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              variant="outline"
+              className="lg:hidden gap-2 rounded-[var(--radius-md)] px-4 py-2 h-auto border-border shadow-sm relative"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="text-sm font-medium">{t('shop.filter')}</span>
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
             </Button>
           </div>
         </div>
 
-        <main className="w-full space-y-6">
+        {/* Content: Sidebar + Products */}
+        <div className="flex gap-8">
+          
+          {/* Desktop Sidebar Filters */}
+          <aside className="hidden lg:block w-[240px] shrink-0">
+            <div className="sticky top-24 card-elevated bg-card p-5 rounded-[var(--radius-xl)] border border-border">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-primary" />
+                  {t('shop.filter')}
+                </h3>
+                {activeFilterCount > 0 && (
+                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </div>
+              <FilterContent />
+            </div>
+          </aside>
 
-            {/* Products Grid */}
+          {/* Products Grid */}
+          <main className="flex-1 min-w-0">
             {isLoading ? (
               <div className="h-[40vh] flex flex-col items-center justify-center space-y-4">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -271,9 +371,9 @@ export default function ShopPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {products.map((product, index) => (
+                    <ProductCard key={product.id} product={product} index={index} />
                   ))}
                 </div>
 
@@ -326,164 +426,172 @@ export default function ShopPage() {
               </>
             )}
           </main>
-        
+        </div>
       </div>
 
-      {/* Off-canvas Filter Drawer */}
+      {/* Off-canvas Filter Drawer (Mobile) */}
       <div className={`fixed inset-0 z-[100] transition-opacity duration-300 ${isMobileFiltersOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-         {/* Backdrop */}
-         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsMobileFiltersOpen(false)} />
-         
-         {/* Drawer */}
-         <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-card border-l border-border shadow-2xl transition-transform duration-300 transform ${isMobileFiltersOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-xl font-heading text-foreground">{t('shop.filter')}</h2>
-              <button onClick={() => setIsMobileFiltersOpen(false)} className="p-2 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
-               {/* Price Filter */}
-               <div className="space-y-4">
-                 <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider">{t('shop.priceRange')}</h4>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="relative">
-                      <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <input 
-                        type="number" 
-                        placeholder={t('shop.minPrice')} 
-                        value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value)}
-                        className="w-full bg-background border border-border rounded-[var(--radius-md)] pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    <div className="relative">
-                      <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <input 
-                        type="number" 
-                        placeholder={t('shop.maxPrice')} 
-                        value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value)}
-                        className="w-full bg-background border border-border rounded-[var(--radius-md)] pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                 </div>
-                 <Button onClick={() => { handleApplyPriceFilter(); setIsMobileFiltersOpen(false); }} variant="outline" className="w-full rounded-full">{t('shop.applyPrice')}</Button>
-               </div>
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsMobileFiltersOpen(false)} />
 
-               {/* Rating Filter */}
-               <div className="space-y-4">
-                 <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider">{t('shop.rating')}</h4>
-                 <div className="space-y-3">
-                    {[5, 4, 3].map((rating) => (
-                      <label key={rating} className="flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center space-x-3">
-                           <input 
-                             type="radio" 
-                             name="rating" 
-                             checked={selectedRating === rating} 
-                             onChange={() => { setSelectedRating(rating); setIsMobileFiltersOpen(false); }}
-                             className="w-4 h-4 text-primary border-border focus:ring-primary bg-background"
-                           />
-                           <div className="flex items-center gap-1">
-                             {renderStars(rating)}
-                           </div>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{t('shop.andAbove')}</span>
-                      </label>
-                    ))}
-                 </div>
-               </div>
-            </div>
-            
-            <div className="p-6 border-t border-border flex items-center gap-4 bg-secondary/20">
-               <Button variant="outline" onClick={() => { handleClearFilters(); setIsMobileFiltersOpen(false); }} className="flex-1 rounded-full">{t('shop.clearAll')}</Button>
-               <Button onClick={() => setIsMobileFiltersOpen(false)} className="flex-1 rounded-full text-sm">Xem {total} sản phẩm</Button>
-            </div>
-         </div>
+        {/* Drawer */}
+        <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-card border-l border-border shadow-2xl transition-transform duration-300 transform ${isMobileFiltersOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+          <div className="flex items-center justify-between p-5 border-b border-border">
+            <h2 className="text-lg font-bold text-foreground">{t('shop.filter')}</h2>
+            <button onClick={() => setIsMobileFiltersOpen(false)} className="p-2 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
+            <FilterContent />
+          </div>
+
+          <div className="p-5 border-t border-border bg-secondary/20">
+            <Button onClick={() => setIsMobileFiltersOpen(false)} className="w-full rounded-[var(--radius-md)] text-sm">
+              {`Xem ${total} sản phẩm`}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, index }: { product: Product; index: number }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const fetchCart = useCartStore((state) => state.fetchCart);
+
+  // Smart badges
+  const isNew = product.createdAt && (Date.now() - new Date(product.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
+  const isHot = (product.soldCount || 0) >= 10;
+
+  const handleQuickAddCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Vui lòng đăng nhập');
+      router.push('/login');
+      return;
+    }
+    try {
+      const variant = product.variants?.[0];
+      if (!variant) {
+        toast.error('Sản phẩm chưa có phiên bản');
+        return;
+      }
+      await api.post('/cart', {
+        productId: product.id,
+        productVariantId: variant.id,
+        quantity: 1
+      });
+      await fetchCart();
+      toast.success('Đã thêm vào giỏ hàng');
+    } catch {
+      toast.error('Không thể thêm vào giỏ');
+    }
+  };
 
   return (
-    <div className="group relative bg-card border border-border/60 rounded-[28px] overflow-hidden transition-all duration-500 hover:shadow-[0_24px_50px_-12px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)] hover:-translate-y-1.5 flex flex-col h-full">
-      {/* Visual Area */}
-      <Link href={`/product/${product.slug}`} className="relative block aspect-[4/5] overflow-hidden bg-secondary/30">
-        {product.primaryImage ? (
-          <img 
-            src={product.primaryImage} 
-            alt={product.name} 
-            className="object-cover w-full h-full transition-transform duration-1000 ease-out group-hover:scale-110" 
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+    <div
+      className="group relative bg-card border border-border/50 rounded-[var(--radius-xl)] overflow-hidden transition-all duration-400 hover:shadow-lg hover:shadow-black/[0.06] dark:hover:shadow-black/[0.25] hover:-translate-y-1 flex flex-col h-full cursor-pointer"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      {/* Image Area */}
+      <div className="relative block aspect-square overflow-hidden bg-secondary/30">
+        <Link href={`/product/${product.slug}`} className="block w-full h-full z-10">
+          {product.primaryImage ? (
+            <img
+              src={product.primaryImage}
+              alt={product.name}
+              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-108"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-secondary">
+              <PackageX className="w-8 h-8 text-muted-foreground/30" />
+            </div>
+          )}
+        </Link>
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
+
+        {/* Smart Badges - Top Left */}
+        <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
+          {isNew && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm">
+              <Sparkles className="w-3 h-3" />
+              New
+            </span>
+          )}
+          {isHot && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-danger text-white text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm">
+              <Flame className="w-3 h-3" />
+              Hot
+            </span>
+          )}
+        </div>
+
+        {/* Rating Badge - Top Right */}
+        {(product.averageRating || 0) > 0 && (
+          <div className="absolute top-3 right-3 z-20 pointer-events-none">
+            <div className="flex items-center gap-1 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-md shadow-sm">
+              <Star className="w-3 h-3 text-orange-400 fill-orange-400" />
+              <span className="text-[11px] font-bold text-white leading-none">
+                {(product.averageRating || 0).toFixed(1)}
+              </span>
+            </div>
           </div>
         )}
-        
-        {/* Elegant overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-        {/* Category Badge - High Contrast Glassmorphism */}
-        <div className="absolute top-4 left-4 z-20">
-          <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-lg">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white">
-              <T>{product.category?.name || t('shop.other')}</T>
-            </p>
-          </div>
-        </div>
-
-        {/* Rating Badge - High Contrast Glassmorphism */}
-        <div className="absolute top-4 right-4 z-20">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-lg">
-            <Star className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
-            <span className="text-[12px] font-bold text-white leading-none">
-              {product.averageRating ? product.averageRating.toFixed(1) : '0.0'}
-            </span>
-          </div>
-        </div>
-
-        {/* Action Button - Floating Reveal */}
-        <div className="absolute bottom-6 right-6 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 delay-75">
-           <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all">
-              <Zap className="w-6 h-6 fill-current" />
-           </div>
-        </div>
-      </Link>
-
-      {/* Detail Area */}
-      <div className="p-7 flex flex-col flex-1 gap-5 bg-card">
-        <div className="space-y-3 flex-1">
-          <Link href={`/product/${product.slug}`} className="block">
-            <h3 className="text-lg font-semibold text-foreground leading-[1.4] tracking-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
-              <T>{product.name}</T>
-            </h3>
+        {/* Quick Actions - Bottom on hover */}
+        <div className="absolute bottom-3 left-3 right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <button
+            onClick={handleQuickAddCart}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[var(--radius-md)] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{'Thêm giỏ'}</span>
+          </button>
+          <Link
+            href={`/product/${product.slug}`}
+            onClick={(e) => e.stopPropagation()}
+            className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[var(--radius-md)] hover:bg-white dark:hover:bg-card transition-all shadow-md"
+          >
+            <Eye className="w-4 h-4" />
           </Link>
-          
-          <div className="flex items-center gap-2">
-             <div className="h-1 w-1 rounded-full bg-primary/40" />
-             <span className="text-[12px] text-muted-foreground font-medium tracking-wide">
-               {t('shop.sold', { count: product.soldCount || 0 })}
-             </span>
-          </div>
         </div>
+      </div>
 
-        <div className="flex items-end justify-between pt-2">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-60">Price</span>
-            <span className="text-2xl font-heading text-foreground tracking-tight leading-none">
+      {/* Info Area */}
+      <div className="p-3.5 sm:p-4 flex flex-col flex-1 gap-2">
+        {/* Category */}
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          <T>{product.category?.name || t('shop.other')}</T>
+        </span>
+
+        {/* Name */}
+        <Link href={`/product/${product.slug}`} className="block flex-1">
+          <h3 className="text-sm font-semibold text-foreground leading-snug tracking-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
+            <T>{product.name}</T>
+          </h3>
+        </Link>
+
+        {/* Bottom: Price + Sold */}
+        <div className="flex items-end justify-between mt-auto pt-1">
+          <div>
+            <span className="text-lg font-bold text-foreground leading-none tracking-tight">
               {product.minPrice ? `${product.minPrice.toLocaleString('vi-VN')}đ` : t('shop.contact')}
             </span>
           </div>
-          
-          <Link href={`/product/${product.slug}`} className="text-xs font-bold text-primary uppercase tracking-widest border-b-2 border-primary/0 hover:border-primary transition-all pb-0.5">
-             Details
-          </Link>
+          {(product.soldCount || 0) > 0 && (
+            <span className="text-[11px] text-muted-foreground font-medium">
+              {t('shop.sold', { count: product.soldCount || 0 })}
+            </span>
+          )}
         </div>
       </div>
     </div>

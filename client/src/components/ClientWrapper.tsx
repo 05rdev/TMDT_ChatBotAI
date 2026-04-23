@@ -3,6 +3,8 @@
 import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
+import { NotificationPopup } from '@/components/NotificationPopup';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
@@ -29,6 +31,11 @@ export function ClientWrapper({ children, initialLang }: { children: React.React
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
         {children}
       </main>
+
+      <Footer />
+
+      {/* Notification Popup for logged-in users */}
+      <NotificationPopup />
 
       {/* AI Assistant Floating Button */}
       <div className="fixed bottom-6 right-6 z-50">

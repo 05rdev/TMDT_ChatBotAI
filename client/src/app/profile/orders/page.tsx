@@ -33,13 +33,15 @@ export default function OrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <span className="px-3 py-1 bg-warning/10 text-warning rounded-full font-semibold text-xs flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> Chờ xác nhận</span>;
+        return <span className="px-3 py-1 bg-warning/10 text-warning rounded-full font-semibold text-xs flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> Chờ duyệt</span>;
       case 'PROCESSING':
-        return <span className="px-3 py-1 bg-accent/10 text-accent rounded-full font-semibold text-xs flex items-center"><Package className="w-3.5 h-3.5 mr-1" /> Đang chuẩn bị</span>;
+        return <span className="px-3 py-1 bg-accent/10 text-accent rounded-full font-semibold text-xs flex items-center"><Package className="w-3.5 h-3.5 mr-1" /> Đang xử lý</span>;
+      case 'SHIPPED':
       case 'DELIVERING':
         return <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-semibold text-xs flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> Đang giao</span>;
+      case 'DELIVERED':
       case 'COMPLETED':
-        return <span className="px-3 py-1 bg-success/10 text-success rounded-full font-semibold text-xs flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã xong</span>;
+        return <span className="px-3 py-1 bg-success/10 text-success rounded-full font-semibold text-xs flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Hoàn tất</span>;
       case 'CANCELLED':
         return <span className="px-3 py-1 bg-danger/10 text-danger rounded-full font-semibold text-xs flex items-center"><XCircle className="w-3.5 h-3.5 mr-1" /> Đã hủy</span>;
       default:

@@ -38,16 +38,23 @@ export class AIService {
         "category": string | null,
         "priceMin": number | null,
         "priceMax": number | null,
+        "minRating": number | null,
+        "minSold": number | null,
+        "minReviews": number | null,
         "keywords": string | null,
         "features": string[] | null,
-        "sort": "price_asc" | "price_desc" | "newest" | null
+        "sort": "price_asc" | "price_desc" | "newest" | "best_selling" | "top_rated" | "most_reviewed" | null
       }
       QUY TẮC: Trả về DUY NHẤT JSON. Không giải thích. 
-      XỬ LÝ TIỀN TỆ: 
+      XỬ LÝ TIỀN TỆ & TIÊU CHÍ: 
       - "tr", "triệu", "củ" -> x1.000.000 (Vd: 5tr -> 5000000)
       - "k" -> x1.000 (Vd: 500k -> 500000)
       - "dưới 5tr" -> priceMax: 5000000
       - "trên 10tr" -> priceMin: 10000000
+      - "trên 4 sao", "4 sao trở lên" -> minRating: 4
+      - "bán chạy", "nhiều người mua" -> sort: "best_selling"
+      - "đánh giá tốt", "uy tín" -> sort: "top_rated"
+      - "nhiều bình luận", "nhiều review" -> sort: "most_reviewed"
     `;
 
     try {
@@ -82,9 +89,17 @@ export class AIService {
    * Fallback Regex để bắt giá tiền nếu AI không phân tích được
    */
   private extractFiltersRegex(query: string) {
-    const filters: any = { category: null, priceMin: null, priceMax: null, keywords: null };
+    const filters: any = { 
+      category: null, 
+      priceMin: null, 
+      priceMax: null, 
+      minRating: null,
+      keywords: null,
+      sort: null 
+    };
     const q = query.toLowerCase();
 
+    // Price regex
     const maxPriceMatch = q.match(/(?:dưới|u|<=)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
     if (maxPriceMatch) {
       let val = parseFloat(maxPriceMatch[1]);
@@ -103,6 +118,18 @@ export class AIService {
       filters.priceMin = val;
     }
 
+    // Rating regex
+    const ratingMatch = q.match(/(\d+)\s*sao/i);
+    if (ratingMatch) {
+      filters.minRating = parseInt(ratingMatch[1]);
+    }
+
+    // Sort/Priority keywords
+    if (q.includes('bán chạy') || q.includes('nhiều người mua')) filters.sort = 'best_selling';
+    if (q.includes('đánh giá cao') || q.includes('tốt nhất')) filters.sort = 'top_rated';
+    if (q.includes('mới nhất') || q.includes('vừa về')) filters.sort = 'newest';
+
+    // Category fallback
     if (q.includes('tivi') || q.includes('television')) filters.category = 'Tivi';
     if (q.includes('máy lọc nước')) filters.category = 'Máy lọc nước';
     if (q.includes('tủ lạnh')) filters.category = 'Tủ lạnh';
@@ -153,7 +180,17 @@ export class AIService {
     // 1. Phân tích ý định người dùng (AI + Regex Fallback)
     let aiFilters = await this.parseQueryWithAI(query);
     const regexFilters = this.extractFiltersRegex(query);
-    aiFilters = { ...regexFilters, ...(aiFilters || {}) };
+    
+    // Hợp nhất bộ lọc an toàn: Ưu tiên AI, nhưng nếu AI trả về null thì giữ Regex Fallback
+    const mergedFilters = { ...regexFilters };
+    if (aiFilters) {
+      for (const [key, value] of Object.entries(aiFilters)) {
+        if (value !== null && value !== undefined && value !== '') {
+          (mergedFilters as any)[key] = value;
+        }
+      }
+    }
+    aiFilters = mergedFilters;
     
     console.log('Final Filters:', JSON.stringify(aiFilters));
 
@@ -162,6 +199,9 @@ export class AIService {
 
     // 3. Xây dựng điều kiện lọc Prisma (Lọc cứng)
     const where: Prisma.ProductWhereInput = { isDeleted: false };
+
+    // Tăng pool size nếu có lọc nâng cao để tránh bị rỗng sau khi filter
+    const poolLimit = aiFilters?.minRating || aiFilters?.minSold || aiFilters?.minReviews || aiFilters?.sort ? 100 : limit;
 
     if (aiFilters) {
       if (aiFilters.category) {
@@ -190,7 +230,7 @@ export class AIService {
     if (useSemanticSearch) {
       console.log('🔍 Executing Semantic Search...');
       try {
-        products = await this.searchSemantic(query, limit, aiFilters);
+        products = await this.searchSemantic(query, poolLimit, aiFilters);
       } catch (err) {
         console.warn('⚠️ Semantic search failed, falling back to keyword search:', err);
       }
@@ -206,8 +246,8 @@ export class AIService {
           category: { select: { name: true } },
           variants: { orderBy: { price: 'asc' }, take: 1 }
         },
-        take: limit,
-        orderBy: { createdAt: 'desc' }
+        take: poolLimit,
+        orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
       });
     }
 
@@ -230,9 +270,47 @@ export class AIService {
       });
     }
 
-    const enrichedProducts = await this.productService.enrichProductData(products);
+    // 4. Bổ sung dữ liệu (Sold, Rating, Reviews)
+    let enrichedProducts = await this.productService.enrichProductData(products);
 
-    return enrichedProducts.map(p => ({
+    // 5. Lọc và Sắp xếp nâng cao dựa trên ý định người dùng
+    if (aiFilters) {
+      // Lọc theo rating trung bình (chính xác hơn filter Prisma `some`)
+      if (aiFilters.minRating) {
+        enrichedProducts = enrichedProducts.filter(p => p.averageRating >= aiFilters.minRating);
+      }
+      // Lọc theo số lượt bán
+      if (aiFilters.minSold) {
+        enrichedProducts = enrichedProducts.filter(p => p.soldCount >= aiFilters.minSold);
+      }
+      // Lọc theo số lượt bình luận
+      if (aiFilters.minReviews) {
+        enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= aiFilters.minReviews);
+      }
+
+      // Sắp xếp
+      if (aiFilters.sort) {
+        switch (aiFilters.sort) {
+          case 'best_selling':
+            enrichedProducts.sort((a, b) => b.soldCount - a.soldCount);
+            break;
+          case 'top_rated':
+            enrichedProducts.sort((a, b) => b.averageRating - a.averageRating || b.totalReviews - a.totalReviews);
+            break;
+          case 'most_reviewed':
+            enrichedProducts.sort((a, b) => b.totalReviews - a.totalReviews);
+            break;
+          case 'price_asc':
+            enrichedProducts.sort((a, b) => a.minPrice - b.minPrice);
+            break;
+          case 'price_desc':
+            enrichedProducts.sort((a, b) => b.minPrice - a.minPrice);
+            break;
+        }
+      }
+    }
+
+    return enrichedProducts.slice(0, limit).map(p => ({
       ...p,
       searchType: useSemanticSearch ? 'semantic' : 'keyword',
     }));
@@ -246,20 +324,43 @@ export class AIService {
     const queryVector = await embeddingHelper.generateEmbedding(query);
     const vectorString = `[${queryVector.join(',')}]`;
 
+    // Sử dụng Raw SQL để tính toán Rating và Sold Count ngay trong câu truy vấn để lọc/sắp xếp chính xác
     const results = await prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id, p.name, p.slug, p.description,
              MIN(v.price) as "minPrice",
-             p.embedding <=> ${vectorString}::vector AS distance
+             p.embedding <=> ${vectorString}::vector AS distance,
+             COALESCE(avg_rating.rating, 0) as "averageRating",
+             COALESCE(sold_stats.sold, 0) as "soldCount",
+             COALESCE(avg_rating.total_reviews, 0) as "totalReviews"
       FROM "Product" p
       JOIN "ProductVariant" v ON p.id = v."productId"
       JOIN "Category" c ON p."categoryId" = c.id
+      LEFT JOIN (
+          SELECT "productId", AVG(rating) as rating, COUNT(rating) as total_reviews
+          FROM "Review"
+          GROUP BY "productId"
+      ) avg_rating ON p.id = avg_rating."productId"
+      LEFT JOIN (
+          SELECT oi."productId", SUM(oi.quantity) as sold
+          FROM "OrderItem" oi
+          JOIN "Order" o ON oi."orderId" = o.id
+          WHERE o.status != 'CANCELLED'
+          GROUP BY oi."productId"
+      ) sold_stats ON p.id = sold_stats."productId"
       WHERE p."isDeleted" = false 
         AND p.embedding IS NOT NULL
         ${filters?.category ? Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}` : Prisma.empty}
         ${filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty}
         ${filters?.priceMax ? Prisma.sql`AND v.price <= ${filters.priceMax}` : Prisma.empty}
-      GROUP BY p.id, c.name
-      ORDER BY distance ASC
+      GROUP BY p.id, c.name, avg_rating.rating, avg_rating.total_reviews, sold_stats.sold
+      HAVING 1=1
+        ${filters?.minRating ? Prisma.sql`AND COALESCE(avg_rating.rating, 0) >= ${filters.minRating}` : Prisma.empty}
+        ${filters?.minSold ? Prisma.sql`AND COALESCE(sold_stats.sold, 0) >= ${filters.minSold}` : Prisma.empty}
+        ${filters?.minReviews ? Prisma.sql`AND COALESCE(avg_rating.total_reviews, 0) >= ${filters.minReviews}` : Prisma.empty}
+      ORDER BY 
+        ${filters?.sort === 'best_selling' ? Prisma.sql`"soldCount" DESC,` : Prisma.empty}
+        ${filters?.sort === 'top_rated' ? Prisma.sql`"averageRating" DESC,` : Prisma.empty}
+        distance ASC
       LIMIT ${limit}
     `);
 
@@ -281,6 +382,9 @@ export class AIService {
       return {
         ...p,
         distance: r.distance,
+        averageRating: Number(r.averageRating),
+        soldCount: Number(r.soldCount),
+        totalReviews: Number(r.totalReviews),
         minPrice: p.variants?.[0]?.price ? Number(p.variants[0].price) : 0,
         primaryImage: p.images?.[0]?.url || null,
         variants: p.variants.map(v => ({ ...v, price: Number(v.price) }))

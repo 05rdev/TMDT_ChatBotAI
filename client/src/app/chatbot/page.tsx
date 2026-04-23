@@ -88,7 +88,7 @@ export default function ChatbotPage() {
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center space-x-4">
           <Link href="/ai-hub">
-            <Button variant="outline" size="icon" className="rounded-full shrink-0 hover:bg-secondary transition-colors border-border shadow-sm">
+            <Button variant="outline" size="sm" className="rounded-full shrink-0 hover:bg-secondary transition-colors border-border shadow-sm w-10 h-10 p-0 flex items-center justify-center">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>

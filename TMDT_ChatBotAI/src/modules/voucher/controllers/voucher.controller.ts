@@ -55,7 +55,7 @@ export class VoucherController {
   // Admin - Cập nhật
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       const validatedData = updateVoucherSchema.parse(req.body);
       const voucher = await voucherService.update(id, validatedData);
       return res.json({ success: true, data: voucher });
@@ -67,7 +67,7 @@ export class VoucherController {
   // Admin - Xóa (vô hiệu hóa)
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       await voucherService.delete(id);
       return res.json({ success: true, message: 'Đã khóa voucher' });
     } catch (error) {

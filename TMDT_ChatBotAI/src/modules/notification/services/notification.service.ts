@@ -89,4 +89,27 @@ export class NotificationService {
       where: { id }
     });
   }
+
+  // Lấy tất cả thông báo cho Admin
+  async getAllForAdmin(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    const [notifications, total] = await Promise.all([
+      prisma.notification.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { user: { select: { name: true, email: true } } }
+      }),
+      prisma.notification.count()
+    ]);
+    return {
+      notifications,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
+  }
+
+  // Admin xóa thông báo bất kỳ
+  async deleteGlobalNotification(id: string) {
+    return prisma.notification.delete({ where: { id } });
+  }
 }

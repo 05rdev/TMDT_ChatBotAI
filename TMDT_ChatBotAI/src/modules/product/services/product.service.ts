@@ -204,6 +204,35 @@ export class ProductService {
     return this.enrichProductData(orderedProducts);
   }
 
+  async getTopRatedProducts(limit: number = 8) {
+    const topRatedIds = await prisma.$queryRaw<{ productId: string; avgRating: number }[]>`
+      SELECT "productId", AVG("rating") as "avgRating"
+      FROM "Review"
+      GROUP BY "productId"
+      ORDER BY "avgRating" DESC, COUNT("id") DESC
+      LIMIT ${limit}
+    `;
+
+    if (topRatedIds.length === 0) return this.getNewProducts(limit);
+
+    const ids = topRatedIds.map(p => p.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: ids }, isDeleted: false },
+      include: {
+        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+        variants: { orderBy: { price: 'asc' }, take: 1 },
+        category: { select: { name: true } },
+      },
+    });
+
+    const productMap = new Map(products.map(p => [p.id, p]));
+    const orderedProducts = topRatedIds
+      .map(h => productMap.get(h.productId))
+      .filter((p): p is any => !!p);
+
+    return this.enrichProductData(orderedProducts);
+  }
+
   async getNewProducts(limit: number = 8) {
     const products = await prisma.product.findMany({
       where: { isDeleted: false },
