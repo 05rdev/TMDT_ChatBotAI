@@ -19,6 +19,7 @@ export default function CartPage() {
   const [serverCart, setServerCart] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [serverTotal, setServerTotal] = useState(0);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -34,6 +35,8 @@ export default function CartPage() {
       if (res.data.success) {
         setServerCart(res.data.data.items);
         setServerTotal(res.data.data.totalAmount);
+        // Tự động chọn tất cả khi vừa load xong lần đầu
+        setSelectedItems(res.data.data.items.map((item: any) => item.id));
       }
     } catch (error) {
       console.error('Error loading cart', error);
@@ -111,7 +114,23 @@ export default function CartPage() {
     variant: item.variant?.name
   })) : localCart.items;
 
-  const totalAmount = user ? serverTotal : localCart.getTotalPrice();
+  const totalAmount = items
+    .filter(item => selectedItems.includes(item.id))
+    .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const toggleItemSelection = (id: string) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedItems.length === items.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(items.map(item => item.id));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -163,16 +182,35 @@ export default function CartPage() {
         {/* Product List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="hidden sm:grid grid-cols-12 gap-4 text-xs font-semibold text-muted-foreground bg-secondary px-6 py-3 rounded-[var(--radius-lg)]">
-            <div className="col-span-6">{t('cart.product')}</div>
+            <div className="col-span-1 flex items-center justify-center">
+              <input 
+                type="checkbox" 
+                checked={selectedItems.length === items.length && items.length > 0} 
+                onChange={toggleSelectAll}
+                className="w-4 h-4 accent-primary cursor-pointer"
+              />
+            </div>
+            <div className="col-span-5">{t('cart.product')}</div>
             <div className="col-span-3 text-center">{t('cart.quantity')}</div>
             <div className="col-span-3 text-right">{t('cart.subtotalCol')}</div>
           </div>
 
           <div className="space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+              <div key={item.id} className={`card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center transition-all ${selectedItems.includes(item.id) ? 'border-primary/30 ring-1 ring-primary/10' : 'opacity-80'}`}>
+                {/* Checkbox */}
+                <div className="sm:col-span-1 flex items-center justify-start sm:justify-center">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedItems.includes(item.id)} 
+                    onChange={() => toggleItemSelection(item.id)}
+                    className="w-5 h-5 accent-primary cursor-pointer"
+                  />
+                  <span className="sm:hidden ml-2 text-xs font-bold text-muted-foreground">Chọn sản phẩm</span>
+                </div>
+
                 {/* Info */}
-                <div className="col-span-1 sm:col-span-6 flex gap-4">
+                <div className="col-span-1 sm:col-span-5 flex gap-4">
                   <Link href={`/product/${item.productId}`} className="w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden">
                     {item.image ? (
                       <img src={item.image} alt={item.name} className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
@@ -243,8 +281,16 @@ export default function CartPage() {
             </div>
 
             <div className="pt-2">
-              <Link href="/checkout" className="block w-full">
-                <Button size="lg" className="w-full flex justify-between items-center px-6">
+              <Link 
+                href={selectedItems.length > 0 ? `/checkout?items=${selectedItems.join(',')}` : '#'} 
+                className={`block w-full ${selectedItems.length === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
+                onClick={(e) => { if (selectedItems.length === 0) e.preventDefault(); }}
+              >
+                <Button 
+                  size="lg" 
+                  className="w-full flex justify-between items-center px-6"
+                  disabled={selectedItems.length === 0}
+                >
                   <span>{t('cart.checkout')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </Button>

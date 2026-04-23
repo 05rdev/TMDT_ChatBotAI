@@ -5,15 +5,33 @@ export class NotificationService {
   async getMyNotifications(userId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
 
-    const [notifications, total] = await Promise.all([
+    // Lấy thông báo cá nhân và thông báo toàn cục
+    const [personalNotifications, globalNotifications] = await Promise.all([
       prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
+        take: limit * 2 // Lấy dư để merge
       }),
-      prisma.notification.count({ where: { userId } })
+      (prisma as any).globalNotification.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+      })
     ]);
+
+    // Hợp nhất và sắp xếp theo thời gian
+    const allNotifications = [
+      ...personalNotifications,
+      ...globalNotifications.map((gn: any) => ({
+        ...gn,
+        userId,
+        isRead: false, // Global notifications are always unread in this context unless we track them, but user said they should show every time
+        isGlobal: true
+      }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const notifications = allNotifications.slice(skip, skip + limit);
+    const total = personalNotifications.length + globalNotifications.length;
 
     const unreadCount = await prisma.notification.count({
       where: { userId, isRead: false }
@@ -64,19 +82,10 @@ export class NotificationService {
     return this.createNotification(userId, title, content, type);
   }
 
-  // Admin gửi thông báo cho tất cả người dùng
+  // Admin gửi thông báo cho tất cả người dùng (Tạo thông báo toàn cục)
   async broadcast(title: string, content: string, type: string = 'SYSTEM') {
-    const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
-    
-    const notifications = users.map(user => ({
-      userId: user.id,
-      title,
-      content,
-      type
-    }));
-
-    return prisma.notification.createMany({
-      data: notifications
+    return (prisma as any).globalNotification.create({
+      data: { title, content, type }
     });
   }
 
@@ -90,17 +99,16 @@ export class NotificationService {
     });
   }
 
-  // Lấy tất cả thông báo cho Admin
+  // Lấy tất cả thông báo toàn cục cho Admin quản lý danh sách
   async getAllForAdmin(page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
     const [notifications, total] = await Promise.all([
-      prisma.notification.findMany({
+      (prisma as any).globalNotification.findMany({
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit,
-        include: { user: { select: { name: true, email: true } } }
+        take: limit
       }),
-      prisma.notification.count()
+      (prisma as any).globalNotification.count()
     ]);
     return {
       notifications,
@@ -108,8 +116,16 @@ export class NotificationService {
     };
   }
 
-  // Admin xóa thông báo bất kỳ
+  // Admin xóa thông báo toàn cục
   async deleteGlobalNotification(id: string) {
-    return prisma.notification.delete({ where: { id } });
+    return (prisma as any).globalNotification.delete({ where: { id } });
+  }
+
+  // Admin cập nhật thông báo toàn cục
+  async updateGlobalNotification(id: string, data: { title?: string; content?: string; type?: string }) {
+    return (prisma as any).globalNotification.update({
+      where: { id },
+      data
+    });
   }
 }

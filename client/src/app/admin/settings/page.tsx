@@ -149,6 +149,8 @@ function NotificationsTab() {
 function NotificationList() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingNotif, setEditingNotif] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', content: '', type: 'SYSTEM' });
 
   const fetchNotifications = async () => {
     try {
@@ -179,6 +181,22 @@ function NotificationList() {
     }
   };
 
+  const handleEdit = (notif: any) => {
+    setEditingNotif(notif.id);
+    setEditForm({ title: notif.title, content: notif.content, type: notif.type });
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await api.put(`/notifications/admin/${editingNotif}`, editForm);
+      toast.success('Đã cập nhật thông báo');
+      setEditingNotif(null);
+      fetchNotifications();
+    } catch (err) {
+      toast.error('Cập nhật thất bại');
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -193,39 +211,84 @@ function NotificationList() {
         <div className="grid grid-cols-1 gap-4">
           {notifications.map(notif => (
             <div key={notif.id} className="p-5 bg-card border border-border rounded-[var(--radius-lg)] flex flex-col sm:flex-row gap-4 justify-between items-start">
-              <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-2">
-                  {notif.type === 'SYSTEM' && <Megaphone className="w-4 h-4 text-primary" />}
-                  {notif.type === 'PROMOTION' && <Bell className="w-4 h-4 text-warning" />}
-                  {notif.type === 'ORDER' && <Send className="w-4 h-4 text-success" />}
-                  <span className="font-semibold text-foreground text-sm">{notif.title}</span>
-                  {!notif.isRead ? (
-                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">Chưa đọc</span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold">Đã đọc</span>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-2">{notif.content}</p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground font-medium pt-2">
-                  <div className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5" />
-                    {notif.user ? `${notif.user.name} (${notif.user.email})` : 'Tất cả (Broadcast)'}
+              {editingNotif === notif.id ? (
+                <div className="w-full space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Tiêu đề</label>
+                    <input 
+                      type="text" 
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                      className="w-full p-2 bg-secondary/50 border border-border rounded-[var(--radius-md)] text-sm"
+                    />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {new Date(notif.createdAt).toLocaleString('vi-VN')}
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Nội dung</label>
+                    <textarea 
+                      value={editForm.content}
+                      onChange={(e) => setEditForm({...editForm, content: e.target.value})}
+                      className="w-full p-2 bg-secondary/50 border border-border rounded-[var(--radius-md)] text-sm min-h-[80px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Loại</label>
+                    <select
+                      value={editForm.type}
+                      onChange={(e) => setEditForm({...editForm, type: e.target.value})}
+                      className="w-full p-2 bg-secondary/50 border border-border rounded-[var(--radius-md)] text-sm"
+                    >
+                      <option value="SYSTEM">Hệ thống</option>
+                      <option value="PROMOTION">Khuyến mãi</option>
+                      <option value="ORDER">Đơn hàng</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setEditingNotif(null)}>Hủy</Button>
+                    <Button size="sm" onClick={handleSaveEdit}>Lưu</Button>
                   </div>
                 </div>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleDelete(notif.id)}
-                className="shrink-0 text-danger border-danger/20 hover:bg-danger/10 hover:border-danger hover:text-danger w-full sm:w-auto"
-              >
-                <Trash2 className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Xóa</span>
-              </Button>
+              ) : (
+                <>
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      {notif.type === 'SYSTEM' && <Megaphone className="w-4 h-4 text-primary" />}
+                      {notif.type === 'PROMOTION' && <Bell className="w-4 h-4 text-warning" />}
+                      {notif.type === 'ORDER' && <Send className="w-4 h-4 text-success" />}
+                      <span className="font-semibold text-foreground text-sm">{notif.title}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{notif.content}</p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-medium pt-2">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" />
+                        Tất cả người dùng (Broadcast)
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {new Date(notif.createdAt).toLocaleString('vi-VN')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex sm:flex-col gap-2 shrink-0 w-full sm:w-auto">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEdit(notif)}
+                      className="w-full sm:w-auto"
+                    >
+                      <span className="hidden sm:inline">Sửa</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDelete(notif.id)}
+                      className="text-danger border-danger/20 hover:bg-danger/10 hover:border-danger hover:text-danger w-full sm:w-auto"
+                    >
+                      <Trash2 className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Xóa</span>
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

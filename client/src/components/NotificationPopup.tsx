@@ -38,11 +38,17 @@ export function NotificationPopup() {
     try {
       const res = await api.get('/notifications');
       if (res.data.success) {
-        const unread = (res.data.data.notifications || []).filter(
-          (n: Notification) => !n.isRead
+        const toShow = (res.data.data.notifications || []).filter(
+          (n: Notification) => {
+            // Hiển thị các thông báo chưa đọc (như Đơn hàng)
+            if (!n.isRead) return true;
+            // Với thông báo Hệ thống và Khuyến mãi, LUÔN hiển thị dù đã đọc (trừ khi user chọn Nhắc tôi sau 1h)
+            if (n.type === 'SYSTEM' || n.type === 'PROMOTION') return true;
+            return false;
+          }
         );
-        if (unread.length > 0) {
-          setNotifications(unread);
+        if (toShow.length > 0) {
+          setNotifications(toShow);
           // Small delay for entrance animation
           setTimeout(() => {
             setIsVisible(true);

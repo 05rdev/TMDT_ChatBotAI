@@ -19,5 +19,6 @@ router.post('/send', authorize(['ADMIN']), notificationController.sendToUser as 
 router.post('/broadcast', authorize(['ADMIN']), notificationController.broadcast as any);
 router.get('/admin/all', authorize(['ADMIN']), notificationController.getAllForAdmin as any);
 router.delete('/admin/:id', authorize(['ADMIN']), notificationController.deleteGlobalNotification as any);
+router.put('/admin/:id', authorize(['ADMIN']), notificationController.updateGlobalNotification as any);
 
 export default router;

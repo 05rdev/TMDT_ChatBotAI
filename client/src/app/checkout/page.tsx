@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ShieldCheck, Truck, CreditCard, ChevronLeft, CheckCircle2, Loader2, Info } from 'lucide-react';
@@ -11,8 +11,10 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedIds = searchParams.get('items')?.split(',') || [];
   const { user } = useAuthStore();
   const { clearCart } = useCartStore();
 
@@ -39,8 +41,19 @@ export default function CheckoutPage() {
       setIsLoading(true);
       const res = await api.get('/cart');
       if (res.data.success) {
-        setOrderItems(res.data.data.items);
-        setSubtotal(res.data.data.totalAmount);
+        const cartItems = res.data.data.items;
+        // Lọc các item đã chọn
+        const filteredItems = selectedIds.length > 0 
+          ? cartItems.filter((item: any) => selectedIds.includes(item.id))
+          : cartItems;
+        
+        setOrderItems(filteredItems);
+        
+        // Tính lại tổng tiền cho các món đã chọn
+        const total = filteredItems.reduce((sum: number, item: any) => {
+          return sum + (Number(item.variant?.price || 0) * item.quantity);
+        }, 0);
+        setSubtotal(total);
       }
     } catch (error) {
       toast.error('Không thể tải giỏ hàng');
@@ -106,7 +119,8 @@ export default function CheckoutPage() {
         address: formData.address,
         phone: formData.phone,
         paymentMethod: formData.paymentMethod,
-        voucherCode: appliedVoucher ? appliedVoucher.code : undefined
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
+        cartItemIds: selectedIds.length > 0 ? selectedIds : undefined
       };
       
       const res = await api.post('/orders', payload);
@@ -303,5 +317,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

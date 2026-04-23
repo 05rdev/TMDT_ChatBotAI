@@ -7,11 +7,16 @@ export class OrderService {
    * Tạo đơn hàng mới từ giỏ hàng (Sử dụng Transaction)
    */
   async createOrder(userId: string, data: any) {
-    const { address, phone, paymentMethod } = data;
+    const { address, phone, paymentMethod, cartItemIds } = data;
 
     // 1. Lấy giỏ hàng của người dùng
+    const whereClause: any = { userId };
+    if (cartItemIds && Array.isArray(cartItemIds) && cartItemIds.length > 0) {
+      whereClause.id = { in: cartItemIds };
+    }
+
     const cartItems = await prisma.cart.findMany({
-      where: { userId },
+      where: whereClause,
       include: {
         variant: true,
         product: true
@@ -97,9 +102,11 @@ export class OrderService {
         }
       });
 
-      // D. XÓA GIỎ HÀNG
+      // D. XÓA GIỎ HÀNG (Chỉ xóa những món đã đặt)
       await tx.cart.deleteMany({
-        where: { userId }
+        where: { 
+          id: { in: cartItems.map(i => i.id) }
+        }
       });
 
       // E. GHI NHẬN HÀNH VI (AI Behavioral Log)

@@ -114,4 +114,16 @@ export class NotificationController {
       next(error);
     }
   }
+
+  // Admin cập nhật thông báo
+  async updateGlobalNotification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const { title, content, type } = req.body;
+      const notification = await notificationService.updateGlobalNotification(id, { title, content, type });
+      return res.json({ success: true, message: 'Đã cập nhật thông báo', data: notification });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

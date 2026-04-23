@@ -5,6 +5,7 @@ export const createOrderSchema = z.object({
   phone: z.string().min(10, 'Số điện thoại không hợp lệ (tối thiểu 10 số)'),
   paymentMethod: z.enum(['COD', 'STRIPE', 'MOMO', 'VNPAY']).default('COD'),
   voucherCode: z.string().optional(),
+  cartItemIds: z.array(z.string()).optional(),
 });
 
 export const updateOrderStatusSchema = z.object({
