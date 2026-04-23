@@ -1,7 +1,7 @@
 
 export const MAP_ORDER_STATUS: Record<string, string> = {
   'PENDING': 'Chờ duyệt',
-  'PROCESSING': 'Đang xử lý',
+  'PROCESSING': 'Đang gói',
   'SHIPPED': 'Đang giao hàng',
   'DELIVERED': 'Hoàn tất',
   'CANCELLED': 'Đã hủy',

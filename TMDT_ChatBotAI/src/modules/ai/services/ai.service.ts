@@ -15,7 +15,12 @@ const FEATURE_KEYWORDS = [
 // Từ khóa tên thương hiệu/model cụ thể → nên dùng keyword search
 const BRAND_KEYWORDS = [
   'iphone', 'samsung', 'xiaomi', 'sony', 'lg', 'panasonic', 'toshiba',
-  'sharp', 'philips', 'daikin', 'mitsubishi', 'electrolux', 'bosch'
+  'sharp', 'philips', 'daikin', 'mitsubishi', 'electrolux', 'bosch', 'apple'
+];
+
+const STOP_WORDS = [
+  'tìm', 'kiếm', 'mua', 'bán', 'giá', 'cho', 'có', 'tại', 'ở', 'là', 'cái', 'chiếc', 'loại',
+  'mẫu', 'những', 'các', 'của', 'với', 'khoảng', 'tầm', 'trong', 'dưới', 'trên', 'hơn'
 ];
 
 export class AIService {
@@ -99,30 +104,38 @@ export class AIService {
     };
     const q = query.toLowerCase();
 
-    // Price regex
-    const maxPriceMatch = q.match(/(?:dưới|u|<=|tầm|khoảng|~|giá|quanh)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
-    if (maxPriceMatch) {
-      let val = parseFloat(maxPriceMatch[1]);
-      const unit = maxPriceMatch[2].toLowerCase();
-      if (['tr', 'triệu', 'củ', 'm'].includes(unit)) val *= 1000000;
-      else if (unit === 'k') val *= 1000;
-      
-      // Nếu dùng từ "tầm/khoảng/quanh" -> tạo khoảng giá +/- 20%
-      if (q.match(/(tầm|khoảng|~|quanh|giá)/)) {
-        filters.priceMin = val * 0.8;
-        filters.priceMax = val * 1.2;
-      } else {
-        filters.priceMax = val;
+    // Price Range regex (Vd: 5-10tr, 5tr đến 10tr)
+    const rangeMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:-|đến|tới)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+    if (rangeMatch) {
+      let min = parseFloat(rangeMatch[1]);
+      let max = parseFloat(rangeMatch[2]);
+      const unit = rangeMatch[3].toLowerCase();
+      const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
+      filters.priceMin = min * multiplier;
+      filters.priceMax = max * multiplier;
+    } else {
+      // Single price regex
+      const maxPriceMatch = q.match(/(?:dưới|u|<=|tầm|khoảng|~|giá|quanh)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+      if (maxPriceMatch) {
+        let val = parseFloat(maxPriceMatch[1]);
+        const unit = maxPriceMatch[2].toLowerCase();
+        const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
+        
+        if (q.match(/(tầm|khoảng|~|quanh|giá)/)) {
+          filters.priceMin = val * 0.8 * multiplier;
+          filters.priceMax = val * 1.2 * multiplier;
+        } else {
+          filters.priceMax = val * multiplier;
+        }
       }
-    }
 
-    const minPriceMatch = q.match(/(?:trên|từ|>=)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
-    if (minPriceMatch) {
-      let val = parseFloat(minPriceMatch[1]);
-      const unit = minPriceMatch[2].toLowerCase();
-      if (['tr', 'triệu', 'củ', 'm'].includes(unit)) val *= 1000000;
-      else if (unit === 'k') val *= 1000;
-      filters.priceMin = val;
+      const minPriceMatch = q.match(/(?:trên|từ|>=|hơn|>)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+      if (minPriceMatch) {
+        let val = parseFloat(minPriceMatch[1]);
+        const unit = minPriceMatch[2].toLowerCase();
+        const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
+        filters.priceMin = val * multiplier;
+      }
     }
 
     // Rating regex
@@ -141,38 +154,27 @@ export class AIService {
     if (q.includes('máy lọc nước')) filters.category = 'Máy lọc nước';
     if (q.includes('tủ lạnh')) filters.category = 'Tủ lạnh';
     if (q.includes('máy giặt')) filters.category = 'Máy giặt';
-    if (q.includes('máy lạnh') || q.includes('điều hòa')) filters.category = 'Máy lạnh';
+    if (q.includes('máy lạnh') || (q.includes('điều hòa') && !q.includes('quạt'))) filters.category = 'Máy lạnh';
+    if (q.includes('quạt điều hòa') || q.includes('máy làm mát')) filters.category = 'Quạt điều hòa';
 
     return filters;
   }
 
   /**
    * Quyết định có nên dùng Semantic Search hay không.
-   * 
-   * Dùng Semantic khi:
-   *   - Query mô tả tính năng/cảm xúc ("tiết kiệm điện", "tư vấn", "nên mua gì")
-   *   - Query dài (> 5 từ) nhưng KHÔNG chứa tên thương hiệu/model cụ thể
-   * 
-   * Dùng Keyword khi:
-   *   - Query ngắn có tên model/thương hiệu ("iphone 15 pro", "samsung tv 55")
-   *   - Query có số model rõ ràng
    */
   private shouldUseSemanticSearch(query: string, aiFilters: any): boolean {
     const q = query.toLowerCase();
     const wordCount = q.split(/\s+/).length;
 
-    // Nếu chứa tên thương hiệu cụ thể → keyword chính xác hơn
     const hasBrandKeyword = BRAND_KEYWORDS.some(brand => q.includes(brand));
     if (hasBrandKeyword) return false;
 
-    // Nếu có từ khóa mô tả tính năng → semantic tốt hơn
     const hasFeatureKeyword = FEATURE_KEYWORDS.some(kw => q.includes(kw));
     if (hasFeatureKeyword) return true;
 
-    // Nếu AI extract được features → semantic
     if (aiFilters?.features && aiFilters.features.length > 0) return true;
 
-    // Query dài (> 5 từ) mà không phải tên model → semantic
     if (wordCount > 5) return true;
 
     return false;
@@ -184,11 +186,10 @@ export class AIService {
   async intelligentSearch(query: string, limit: number = 20, categoryId?: string) {
     console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'})`);
 
-    // 1. Phân tích ý định người dùng (AI + Regex Fallback)
+    // 1. Phân tích ý định người dùng
     let aiFilters = await this.parseQueryWithAI(query);
     const regexFilters = this.extractFiltersRegex(query);
     
-    // Hợp nhất bộ lọc an toàn: Ưu tiên AI, nhưng nếu AI trả về null thì giữ Regex Fallback
     const mergedFilters = { ...regexFilters };
     if (aiFilters) {
       for (const [key, value] of Object.entries(aiFilters)) {
@@ -204,17 +205,14 @@ export class AIService {
     // 2. Quyết định loại search
     const useSemanticSearch = this.shouldUseSemanticSearch(query, aiFilters);
 
-    // 3. Xây dựng điều kiện lọc Prisma (Lọc cứng)
-    const where: Prisma.ProductWhereInput = { isDeleted: false };
-
-    // Tăng pool size nếu có lọc nâng cao để tránh bị rỗng sau khi filter
+    // 3. Xây dựng điều kiện lọc Prisma
+    const where: Prisma.ProductWhereInput = { isDeleted: false, isActive: true };
     const poolLimit = aiFilters?.minRating || aiFilters?.minSold || aiFilters?.minReviews || aiFilters?.sort ? 100 : limit;
 
     if (aiFilters) {
       if (aiFilters.category) {
         where.category = { name: { contains: aiFilters.category, mode: 'insensitive' } };
       } else if (categoryId) {
-        // Ưu tiên category từ sidebar nếu AI không trích xuất được category khác
         where.categoryId = categoryId;
       }
       if (aiFilters.keywords) {
@@ -261,10 +259,34 @@ export class AIService {
       });
     }
 
-    // 4. Fallback cuối: Tìm rộng bằng cách tách từ (Broad Word Search)
+    // 3.5 Fallback trung gian: Nếu có lọc mà không ra kết quả, thử bỏ lọc để giữ đúng Category
+    if (products.length === 0 && (aiFilters?.priceMin || aiFilters?.priceMax || aiFilters?.minRating)) {
+      console.log('🔄 Relaxing filters (removing price/rating) but keeping Category...');
+      const relaxedWhere: Prisma.ProductWhereInput = { 
+        isDeleted: false,
+        isActive: true,
+        ...(where.category ? { category: where.category } : {}),
+        ...(where.categoryId ? { categoryId: where.categoryId } : {})
+      };
+      
+      products = await prisma.product.findMany({
+        where: relaxedWhere,
+        include: {
+          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+          category: { select: { name: true } },
+          variants: { orderBy: { price: 'asc' }, take: 1 }
+        },
+        take: limit
+      });
+    }
+
+    // 4. Fallback cuối: Tìm rộng bằng cách tách từ
     if (products.length === 0) {
       console.log('🔄 Fallback to broad word search...');
-      const words = query.split(/\s+/).filter(w => w.length > 2); // Chỉ lấy từ > 2 ký tự
+      const words = query.toLowerCase().split(/\s+/)
+        .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
+      
+      if (words.length === 0) return []; // Không còn từ khóa nào để tìm
       
       products = await prisma.product.findMany({
         where: {
@@ -275,7 +297,18 @@ export class AIService {
             ]
           })),
           isDeleted: false,
-          ...(categoryId ? { categoryId } : {})
+          isActive: true,
+          ...(categoryId ? { categoryId } : {}),
+          ...(aiFilters?.priceMin || aiFilters?.priceMax ? {
+            variants: {
+              some: {
+                AND: [
+                  aiFilters.priceMin !== null ? { price: { gte: aiFilters.priceMin } } : {},
+                  aiFilters.priceMax !== null ? { price: { lte: aiFilters.priceMax } } : {},
+                ]
+              }
+            }
+          } : {})
         },
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
@@ -285,25 +318,21 @@ export class AIService {
       });
     }
 
-    // 4. Bổ sung dữ liệu (Sold, Rating, Reviews)
+    // 5. Bổ sung dữ liệu (Sold, Rating, Reviews)
     let enrichedProducts = await this.productService.enrichProductData(products);
 
-    // 5. Lọc và Sắp xếp nâng cao dựa trên ý định người dùng
+    // 6. Lọc và Sắp xếp nâng cao
     if (aiFilters) {
-      // Lọc theo rating trung bình (chính xác hơn filter Prisma `some`)
       if (aiFilters.minRating) {
         enrichedProducts = enrichedProducts.filter(p => p.averageRating >= aiFilters.minRating);
       }
-      // Lọc theo số lượt bán
       if (aiFilters.minSold) {
         enrichedProducts = enrichedProducts.filter(p => p.soldCount >= aiFilters.minSold);
       }
-      // Lọc theo số lượt bình luận
       if (aiFilters.minReviews) {
         enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= aiFilters.minReviews);
       }
 
-      // Sắp xếp
       if (aiFilters.sort) {
         switch (aiFilters.sort) {
           case 'best_selling':
@@ -334,12 +363,10 @@ export class AIService {
   /**
    * Tìm kiếm Semantic (Vector) kết hợp lọc SQL
    */
-  async searchSemantic(query: string, limit: number = 10, filters: any = null, categoryId?: string) {
-    // Sẽ throw nếu embedding service không hoạt động → caller xử lý fallback
+  async searchSemantic(query: string, limit: number = 10, filters: any = null, categoryId?: string): Promise<any[]> {
     const queryVector = await embeddingHelper.generateEmbedding(query);
     const vectorString = `[${queryVector.join(',')}]`;
 
-    // Sử dụng Raw SQL để tính toán Rating và Sold Count ngay trong câu truy vấn để lọc/sắp xếp chính xác
     const results = await prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id, p.name, p.slug, p.description,
              MIN(v.price) as "minPrice",
@@ -363,6 +390,7 @@ export class AIService {
           GROUP BY oi."productId"
       ) sold_stats ON p.id = sold_stats."productId"
       WHERE p."isDeleted" = false 
+        AND p."isActive" = true
         AND p.embedding IS NOT NULL
         ${filters?.category ? Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}` : (categoryId ? Prisma.sql`AND p."categoryId" = ${categoryId}` : Prisma.empty)}
         ${filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty}
@@ -408,7 +436,114 @@ export class AIService {
   }
 
   /**
-   * Public method để generate embedding (dùng trong seed script và controller test)
+   * Tóm tắt đánh giá sản phẩm bằng AI
+   */
+  async summarizeReviews(productId: string) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        reviews: {
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        }
+      }
+    });
+
+    if (!product || product.reviews.length === 0) {
+      return { 
+        pros: [], 
+        cons: [], 
+        sentiment: "Chưa có dữ liệu", 
+        conclusion: "Sản phẩm chưa có đánh giá nào để tóm tắt." 
+      };
+    }
+
+    const reviewTexts = product.reviews.map(r => `- ${r.rating} sao: ${r.comment}`).join('\n');
+
+    const systemPrompt = `
+      Bạn là chuyên gia phân tích phản hồi khách hàng. 
+      Nhiệm vụ: Tóm tắt các đánh giá của khách hàng về sản phẩm "${product.name}".
+      Yêu cầu phản hồi bằng tiếng Việt, định dạng JSON:
+      {
+        "pros": ["ưu điểm 1", "ưu điểm 2"],
+        "cons": ["nhược điểm 1", "nhược điểm 2"],
+        "sentiment": "Tích cực/Tiêu cực/Trung lập",
+        "conclusion": "Câu chốt tóm gọn về sản phẩm"
+      }
+      QUY TẮC: Trả về DUY NHẤT JSON. Không giải thích thêm.
+    `;
+
+    try {
+      const response = await fetch(this.ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Danh sách đánh giá:\n${reviewTexts}` }
+          ],
+          stream: false,
+          format: 'json'
+        })
+      });
+
+      if (!response.ok) throw new Error('Ollama error');
+      const data: any = await response.json();
+      const content = data.message.content;
+      return typeof content === 'string' ? JSON.parse(content) : content;
+    } catch (error) {
+      console.error('AI Review Summary Error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Phân tích doanh thu và đưa ra nhận xét
+   */
+  async analyzeRevenue(revenueData: any[]) {
+    const dataText = revenueData.map(d => `${d.date || d.month}: ${d.total.toLocaleString()}đ`).join('\n');
+
+    const systemPrompt = `
+      Bạn là chuyên gia phân tích tài chính và chiến lược kinh doanh. 
+      Nhiệm vụ: Phân tích dữ liệu doanh thu của cửa hàng và đưa ra lời khuyên.
+      Yêu cầu phản hồi bằng tiếng Việt, định dạng JSON:
+      {
+        "analysis": "Nhận xét về xu hướng tăng trưởng, các điểm biến động mạnh",
+        "insights": ["insight 1", "insight 2"],
+        "suggestions": ["đề xuất 1", "đề xuất 2"],
+        "overallStatus": "Tốt/Ổn định/Cần cải thiện"
+      }
+      QUY TẮC: Trả về DUY NHẤT JSON. Không giải thích thêm.
+    `;
+
+    try {
+      const response = await fetch(this.ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Dữ liệu doanh thu:\n${dataText}` }
+          ],
+          stream: false,
+          format: 'json'
+        })
+      });
+
+      if (!response.ok) throw new Error('Ollama error');
+      const data: any = await response.json();
+      const content = data.message.content;
+      return typeof content === 'string' ? JSON.parse(content) : content;
+    } catch (error) {
+      console.error('AI Revenue Analysis Error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Public method để generate embedding
    */
   async generateEmbedding(text: string): Promise<number[]> {
     return embeddingHelper.generateEmbedding(text);

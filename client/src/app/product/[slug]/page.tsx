@@ -262,30 +262,45 @@ export default function ProductDetailPage() {
               <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
                 <button 
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground"
+                  disabled={currentVariant.stock <= 0}
+                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground disabled:opacity-50"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-12 text-center font-semibold text-base">{quantity}</span>
+                <span className="w-12 text-center font-semibold text-base">{currentVariant.stock > 0 ? quantity : 0}</span>
                 <button 
                   onClick={() => setQuantity(q => q + 1)}
-                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground"
+                  disabled={currentVariant.stock <= 0 || quantity >= currentVariant.stock}
+                  className="w-9 h-9 flex items-center justify-center bg-card rounded-[var(--radius-sm)] shadow-sm hover:text-primary transition-colors text-foreground disabled:opacity-50"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('product.stockAvailable', { count: currentVariant.stock })}
+              <p className={`text-xs font-medium ${currentVariant.stock > 0 ? 'text-muted-foreground' : 'text-rose-500'}`}>
+                {currentVariant.stock > 0 
+                  ? t('product.stockAvailable', { count: currentVariant.stock })
+                  : 'Hết hàng'}
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-               <Button onClick={handleAddToCart} size="lg" className="flex-1" variant="outline">
+               <Button 
+                onClick={handleAddToCart} 
+                size="lg" 
+                className="flex-1" 
+                variant="outline"
+                disabled={currentVariant.stock <= 0}
+               >
                  <ShoppingCart className="w-5 h-5 mr-2" />
                  {t('product.addToCart')}
                </Button>
-               <Button onClick={handleBuyNow} size="lg" className="flex-1">
-                 {t('product.buyNow')}
+               <Button 
+                onClick={handleBuyNow} 
+                size="lg" 
+                className="flex-1"
+                disabled={currentVariant.stock <= 0}
+               >
+                 {currentVariant.stock > 0 ? t('product.buyNow') : 'Hết hàng'}
                </Button>
             </div>
           </div>

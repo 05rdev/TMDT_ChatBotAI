@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Upload, CheckCircle2, Sparkles, BrainCircuit, ThumbsUp, ThumbsDown, Lightbulb, ChevronRight, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ interface ProductFormData {
   description: string;
   categoryId: string;
   variants: Variant[];
+  isActive: boolean;
 }
 
 interface Category {
@@ -51,6 +52,8 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<any>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   const [form, setForm] = useState<ProductFormData>({
     name: '',
@@ -58,6 +61,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
     description: '',
     categoryId: '',
     variants: [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+    isActive: true,
   });
 
   useEffect(() => {
@@ -77,6 +81,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                 stock: v.stock,
               }))
             : [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+          isActive: editProduct.isActive !== undefined ? editProduct.isActive : true,
         });
       } else {
         setForm({
@@ -85,11 +90,29 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
           description: '',
           categoryId: '',
           variants: [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+          isActive: true,
         });
       }
       setImageFiles([]);
+      setReviewSummary(null);
     }
   }, [isOpen, editProduct]);
+
+  const fetchReviewSummary = async () => {
+    if (!editProduct) return;
+    try {
+      setIsSummarizing(true);
+      const res = await api.get(`/ai/admin/summarize-reviews/${editProduct.id}`);
+      if (res.data.success) {
+        setReviewSummary(res.data.data);
+      }
+    } catch (error) {
+      toast.error('Không thể tóm tắt đánh giá lúc này');
+      console.error('Failed to fetch review summary', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -168,6 +191,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
           price: Number(v.price),
           stock: Number(v.stock),
         })),
+        isActive: form.isActive,
       };
 
       let productId: string;
@@ -250,7 +274,115 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                 ))}
               </select>
             </div>
+
+            {/* Status Toggle */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Trạng thái kinh doanh</label>
+              <div 
+                onClick={() => setForm(prev => ({ ...prev, isActive: !prev.isActive }))}
+                className={`flex items-center justify-between p-3 rounded-[var(--radius-md)] border cursor-pointer transition-all ${
+                  form.isActive 
+                    ? 'bg-emerald-500/5 border-emerald-500/30' 
+                    : 'bg-rose-500/5 border-rose-500/30'
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className={`text-sm font-bold ${form.isActive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {form.isActive ? 'Đang hoạt động' : 'Tạm ẩn'}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mt-0.5">
+                    {form.isActive ? 'Khách có thể tìm và mua' : 'Sản phẩm sẽ bị ẩn khỏi cửa hàng'}
+                  </span>
+                </div>
+                <div className={`w-11 h-6 rounded-full relative transition-colors ${form.isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.isActive ? 'left-6 shadow-sm' : 'left-1 shadow-none'}`} />
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* AI Review Summary (Admin Only) */}
+          {isEdit && (
+            <div className="space-y-4 pt-2 pb-6 border-b border-border mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-primary/10 rounded-lg">
+                    <BrainCircuit className="w-4 h-4 text-primary" />
+                  </div>
+                  <label className="text-sm font-semibold text-foreground">AI Insights & Phản hồi</label>
+                </div>
+                {!reviewSummary && (
+                  <button
+                    type="button"
+                    onClick={fetchReviewSummary}
+                    disabled={isSummarizing}
+                    className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline flex items-center disabled:opacity-50"
+                  >
+                    {isSummarizing ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Sparkles className="w-3 h-3 mr-1.5" />}
+                    {isSummarizing ? 'Đang phân tích...' : 'Phân tích đánh giá'}
+                  </button>
+                )}
+              </div>
+
+              {reviewSummary ? (
+                <div className="bg-primary/5 border border-primary/20 rounded-[var(--radius-xl)] p-5 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="flex items-center text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2">
+                          <ThumbsUp className="w-3 h-3 mr-1.5" /> Ưu điểm chính
+                        </h5>
+                        <ul className="space-y-1.5">
+                          {reviewSummary.pros && reviewSummary.pros.length > 0 ? reviewSummary.pros.map((p: string, i: number) => (
+                            <li key={i} className="text-[11px] font-bold text-foreground/70 flex items-start">
+                              <ChevronRight className="w-3 h-3 mr-1 text-emerald-500 shrink-0 mt-0.5" /> {p}
+                            </li>
+                          )) : <li className="text-[11px] text-muted-foreground italic">Chưa nhận diện được</li>}
+                        </ul>
+                      </div>
+                      <div>
+                        <h5 className="flex items-center text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2">
+                          <ThumbsDown className="w-3 h-3 mr-1.5" /> Điểm cần cải thiện
+                        </h5>
+                        <ul className="space-y-1.5">
+                          {reviewSummary.cons && reviewSummary.cons.length > 0 ? reviewSummary.cons.map((c: string, i: number) => (
+                            <li key={i} className="text-[11px] font-bold text-foreground/70 flex items-start">
+                              <ChevronRight className="w-3 h-3 mr-1 text-rose-500 shrink-0 mt-0.5" /> {c}
+                            </li>
+                          )) : <li className="text-[11px] text-muted-foreground italic">Không có nhược điểm đáng kể</li>}
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-between">
+                      <div className="p-4 bg-background border border-border/50 rounded-[var(--radius-lg)] shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cảm xúc khách hàng</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            reviewSummary.sentiment === 'Tích cực' ? 'bg-emerald-500 text-white' : 
+                            reviewSummary.sentiment === 'Tiêu cực' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white'
+                          }`}>
+                            {reviewSummary.sentiment}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold leading-relaxed text-foreground/80 italic">"{reviewSummary.conclusion}"</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={fetchReviewSummary}
+                        className="mt-4 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
+                      >
+                        <Activity className="w-3 h-3 mr-1.5" /> Cập nhật phân tích mới
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : !isSummarizing && (
+                <div className="p-4 border border-dashed border-border rounded-[var(--radius-lg)] text-center bg-secondary/10">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Chưa có dữ liệu phân tích từ AI</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">

@@ -490,10 +490,15 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
   // Smart badges
   const isNew = product.createdAt && (Date.now() - new Date(product.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
   const isHot = (product.soldCount || 0) >= 10;
+  const totalStock = product.variants?.reduce((sum, v) => sum + v.stock, 0) || 0;
+  const isOutOfStock = totalStock <= 0;
 
   const handleQuickAddCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (isOutOfStock) return;
+
     if (!user) {
       toast.error('Vui lòng đăng nhập');
       router.push('/login');
@@ -519,7 +524,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
   return (
     <div
-      className="group relative bg-card border border-border/50 rounded-[var(--radius-xl)] overflow-hidden transition-all duration-400 hover:shadow-lg hover:shadow-black/[0.06] dark:hover:shadow-black/[0.25] hover:-translate-y-1 flex flex-col h-full cursor-pointer"
+      className={`group relative bg-card border border-border/50 rounded-[var(--radius-xl)] overflow-hidden transition-all duration-400 hover:shadow-lg hover:shadow-black/[0.06] dark:hover:shadow-black/[0.25] hover:-translate-y-1 flex flex-col h-full cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Image Area */}
@@ -529,7 +534,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
             <img
               src={product.primaryImage}
               alt={product.name}
-              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-108"
+              className={`object-cover w-full h-full transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-108' : ''}`}
               loading="lazy"
             />
           ) : (
@@ -539,8 +544,19 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           )}
         </Link>
 
+        {/* Out of Stock Overlay */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[2px] pointer-events-none">
+            <span className="px-4 py-2 bg-rose-600 text-white text-sm font-bold uppercase tracking-wider rounded-full shadow-lg border-2 border-white/20">
+              Hết hàng
+            </span>
+          </div>
+        )}
+
         {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
+        {!isOutOfStock && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
+        )}
 
         {/* Smart Badges - Top Left */}
         <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
@@ -571,22 +587,24 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         )}
 
         {/* Quick Actions - Bottom on hover */}
-        <div className="absolute bottom-3 left-3 right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-          <button
-            onClick={handleQuickAddCart}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[var(--radius-md)] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
-          >
-            <ShoppingCart className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{'Thêm giỏ'}</span>
-          </button>
-          <Link
-            href={`/product/${product.slug}`}
-            onClick={(e) => e.stopPropagation()}
-            className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[var(--radius-md)] hover:bg-white dark:hover:bg-card transition-all shadow-md"
-          >
-            <Eye className="w-4 h-4" />
-          </Link>
-        </div>
+        {!isOutOfStock && (
+          <div className="absolute bottom-3 left-3 right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+            <button
+              onClick={handleQuickAddCart}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[var(--radius-md)] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{'Thêm giỏ'}</span>
+            </button>
+            <Link
+              href={`/product/${product.slug}`}
+              onClick={(e) => e.stopPropagation()}
+              className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[var(--radius-md)] hover:bg-white dark:hover:bg-card transition-all shadow-md"
+            >
+              <Eye className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Info Area */}
@@ -598,7 +616,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
         {/* Name */}
         <Link href={`/product/${product.slug}`} className="block flex-1">
-          <h3 className="text-sm font-semibold text-foreground leading-snug tracking-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
+          <h3 className={`text-sm font-semibold text-foreground leading-snug tracking-tight transition-colors duration-300 line-clamp-2 ${!isOutOfStock ? 'group-hover:text-primary' : ''}`}>
             <T>{product.name}</T>
           </h3>
         </Link>

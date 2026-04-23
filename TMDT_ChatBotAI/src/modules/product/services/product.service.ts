@@ -2,6 +2,9 @@ import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../../middlewares/error.middleware';
 import { cacheSet, cacheGet, cacheDelPattern } from '../../../lib/redis';
+import { EmbeddingHelper } from '../../ai/embeddingHelper';
+
+const embeddingHelper = new EmbeddingHelper();
 
 export class ProductService {
   /**
@@ -58,6 +61,9 @@ export class ProductService {
     if (cachedData) return JSON.parse(cachedData);
 
     const where: Prisma.ProductWhereInput = { isDeleted: false };
+    if (!query.isAdmin) {
+      where.isActive = true;
+    }
     if (categoryId) where.categoryId = categoryId;
     if (search) {
       where.OR = [
@@ -147,7 +153,7 @@ export class ProductService {
 
   async getBySlug(slug: string) {
     const product = await prisma.product.findUnique({
-      where: { slug, isDeleted: false },
+      where: { slug, isDeleted: false, isActive: true },
       include: {
         images: true,
         variants: true,
@@ -188,7 +194,7 @@ export class ProductService {
 
     const ids = hotProductIds.map(p => p.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: ids }, isDeleted: false },
+      where: { id: { in: ids }, isDeleted: false, isActive: true },
       include: {
         images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         variants: { orderBy: { price: 'asc' }, take: 1 },
@@ -217,7 +223,7 @@ export class ProductService {
 
     const ids = topRatedIds.map(p => p.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: ids }, isDeleted: false },
+      where: { id: { in: ids }, isDeleted: false, isActive: true },
       include: {
         images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         variants: { orderBy: { price: 'asc' }, take: 1 },
@@ -235,7 +241,7 @@ export class ProductService {
 
   async getNewProducts(limit: number = 8) {
     const products = await prisma.product.findMany({
-      where: { isDeleted: false },
+      where: { isDeleted: false, isActive: true },
       include: {
         images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         variants: { orderBy: { price: 'asc' }, take: 1 },
@@ -265,27 +271,60 @@ export class ProductService {
     });
 
     await this.clearProductCache();
+    
+    // 🔥 Cập nhật Embedding cho AI (chạy nền hoặc đợi)
+    this.syncEmbedding(product.id, name, description).catch(err => console.error('Sync embedding error:', err));
+
     return product;
   }
 
   async update(id: string, data: any) {
     const { variants, ...productData } = data;
+    
+    // Chuẩn bị dữ liệu cập nhật
+    const updateData: any = { ...productData };
+
+    // Chỉ cập nhật variants nếu được cung cấp và có dữ liệu
+    if (variants && Array.isArray(variants) && variants.length > 0) {
+      updateData.variants = {
+        deleteMany: {},
+        create: variants
+      };
+    }
+
     const product = await prisma.product.update({
       where: { id },
-      data: {
-        ...productData,
-        ...(variants && {
-          variants: {
-            deleteMany: {},
-            create: variants
-          }
-        })
-      },
+      data: updateData,
       include: { variants: true }
     });
 
     await this.clearProductCache();
+    
+    // 🔥 Cập nhật Embedding cho AI và đồng bộ trạng thái
+    // Nếu sản phẩm bị ẩn (isActive: false), AI sẽ tự động bỏ qua khi tìm kiếm nhờ filter ở intelligentSearch
+    this.syncEmbedding(product.id, product.name, product.description || '').catch(err => console.error('Sync embedding error:', err));
+
     return product;
+  }
+
+  /**
+   * Đồng bộ Vector Embedding cho AI Chatbot
+   */
+  private async syncEmbedding(productId: string, name: string, description: string) {
+    try {
+      const text = EmbeddingHelper.buildProductEmbeddingText({ name, description });
+      const embedding = await embeddingHelper.generateEmbedding(text);
+      const vectorString = `[${embedding.join(',')}]`;
+      
+      // Sử dụng executeRawUnsafe vì embedding là kiểu Unsupported vector
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Product" SET "embedding" = ${vectorString}::vector WHERE "id" = $1`,
+        productId
+      );
+      console.log(`✅ AI Context updated for product: ${name}`);
+    } catch (error) {
+      console.error(`❌ Failed to sync AI context for product ${productId}:`, error);
+    }
   }
 
   async softDelete(id: string) {
@@ -315,7 +354,7 @@ export class ProductService {
     const products = await prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id, p.name, p.slug, p.description
       FROM "Product" p
-      WHERE p."isDeleted" = false AND p.embedding IS NOT NULL
+      WHERE p."isDeleted" = false AND p."isActive" = true AND p.embedding IS NOT NULL
       ORDER BY p.embedding <=> ${vectorString}::vector ASC
       LIMIT ${limit}
     `);

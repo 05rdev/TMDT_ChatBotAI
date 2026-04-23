@@ -3,7 +3,9 @@ import { AIController } from './controllers/ai.controller';
 import { RecommendationController } from './controllers/recommendation.controller';
 import { ChatbotController } from './controllers/chatbot.controller';
 import { AdminChatbotController } from './controllers/admin-chatbot.controller';
+import { AdminAIController } from './controllers/admin-ai.controller';
 import { authenticate, optionalAuthenticate } from '../../middlewares/authenticate';
+import { authorize } from '../../middlewares/authorize';
 import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();
@@ -11,6 +13,7 @@ const aiController = new AIController();
 const recommendationController = new RecommendationController();
 const chatbotController = new ChatbotController();
 const adminChatbotController = new AdminChatbotController();
+const adminAiController = new AdminAIController();
 
 /**
  * @swagger
@@ -65,6 +68,7 @@ router.get('/similar/:id', recommendationController.getSimilar);
 router.get('/recommendations', authenticate, recommendationController.getPersonalized);
 
 // --- Chatbot ---
+
 router.post('/chatbot', optionalAuthenticate, chatbotController.chat);
 router.get('/chatbot/history', authenticate, chatbotController.getHistory);
 router.delete('/chatbot/history', authenticate, chatbotController.clearChat);
@@ -72,6 +76,10 @@ router.delete('/chatbot/history', authenticate, chatbotController.clearChat);
 router.post('/admin/chatbot', authenticate, adminChatbotController.chat);
 router.get('/admin/chatbot/history', authenticate, adminChatbotController.getHistory);
 router.delete('/admin/chatbot/history', authenticate, adminChatbotController.clearChat);
+
+// --- Admin AI Insights ---
+router.get('/admin/summarize-reviews/:productId', authenticate, authorize(['ADMIN']), adminAiController.summarizeReviews);
+router.post('/admin/analyze-revenue', authenticate, authorize(['ADMIN']), adminAiController.analyzeRevenue);
 
 // --- Utils ---
 router.post('/embed', aiController.generateEmbedding);

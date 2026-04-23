@@ -27,7 +27,13 @@ export default function AdminProductsPage() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/products?page=${page}&limit=${limit}`);
+      const res = await api.get(`/products`, {
+        params: {
+          page,
+          limit,
+          isAdmin: 'true'
+        }
+      });
       if (res.data.success) {
         setProducts(res.data.data);
         if (res.data.pagination) {
@@ -65,6 +71,19 @@ export default function AdminProductsPage() {
       }
     } catch (error) {
       toast.error('Lỗi khi tải chi tiết sản phẩm');
+    }
+  };
+
+  const handleToggleStatus = async (product: any) => {
+    try {
+      const newStatus = !product.isActive;
+      const res = await api.patch(`/products/${product.id}`, { isActive: newStatus });
+      if (res.data.success) {
+        toast.success(`Đã ${newStatus ? 'bật' : 'tắt'} hiển thị sản phẩm`);
+        setProducts(products.map(p => p.id === product.id ? { ...p, isActive: newStatus } : p));
+      }
+    } catch (error) {
+      toast.error('Lỗi khi thay đổi trạng thái sản phẩm');
     }
   };
 
@@ -169,13 +188,20 @@ export default function AdminProductsPage() {
                       {totalStock}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                        totalStock > 0
-                          ? 'bg-success/10 text-success'
-                          : 'bg-danger/10 text-danger'
-                      }`}>
-                        {totalStock > 0 ? 'Hoạt động' : 'Hết hàng'}
-                      </span>
+                      <button
+                        onClick={() => handleToggleStatus(product)}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+                          product.isActive
+                            ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                            : 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20'
+                        }`}
+                      >
+                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${product.isActive ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+                        {product.isActive ? 'Đang bán' : 'Tạm ẩn'}
+                      </button>
+                      {totalStock === 0 && product.isActive && (
+                        <p className="text-[10px] text-rose-500 mt-1 font-medium italic">Hết hàng</p>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end space-x-2">

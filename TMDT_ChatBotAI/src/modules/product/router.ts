@@ -133,6 +133,7 @@ router.post('/', authenticate, authorize(['ADMIN']), productController.create);
  *         description: Cập nhật thành công
  */
 router.put('/:id', authenticate, authorize(['ADMIN']), productController.update);
+router.patch('/:id', authenticate, authorize(['ADMIN']), productController.update);
 
 /**
  * @swagger

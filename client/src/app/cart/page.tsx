@@ -111,8 +111,15 @@ export default function CartPage() {
     price: item.variant?.price || 0,
     quantity: item.quantity,
     image: item.product?.images?.[0]?.url,
-    variant: item.variant?.name
+    variant: item.variant?.name,
+    stock: item.variant?.stock || 0,
+    isActive: item.product?.isActive ?? true
   })) : localCart.items;
+
+  // Kiểm tra xem có sản phẩm nào đang chọn bị hết hàng không
+  const hasOutOfStockSelected = items.some(item => 
+    selectedItems.includes(item.id) && (item.stock < item.quantity || !item.isActive)
+  );
 
   const totalAmount = items
     .filter(item => selectedItems.includes(item.id))
@@ -196,64 +203,87 @@ export default function CartPage() {
           </div>
 
           <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.id} className={`card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center transition-all ${selectedItems.includes(item.id) ? 'border-primary/30 ring-1 ring-primary/10' : 'opacity-80'}`}>
-                {/* Checkbox */}
-                <div className="sm:col-span-1 flex items-center justify-start sm:justify-center">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedItems.includes(item.id)} 
-                    onChange={() => toggleItemSelection(item.id)}
-                    className="w-5 h-5 accent-primary cursor-pointer"
-                  />
-                  <span className="sm:hidden ml-2 text-xs font-bold text-muted-foreground">Chọn sản phẩm</span>
-                </div>
+            {items.map((item) => {
+              const isItemOutOfStock = item.stock < item.quantity || !item.isActive;
+              return (
+                <div key={item.id} className={`card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center transition-all ${selectedItems.includes(item.id) ? 'border-primary/30 ring-1 ring-primary/10' : 'opacity-80'} ${isItemOutOfStock ? 'bg-rose-50/10' : ''}`}>
+                  {/* Checkbox */}
+                  <div className="sm:col-span-1 flex items-center justify-start sm:justify-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedItems.includes(item.id)} 
+                      onChange={() => toggleItemSelection(item.id)}
+                      className="w-5 h-5 accent-primary cursor-pointer"
+                    />
+                    <span className="sm:hidden ml-2 text-xs font-bold text-muted-foreground">Chọn sản phẩm</span>
+                  </div>
 
-                {/* Info */}
-                <div className="col-span-1 sm:col-span-5 flex gap-4">
-                  <Link href={`/product/${item.productId}`} className="w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <Bot className="w-8 h-8 text-muted" />
-                    )}
-                  </Link>
-                  <div className="flex flex-col justify-center min-w-0">
-                    <Link href={`/product/${item.productId}`} className="font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug">
-                      <T>{item.name}</T>
+                  {/* Info */}
+                  <div className="col-span-1 sm:col-span-5 flex gap-4">
+                    <Link href={`/product/${item.productId}`} className={`w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden relative ${isItemOutOfStock ? 'grayscale opacity-60' : ''}`}>
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <Bot className="w-8 h-8 text-muted" />
+                      )}
+                      {isItemOutOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Hết hàng</span>
+                        </div>
+                      )}
                     </Link>
-                    <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full mt-2 inline-block w-max">
-                      <T>{item.variant}</T>
-                    </span>
-                    <p className="text-primary font-bold mt-2 sm:hidden">{item.price.toLocaleString('vi-VN')}đ</p>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <Link href={`/product/${item.productId}`} className={`font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug ${isItemOutOfStock ? 'text-muted-foreground' : ''}`}>
+                        <T>{item.name}</T>
+                      </Link>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
+                          <T>{item.variant}</T>
+                        </span>
+                        {isItemOutOfStock && (
+                          <span className="text-[11px] font-bold text-rose-500 bg-rose-500/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            {!item.isActive ? 'Ngừng kinh doanh' : 'Hết hàng'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-primary font-bold mt-2 sm:hidden">{item.price.toLocaleString('vi-VN')}đ</p>
+                    </div>
+                  </div>
+
+                  {/* Controller */}
+                  <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-center">
+                    <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, -1)} 
+                        className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-10 text-center font-medium text-sm">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} 
+                        disabled={item.stock <= item.quantity || !item.isActive}
+                        className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-sm)] transition-all sm:hidden">
+                      <Trash2 className="w-4.5 h-4.5" />
+                    </button>
+                  </div>
+
+                  {/* Price & Delete */}
+                  <div className="hidden sm:flex col-span-3 items-center justify-end gap-4">
+                    <span className={`font-semibold text-lg ${isItemOutOfStock ? 'text-muted-foreground line-through opacity-50' : 'text-foreground'}`}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
+                    <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-all">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
-
-                {/* Controller */}
-                <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-center">
-                  <div className="flex items-center bg-secondary rounded-[var(--radius-md)] p-1">
-                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, -1)} className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm">
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="w-10 text-center font-medium text-sm">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-sm)] transition-all sm:hidden">
-                    <Trash2 className="w-4.5 h-4.5" />
-                  </button>
-                </div>
-
-                {/* Price & Delete */}
-                <div className="hidden sm:flex col-span-3 items-center justify-end gap-4">
-                  <span className="font-semibold text-lg text-foreground">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
-                  <button onClick={() => removeItem(item.id, item.productVariantId || '')} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-all">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -282,19 +312,24 @@ export default function CartPage() {
 
             <div className="pt-2">
               <Link 
-                href={selectedItems.length > 0 ? `/checkout?items=${selectedItems.join(',')}` : '#'} 
-                className={`block w-full ${selectedItems.length === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
-                onClick={(e) => { if (selectedItems.length === 0) e.preventDefault(); }}
+                href={selectedItems.length > 0 && !hasOutOfStockSelected ? `/checkout?items=${selectedItems.join(',')}` : '#'} 
+                className={`block w-full ${selectedItems.length === 0 || hasOutOfStockSelected ? 'cursor-not-allowed opacity-50' : ''}`}
+                onClick={(e) => { if (selectedItems.length === 0 || hasOutOfStockSelected) e.preventDefault(); }}
               >
                 <Button 
                   size="lg" 
                   className="w-full flex justify-between items-center px-6"
-                  disabled={selectedItems.length === 0}
+                  disabled={selectedItems.length === 0 || hasOutOfStockSelected}
                 >
-                  <span>{t('cart.checkout')}</span>
+                  <span>{hasOutOfStockSelected ? 'Có SP hết hàng' : t('cart.checkout')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
+              {hasOutOfStockSelected && (
+                <p className="text-[11px] text-rose-500 mt-2 font-medium text-center">
+                  Vui lòng bỏ chọn hoặc xóa sản phẩm đã hết hàng để thanh toán.
+                </p>
+              )}
             </div>
 
             <div className="pt-4 border-t border-border flex items-start gap-3 bg-secondary/50 p-4 rounded-[var(--radius-md)]">

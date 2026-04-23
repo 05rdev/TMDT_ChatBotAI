@@ -12,26 +12,43 @@ export default function AdminOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-
-  // Modal Detail State
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 8, total: 0, totalPages: 0 });
 
   useEffect(() => {
-    fetchOrders();
-  }, [filterStatus]);
+    fetchOrders(pagination.page);
+  }, [filterStatus, pagination.page]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page: number = 1) => {
     try {
       setIsLoading(true);
-      const res = await api.get('/admin/orders', { params: { status: filterStatus } });
+      const res = await api.get('/admin/orders', { 
+        params: { 
+          status: filterStatus,
+          page: page,
+          limit: pagination.limit
+        } 
+      });
       if (res.data.success) {
         setOrders(res.data.orders);
+        setPagination(prev => ({
+          ...prev,
+          total: res.data.pagination.total,
+          totalPages: res.data.pagination.totalPages,
+          page: res.data.pagination.page
+        }));
       }
     } catch (error) {
       toast.error('Lỗi khi tải danh sách đơn hàng');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
     }
   };
 
@@ -41,7 +58,7 @@ export default function AdminOrdersPage() {
       const res = await api.patch(`/orders/${id}/status`, { status: newStatus });
       if (res.data.success) {
         toast.success('Cập nhật trạng thái thành công');
-        fetchOrders();
+        fetchOrders(pagination.page);
       }
     } catch (error) {
       toast.error('Lỗi khi cập nhật trạng thái');
@@ -107,7 +124,7 @@ export default function AdminOrdersPage() {
             <option value="DELIVERED">Hoàn tất</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
-          <Button variant="outline" className="flex items-center">
+          <Button variant="outline" className="flex items-center" onClick={() => fetchOrders(1)}>
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" /> Lọc
           </Button>
         </div>
@@ -183,14 +200,39 @@ export default function AdminOrdersPage() {
           </table>
         </div>
         
-        {/* Pagination placeholder */}
+        {/* Real Pagination */}
         <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-secondary/20">
-           <span>Hiển thị 1 - 5 của 45 đơn hàng</span>
+           <span>Hiển thị {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} của {pagination.total} đơn hàng</span>
            <div className="flex items-center space-x-2">
-              <button className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50">Trước</button>
-              <button className="px-3 py-1.5 rounded-[var(--radius-md)] bg-primary text-primary-foreground font-medium">1</button>
-              <button className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors">2</button>
-              <button className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors">Tiếp</button>
+              <button 
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              
+              {[...Array(pagination.totalPages)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => handlePageChange(i + 1)}
+                  className={`px-3 py-1.5 rounded-[var(--radius-md)] font-medium transition-colors ${
+                    pagination.page === i + 1 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'border border-border hover:bg-secondary'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tiếp
+              </button>
            </div>
         </div>
       </div>

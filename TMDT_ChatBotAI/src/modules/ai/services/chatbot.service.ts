@@ -42,15 +42,24 @@ export class ChatbotService {
 
       // 3. RAG: Lấy ngữ cảnh sản phẩm (Semantic Search) - Bỏ qua nếu chỉ hỏi voucher/đơn hàng
       if (!isAskingNonProduct || isAskingProduct) {
-        relevantProducts = await aiService.intelligentSearch(message, 5);
-        if (relevantProducts.length > 0) {
-          productContext = '--- DANH SÁCH SẢN PHẨM PHÙ HỢP TÌM KIẾM ---\n' + relevantProducts.map(p => {
-            const priceRange = p.variants?.length > 1
-              ? `${Math.min(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} - ${Math.max(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} VNĐ`
-              : `${(p.minPrice || 0).toLocaleString('vi-VN')} VNĐ`;
+          relevantProducts = await aiService.intelligentSearch(message, 10); // Lấy nhiều hơn để lọc
+          if (relevantProducts.length > 0) {
+            // Lọc để các gợi ý liên quan đến cùng 1 danh mục chính nếu query có vẻ tập trung
+            const topCategory = relevantProducts[0].categoryId;
+            relevantProducts = relevantProducts
+              .filter(p => p.categoryId === topCategory)
+              .slice(0, 5); // Chỉ giữ lại 5 thẻ cùng loại
+
+            productContext = '--- DANH SÁCH SẢN PHẨM PHÙ HỢP TÌM KIẾM ---\n' + relevantProducts.map(p => {
+            const minP = p.variants?.length > 0 ? Math.min(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+            const maxP = p.variants?.length > 0 ? Math.max(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+            const formattedPrice = minP === maxP 
+              ? `${minP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} triệu)` 
+              : `${minP.toLocaleString('vi-VN')} - ${maxP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} - ${(maxP/1000000).toFixed(2)} triệu)`;
+            
             const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
             const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
-            return `- ${p.name}: ${p.description?.substring(0, 120)}... | Giá: ${priceRange} | ${stockStatus} | Đánh giá: ${p.averageRating || 'Chưa có'}⭐ (${p.totalReviews || 0} đánh giá) | Đã bán: ${p.soldCount || 0} | Link: /product/${p.slug}`;
+            return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}... | ${stockStatus} | Link: /product/${p.slug}`;
           }).join('\n');
         }
       }
@@ -232,17 +241,14 @@ ${paymentContext}
 ${supportContext}
 ${stockContext}
 
-QUY TẮC BẮT BUỘC:
-1. Luôn trả lời bằng tiếng Việt, lịch sự, thân thiện, gần gũi như bạn bè.
-2. Trả lời ngắn gọn, DỨT KHOÁT, tập trung vào vấn đề. Tránh lan man.
-3. Khi giới thiệu sản phẩm, LUÔN kèm giá và link "/product/slug".
-4. Khi có mã giảm giá phù hợp, GỢI Ý cho khách dùng.
-5. Tuyệt đối KHÔNG tiết lộ thông tin đơn hàng/tài khoản của người khác.
-6. Nếu khách hỏi ngoài phạm vi (tin tức, thời tiết...), lịch sự từ chối và hướng dẫn về mua sắm.
-7. Nếu không tìm thấy sản phẩm phù hợp, gợi ý khách tìm kiếm tại /shop hoặc nhắn admin.
-8. Sử dụng emoji vừa phải để tạo thân thiện (😊, 🛒, ⭐, 🔥).
-9. Khi khách hỏi về đổi trả/bảo hành: Hướng dẫn liên hệ qua /profile/support.
-10. Khi so sánh sản phẩm: So sánh dựa trên giá, đánh giá, lượt bán thực tế.
+QUY TẮC BẮT BUỘC (QUAN TRỌNG):
+1. Luôn trả lời bằng tiếng Việt, lịch sự, thân thiện.
+2. Kiểm tra kỹ DANH SÁCH SẢN PHẨM PHÙ HỢP. Nếu có sản phẩm trong danh sách khớp với tầm giá khách hỏi, TUYỆT ĐỐI không được nói "không tìm thấy" hoặc "chưa có".
+3. Khi giới thiệu sản phẩm, hãy nêu tên và giá (triệu đồng) để khách dễ nắm bắt.
+4. LUÔN kèm link "/product/slug" cho mỗi sản phẩm được nhắc đến.
+5. Nếu thực sự không có sản phẩm nào khớp, hãy gợi ý các sản phẩm cùng danh mục có giá gần nhất.
+6. Trả lời ngắn gọn, dứt khoát. Sử dụng emoji thân thiện (😊, 🛒, ⭐).
+7. Tuyệt đối không bịa đặt thông số hoặc giá sản phẩm không có trong dữ liệu.
 
 VÍ DỤ TRẢ LỜI TỐT:
 - Hỏi "máy lạnh nào tốt?": Gợi ý 2-3 sản phẩm kèm giá, rating, link. So sánh ngắn gọn.

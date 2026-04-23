@@ -5,11 +5,19 @@ export class AdminStatsService {
    * Thống kê tổng quan cho Dashboard
    */
   async getDashboardOverview() {
-    const [totalRevenue, totalOrders, totalUsers, totalProducts, lowStockProducts, totalNewUsers] = await Promise.all([
+    const [totalRevenue, pendingRevenue, totalOrders, totalUsers, totalProducts, lowStockProducts, totalNewUsers] = await Promise.all([
       // Tổng doanh thu thực tế (Thanh toán thành công)
       prisma.payment.aggregate({
         where: { status: 'SUCCESS' },
         _sum: { amount: true }
+      }),
+      // Tổng doanh thu dự kiến (Đơn hàng PENDING hoặc PROCESSING nhưng chưa SUCCESS)
+      prisma.order.aggregate({
+        where: { 
+          status: { in: ['PENDING', 'PROCESSING'] },
+          payment: { status: { not: 'SUCCESS' } }
+        },
+        _sum: { totalAmount: true }
       }),
       // Tổng đơn hàng (không tính đơn hủy)
       prisma.order.count({
@@ -40,6 +48,7 @@ export class AdminStatsService {
 
     return {
       revenue: Number(totalRevenue._sum.amount) || 0,
+      pendingRevenue: Number(pendingRevenue._sum.totalAmount) || 0,
       orders: totalOrders,
       users: totalUsers,
       totalProducts,

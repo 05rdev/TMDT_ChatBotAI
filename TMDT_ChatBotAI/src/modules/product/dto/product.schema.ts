@@ -15,6 +15,7 @@ export const createProductSchema = z.object({
   slug: z.string().min(1, 'Slug không được để trống'),
   description: z.string().optional(),
   categoryId: z.string().uuid('Category ID không hợp lệ'),
+  isActive: z.boolean().optional().default(true),
   variants: z.array(productVariantSchema).min(1, 'Sản phẩm phải có ít nhất một phiên bản'),
 });
 
@@ -39,4 +40,5 @@ export const productQuerySchema = z.object({
   sortBy: z.enum(['price', 'createdAt']).optional().default('createdAt'),
   order: z.enum(['asc', 'desc']).optional().default('desc'),
   search: z.string().optional(),
+  isAdmin: z.string().optional().transform((val) => val === 'true'),
 });

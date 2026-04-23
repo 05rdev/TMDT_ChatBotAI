@@ -47,6 +47,16 @@ function CheckoutContent() {
           ? cartItems.filter((item: any) => selectedIds.includes(item.id))
           : cartItems;
         
+        // Kiểm tra xem có sản phẩm nào không khả dụng không
+        const invalidItems = filteredItems.filter((item: any) => 
+          (item.variant?.stock || 0) < item.quantity || !item.product?.isActive
+        );
+
+        if (invalidItems.length > 0) {
+          const names = invalidItems.map((i: any) => i.product?.name).join(', ');
+          toast.error(`Sản phẩm không khả dụng: ${names}. Vui lòng quay lại giỏ hàng để cập nhật.`);
+        }
+
         setOrderItems(filteredItems);
         
         // Tính lại tổng tiền cho các món đã chọn
@@ -237,15 +247,27 @@ function CheckoutContent() {
                 orderItems.map((item: any) => {
                   const image = item.product?.images?.[0]?.url || '';
                   const price = item.variant?.price ? Number(item.variant.price) : 0;
+                  const isInvalid = (item.variant?.stock || 0) < item.quantity || !item.product?.isActive;
+                  
                   return (
-                    <div key={item.id} className="flex items-center space-x-3">
+                    <div key={item.id} className={`flex items-center space-x-3 p-2 rounded-lg ${isInvalid ? 'bg-rose-50 border border-rose-100' : ''}`}>
                        <div className="w-14 h-14 rounded-[var(--radius-md)] bg-secondary relative overflow-hidden flex-shrink-0 border border-border">
                          {image ? <img src={image} alt="" className="object-cover w-full h-full" /> : <div className="w-full h-full bg-muted" />}
                          <div className="absolute top-0 right-0 w-4 h-4 bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center rounded-bl-[var(--radius-sm)]">{item.quantity}</div>
+                         {isInvalid && (
+                           <div className="absolute inset-0 bg-rose-500/20 flex items-center justify-center">
+                             <Info className="w-5 h-5 text-rose-600" />
+                           </div>
+                         )}
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h5 className="text-sm font-semibold text-foreground line-clamp-1">{item.product?.name}</h5>
+                         <h5 className={`text-sm font-semibold line-clamp-1 ${isInvalid ? 'text-rose-600' : 'text-foreground'}`}>{item.product?.name}</h5>
                          <p className="text-xs text-muted-foreground mt-0.5">{price.toLocaleString('vi-VN')}đ</p>
+                         {isInvalid && (
+                           <p className="text-[10px] text-rose-500 font-bold uppercase mt-0.5">
+                             {!item.product?.isActive ? 'Ngừng kinh doanh' : 'Hết hàng'}
+                           </p>
+                         )}
                        </div>
                     </div>
                   );
@@ -301,9 +323,17 @@ function CheckoutContent() {
               <span className="text-2xl font-bold text-primary">{total.toLocaleString('vi-VN')}đ</span>
             </div>
 
-            <Button onClick={handlePlaceOrder} isLoading={isProcessing} size="lg" className="w-full relative overflow-hidden group">
+            <Button 
+              onClick={handlePlaceOrder} 
+              isLoading={isProcessing} 
+              disabled={orderItems.some((item: any) => (item.variant?.stock || 0) < item.quantity || !item.product?.isActive)}
+              size="lg" 
+              className="w-full relative overflow-hidden group"
+            >
               <span className="relative z-10 flex items-center justify-center">
-                Hoàn tất đặt hàng <CheckCircle2 className="ml-2 w-5 h-5" />
+                {orderItems.some((item: any) => (item.variant?.stock || 0) < item.quantity || !item.product?.isActive) 
+                  ? 'Có sản phẩm lỗi' 
+                  : <>Hoàn tất đặt hàng <CheckCircle2 className="ml-2 w-5 h-5" /></>}
               </span>
             </Button>
 

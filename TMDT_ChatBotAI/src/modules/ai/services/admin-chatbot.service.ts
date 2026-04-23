@@ -73,25 +73,51 @@ export class AdminChatbotService {
 📊 THỐNG KÊ TỔNG QUAN:
 - Tổng khách hàng (active): ${userCount} | Mới hôm nay: ${newUsersToday} | Mới tuần này: ${newUsersThisWeek}
 - Tổng sản phẩm (active): ${productCount}
-- Tổng đơn hàng: ${totalOrders} | Hôm nay: ${ordersToday} | Chờ xử lý: ${ordersPending} | Đang xử lý: ${ordersProcessing}
+- Tổng đơn hàng: ${totalOrders} | Hôm nay: ${ordersToday} | Chờ duyệt (PENDING): ${ordersPending} | Đang gói (PROCESSING): ${ordersProcessing}
 - 💰 Doanh thu (giao thành công): Tổng: ${fmt(revenueTotal)}đ | Hôm nay: ${fmt(revenueToday)}đ | Tuần: ${fmt(revenueThisWeek)}đ | Tháng: ${fmt(revenueThisMonth)}đ
 - Ticket hỗ trợ đang mở: ${pendingTickets}
 - Tổng đánh giá: ${totalReviews}`;
 
-    // ====== ĐƠN HÀNG MỚI NHẤT ======
-    const latestOrders = await prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 7,
-      include: {
-        user: { select: { name: true, email: true } },
-        items: { include: { product: { select: { name: true } } } },
-        payment: { select: { method: true, status: true } }
-      }
-    });
+    // ====== ĐƠN HÀNG CHI TIẾT (Lấy nhiều hơn để AI có context) ======
+    const [latestOrders, pendingOrders, processingOrders] = await Promise.all([
+      prisma.order.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          user: { select: { name: true, email: true } },
+          items: { include: { product: { select: { name: true } } } },
+          payment: { select: { method: true, status: true } }
+        }
+      }),
+      prisma.order.findMany({
+        where: { status: 'PENDING' },
+        take: 10,
+        include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
+      }),
+      prisma.order.findMany({
+        where: { status: 'PROCESSING' },
+        take: 10,
+        include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
+      })
+    ]);
+
     const { translateOrderStatus, translatePaymentStatus } = require('../../../utils/status-mapper');
-    let ordersContext = '\n📦 ĐƠN HÀNG MỚI NHẤT:\n' + latestOrders.map(o =>
-      `- #${o.id.slice(0, 8)}: ${(o as any).user.name} (${(o as any).user.email}) | ${translateOrderStatus(o.status)} | ${Number(o.totalAmount).toLocaleString()}đ | SP: ${o.items.map((i: any) => i.product.name).join(', ')} | TT: ${o.payment ? `${o.payment.method} - ${translatePaymentStatus(o.payment.status)}` : 'Chưa TT'} | ${new Date(o.createdAt).toLocaleDateString('vi-VN')}`
+    
+    let ordersContext = '\n📦 DANH SÁCH ĐƠN HÀNG CHI TIẾT:\n' + latestOrders.map(o =>
+      `- #${o.id.slice(0, 8)}: ${(o as any).user.name} | ${translateOrderStatus(o.status)} | ${Number(o.totalAmount).toLocaleString()}đ | SP: ${o.items.map((i: any) => i.product.name).join(', ')} | ${new Date(o.createdAt).toLocaleString('vi-VN')}`
     ).join('\n');
+
+    if (pendingOrders.length > 0) {
+      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN CHỜ DUYỆT (PENDING):\n' + pendingOrders.map(o => 
+        `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
+      ).join('\n');
+    }
+
+    if (processingOrders.length > 0) {
+      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GÓI (PROCESSING):\n' + processingOrders.map(o => 
+        `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
+      ).join('\n');
+    }
 
     // ====== CẢNH BÁO KHO HÀNG ======
     const lowStockProducts = await prisma.productVariant.findMany({
@@ -205,15 +231,23 @@ ${supportContext}
 
 QUY TẮC ADMIN ASSISTANT:
 1. Luôn trả lời bằng tiếng Việt, chuyên nghiệp, súc tích. Xưng hô "Em" và gọi admin là "Sếp".
-2. Trả lời DỰA TRÊN SỐ LIỆU THỰC TẾ. Không bịa đặt dữ liệu.
-3. Khi được hỏi phân tích, hãy:
+2. Trả lời DỰA TRÊN SỐ LIỆU THỰC TẾ TRONG NGỮ CẢNH HIỆN TẠI. Tuyệt đối không bịa đặt.
+3. THỜI GIAN THỰC: Dữ liệu này vừa được truy xuất lúc ${now.toLocaleString('vi-VN')}. 
+   => Nếu số liệu này khác với những gì đã nói ở tin nhắn trước, Sếp phải hiểu đây mới là số liệu mới nhất.
+4. QUY ƯỚC TRẠNG THÁI ĐƠN HÀNG:
+   - PENDING: Chờ duyệt
+   - PROCESSING: Đang gói (Sếp thường gọi là "đang gói")
+   - SHIPPED: Đang giao hàng
+   - DELIVERED: Hoàn tất
+   - CANCELLED: Đã hủy
+   => Nếu khách hỏi "đang gói", hãy dùng số liệu của "Đang gói (PROCESSING)".
+5. Khi được hỏi phân tích, hãy:
    - Chỉ ra xu hướng (tăng/giảm so với kỳ trước)
    - Đưa ra GỢI Ý HÀNH ĐỘNG cụ thể (VD: "Nên nhập thêm hàng cho SP X", "Cần phản hồi ticket")
    - Cảnh báo rủi ro nếu có
-4. Format trả lời rõ ràng, dùng bullet points, emoji vừa phải.
-5. Nếu được hỏi về thông tin không có trong dữ liệu, nói rõ "Em chưa có dữ liệu về phần này".
-6. Khi so sánh doanh thu: So sánh hôm nay vs hôm qua, tuần này vs tuần trước khi có thể.
-7. Chủ động cảnh báo nếu phát hiện: Hàng sắp hết, đơn chờ xử lý nhiều, đánh giá thấp.
+6. Format trả lời rõ ràng, dùng bullet points, emoji vừa phải.
+7. Nếu được hỏi về thông tin không có trong dữ liệu, nói rõ "Dạ thưa Sếp, hiện em chưa thấy thông tin chi tiết về phần này trong hệ thống ạ".
+8. Chủ động cảnh báo nếu phát hiện: Hàng sắp hết, đơn chờ xử lý nhiều, đánh giá thấp.
 
 CÁC LOẠI CÂU HỎI THƯỜNG GẶP:
 - "Doanh thu hôm nay?" → Báo cáo doanh thu chi tiết

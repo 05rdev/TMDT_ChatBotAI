@@ -68,6 +68,7 @@ model Product {
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   isDeleted   Boolean                @default(false)
+  isActive    Boolean                @default(true)
   cartItems   Cart[]
   orderItems  OrderItem[]
   category    Category               @relation(fields: [categoryId], references: [id])

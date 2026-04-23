@@ -51,10 +51,19 @@ export class CartService {
     // Kiểm tra sản phẩm và variant tồn tại
     const variant = await prisma.productVariant.findUnique({
       where: { id: productVariantId },
+      include: { product: true }
     });
 
-    if (!variant || variant.productId !== productId) {
+    if (!variant || variant.productId !== productId || variant.product.isDeleted) {
       throw new AppError(404, 'Sản phẩm hoặc phiên bản không hợp lệ');
+    }
+
+    if (!variant.product.isActive) {
+      throw new AppError(400, 'Sản phẩm này hiện đang ngừng kinh doanh');
+    }
+
+    if (variant.stock <= 0) {
+      throw new AppError(400, 'Sản phẩm này đã hết hàng');
     }
 
     if (variant.stock < quantity) {

@@ -49,12 +49,20 @@ export class OrderService {
       // A. KIÊM TRA TỒN KHO VÀ CẬP NHẬT
       for (const item of cartItems) {
         const variant = await tx.productVariant.findUnique({
-          where: { id: item.productVariantId }
+          where: { id: item.productVariantId },
+          include: { product: true }
         });
 
+        if (!variant || variant.product.isDeleted) {
+          throw new AppError(404, 'Sản phẩm hoặc phiên bản không tồn tại');
+        }
 
-        if (!variant || variant.stock < item.quantity) {
-          throw new AppError(400, `Sản phẩm ${item.productId} phiên bản ${item.productVariantId} đã hết hàng hoặc không đủ tồn kho`);
+        if (!variant.product.isActive) {
+          throw new AppError(400, `Sản phẩm ${variant.product.name} hiện đang ngừng kinh doanh`);
+        }
+
+        if (variant.stock < item.quantity) {
+          throw new AppError(400, `Sản phẩm ${variant.product.name} phiên bản ${variant.name} đã hết hàng hoặc không đủ tồn kho`);
         }
 
         // Trừ kho

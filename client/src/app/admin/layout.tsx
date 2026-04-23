@@ -34,16 +34,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isAuthenticated, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [supportCount, setSupportCount] = useState(0);
 
+  // Fix F5 redirect issue: wait for Zustand hydration
   useEffect(() => {
+    // Sử dụng timeout ngắn để đảm bảo store đã rehydrate xong từ localStorage
+    const timer = setTimeout(() => {
+      setHasHydrated(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    // Nếu đã hydrate xong mà vẫn chưa có thông tin auth thì mới redirect
     if (!isAuthenticated || user?.role !== 'ADMIN') {
-      router.push('/');
+      // Chỉ redirect nếu thực sự không phải admin (đợi 1 nhịp nữa cho chắc)
+      const redirectTimer = setTimeout(() => {
+        if (!useAuthStore.getState().isAuthenticated || useAuthStore.getState().user?.role !== 'ADMIN') {
+          router.push('/');
+        } else {
+          setIsAuthorized(true);
+        }
+      }, 100);
+      return () => clearTimeout(redirectTimer);
     } else {
       setIsAuthorized(true);
     }
-  }, [isAuthenticated, user, router]);
+  }, [hasHydrated, isAuthenticated, user, router]);
 
   useEffect(() => {
     const fetchSupportCount = async () => {
