@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
-import { Loader2, Star, ChevronDown, SlidersHorizontal, PackageX, X, ShoppingCart, Eye, Flame, Sparkles, ArrowUpDown } from 'lucide-react';
+import { Loader2, Star, ChevronDown, SlidersHorizontal, PackageX, X, ShoppingCart, Eye, Flame, Sparkles, ArrowUpDown, Check } from 'lucide-react';
 import Link from 'next/link';
 import { BannerCarousel } from '@/components/BannerCarousel';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -66,6 +66,19 @@ export default function ShopPage() {
   const limit = 16;
 
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -315,25 +328,53 @@ export default function ShopPage() {
               <span className="text-base font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
             </h2>
           </div>
-          
           <div className="flex items-center gap-3">
-            {/* Sort */}
-            <div className="flex items-center space-x-2 bg-card border border-border px-4 py-2 rounded-[var(--radius-md)] shadow-sm">
-              <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="appearance-none bg-transparent border-none text-foreground text-sm font-medium pr-5 focus:outline-none cursor-pointer"
-                >
-                  {searchQuery && <option value="relevant">{t('shop.mostRelevant')}</option>}
-                  <option value="newest">{t('shop.newest')}</option>
-                  <option value="best_selling">{t('shop.bestSelling')}</option>
-                  <option value="price_asc">{t('shop.priceLowHigh')}</option>
-                  <option value="price_desc">{t('shop.priceHighLow')}</option>
-                </select>
-                <ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
+            {/* Sort Dropdown */}
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                className="flex items-center space-x-2 bg-card border border-border px-4 py-2 rounded-[var(--radius-md)] shadow-sm hover:bg-secondary/50 transition-all"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+                <span className="text-foreground text-sm font-medium pr-1 whitespace-nowrap">
+                  {t(`shop.${sortBy === 'relevant' ? 'mostRelevant' : sortBy === 'newest' ? 'newest' : sortBy === 'best_selling' ? 'bestSelling' : sortBy === 'price_asc' ? 'priceLowHigh' : 'priceHighLow'}`)}
+                </span>
+                <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isSortDropdownOpen && (
+                <div className="absolute top-full right-0 mt-2 w-56 card-elevated rounded-[var(--radius-lg)] overflow-hidden z-50 shadow-xl animate-fade-in-up">
+                  <div className="px-4 py-2.5 border-b border-border bg-secondary/30">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('shop.sortBy')}</span>
+                  </div>
+                  <div className="p-1.5">
+                    {[
+                      ...(searchQuery ? [{ value: 'relevant', label: t('shop.mostRelevant') }] : []),
+                      { value: 'newest', label: t('shop.newest') },
+                      { value: 'best_selling', label: t('shop.bestSelling') },
+                      { value: 'price_asc', label: t('shop.priceLowHigh') },
+                      { value: 'price_desc', label: t('shop.priceHighLow') },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value as SortOption);
+                          setIsSortDropdownOpen(false);
+                          setPage(1);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all ${
+                          sortBy === option.value
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-secondary text-foreground'
+                        }`}
+                      >
+                        {option.label}
+                        {sortBy === option.value && <Check className="w-4 h-4" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile Filter Toggle */}

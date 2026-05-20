@@ -3,8 +3,10 @@ import { Prisma } from '@prisma/client';
 import { AppError } from '../../../middlewares/error.middleware';
 import { cacheSet, cacheGet, cacheDelPattern } from '../../../lib/redis';
 import { EmbeddingHelper } from '../../ai/embeddingHelper';
+import { VisionHelper } from '../../ai/vision/visionHelper';
 
 const embeddingHelper = new EmbeddingHelper();
+const visionHelper = new VisionHelper();
 
 export class ProductService {
   /**
@@ -308,22 +310,69 @@ export class ProductService {
   }
 
   /**
-   * Đồng bộ Vector Embedding cho AI Chatbot
+   * Đồng bộ Vector Embedding (Text & Image) cho AI
    */
   private async syncEmbedding(productId: string, name: string, description: string) {
     try {
+      // 1. Text Embedding
       const text = EmbeddingHelper.buildProductEmbeddingText({ name, description });
       const embedding = await embeddingHelper.generateEmbedding(text);
       const vectorString = `[${embedding.join(',')}]`;
       
-      // Sử dụng executeRawUnsafe vì embedding là kiểu Unsupported vector
       await prisma.$executeRawUnsafe(
         `UPDATE "Product" SET "embedding" = ${vectorString}::vector WHERE "id" = $1`,
         productId
       );
-      console.log(`✅ AI Context updated for product: ${name}`);
+
+      // 2. Image Embedding (cho ảnh Primary)
+      const primaryImage = await prisma.productImage.findFirst({
+        where: { productId, isPrimary: true }
+      });
+      if (primaryImage) {
+        await this.syncSingleImageEmbedding(primaryImage.id, primaryImage.url);
+        
+        // Cập nhật luôn vào Product.imageEmbedding để tương thích ngược
+        const img = await prisma.productImage.findUnique({ where: { id: primaryImage.id } });
+        if (img && (img as any).imageEmbedding) {
+           // Lấy lại từ DB vì syncSingleImageEmbedding dùng raw SQL
+           const imgData: any = await prisma.$queryRawUnsafe(
+             `SELECT "imageEmbedding"::text FROM "ProductImage" WHERE id = $1`,
+             primaryImage.id
+           );
+           if (imgData?.[0]?.imageEmbedding) {
+             await prisma.$executeRawUnsafe(
+               `UPDATE "Product" SET "imageEmbedding" = $1::vector WHERE "id" = $2`,
+               imgData[0].imageEmbedding,
+               productId
+             );
+           }
+        }
+      }
+
+      console.log(`✅ AI Context (Text) updated for product: ${name}`);
     } catch (error) {
       console.error(`❌ Failed to sync AI context for product ${productId}:`, error);
+    }
+  }
+
+  /**
+   * Đồng bộ embedding cho một ảnh cụ thể
+   */
+  private async syncSingleImageEmbedding(imageId: string, imageUrl: string) {
+    try {
+      const isReady = await visionHelper.isServiceReady();
+      if (!isReady) return;
+
+      const embedding = await visionHelper.generateImageEmbedding(imageUrl);
+      const vectorString = `[${embedding.join(',')}]`;
+
+      await prisma.$executeRawUnsafe(
+        `UPDATE "ProductImage" SET "imageEmbedding" = ${vectorString}::vector WHERE "id" = $1`,
+        imageId
+      );
+      console.log(`✅ Image embedding updated: ${imageUrl}`);
+    } catch (error) {
+      console.error(`❌ Failed to sync image embedding for ${imageUrl}:`, error);
     }
   }
 
@@ -346,7 +395,18 @@ export class ProductService {
 
   async addImages(productId: string, imageUrls: string[]) {
     const imagesData = imageUrls.map(url => ({ productId, url, isPrimary: false }));
-    return prisma.productImage.createMany({ data: imagesData });
+    const result = await prisma.productImage.createMany({ data: imagesData });
+
+    // 🔥 Chạy nền việc tạo embedding cho các ảnh mới
+    const newImages = await prisma.productImage.findMany({
+      where: { productId, url: { in: imageUrls }, imageEmbedding: null }
+    });
+
+    newImages.forEach(img => {
+      this.syncSingleImageEmbedding(img.id, img.url).catch(e => console.error(e));
+    });
+
+    return result;
   }
 
   async searchByVector(embedding: number[], limit: number = 10) {

@@ -49,6 +49,7 @@ export function NotificationPopup() {
         );
         if (toShow.length > 0) {
           setNotifications(toShow);
+          setCurrentIndex(0); // Reset index to avoid out-of-bounds error
           // Small delay for entrance animation
           setTimeout(() => {
             setIsVisible(true);
@@ -92,6 +93,8 @@ export function NotificationPopup() {
   if (!isVisible || notifications.length === 0) return null;
 
   const current = notifications[currentIndex];
+
+  if (!current) return null; // Safety guard to prevent crash if index is out of bounds
 
   const typeColors: Record<string, string> = {
     PROMOTION: 'bg-warning/10 text-warning border-warning/20',

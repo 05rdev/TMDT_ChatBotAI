@@ -23,7 +23,7 @@ async function reindex() {
   const products = await prisma.product.findMany({
     where: { isDeleted: false },
     include: {
-      images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+      images: true, // Lấy tất cả ảnh
       category: { select: { name: true } }
     }
   });
@@ -34,43 +34,51 @@ async function reindex() {
     try {
       console.log(`\n📦 Processing: ${product.name}`);
       
-      // --- TEXT EMBEDDING ---
+      // --- 1. TEXT EMBEDDING (Cho Product) ---
       const textToEmbed = EmbeddingHelper.buildProductEmbeddingText({
         name: product.name,
         description: product.description,
         categoryName: product.category?.name
       });
       const textVector = await embeddingHelper.generateEmbedding(textToEmbed);
-      
-      // --- IMAGE EMBEDDING ---
-      let imageVector: number[] | null = null;
-      if (product.images.length > 0) {
-        const imageUrl = product.images[0].url;
-        console.log(`  🖼️ Generating image embedding for: ${imageUrl}`);
-        try {
-          imageVector = await visionHelper.generateImageEmbedding(imageUrl);
-        } catch (imgErr: any) {
-          console.warn(`  ⚠️ Image embedding failed for ${product.name}:`, imgErr.message);
-        }
-      }
-
-      // --- SAVE TO DB (Raw SQL for vectors) ---
       const textVectorStr = `[${textVector.join(',')}]`;
-      const imageVectorStr = imageVector ? `[${imageVector.join(',')}]` : null;
 
-      if (imageVectorStr) {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "Product" SET embedding = $1::vector, "imageEmbedding" = $2::vector WHERE id = $3`,
-          textVectorStr,
-          imageVectorStr,
-          product.id
-        );
-      } else {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "Product" SET embedding = $1::vector WHERE id = $2`,
-          textVectorStr,
-          product.id
-        );
+      // Cập nhật text embedding cho Product
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Product" SET embedding = $1::vector WHERE id = $2`,
+        textVectorStr,
+        product.id
+      );
+      
+      // --- 2. IMAGE EMBEDDING (Cho từng ProductImage) ---
+      if (product.images.length > 0) {
+        console.log(`  🖼️ Found ${product.images.length} images. Generating embeddings...`);
+        
+        for (const img of product.images) {
+          try {
+            console.log(`    - Embedding image: ${img.url}`);
+            const imageVector = await visionHelper.generateImageEmbedding(img.url);
+            const imageVectorStr = `[${imageVector.join(',')}]`;
+
+            // Lưu embedding vào ProductImage
+            await prisma.$executeRawUnsafe(
+              `UPDATE "ProductImage" SET "imageEmbedding" = $1::vector WHERE id = $2`,
+              imageVectorStr,
+              img.id
+            );
+
+            // Nếu là ảnh primary, cập nhật luôn vào Product.imageEmbedding (để tương thích ngược)
+            if (img.isPrimary) {
+              await prisma.$executeRawUnsafe(
+                `UPDATE "Product" SET "imageEmbedding" = $1::vector WHERE id = $2`,
+                imageVectorStr,
+                product.id
+              );
+            }
+          } catch (imgErr: any) {
+            console.warn(`    ⚠️ Image embedding failed for ${img.url}:`, imgErr.message);
+          }
+        }
       }
 
       console.log(`  ✅ Success: ${product.name}`);

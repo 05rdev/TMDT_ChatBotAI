@@ -22,18 +22,31 @@ export class VisualSearchService {
       const imageVector = await visionHelper.generateImageEmbedding(imageBuffer);
       const vectorString = `[${imageVector.join(',')}]`;
 
-      // 3. Thực hiện Vector Search trên cột imageEmbedding sử dụng Cosine Distance (<=>)
-      console.log('🔍 Searching for similar images in database...');
+      // 3. Thực hiện Vector Search trên bảng ProductImage để lấy ảnh khớp nhất của mỗi SP
+      console.log('🔍 Searching for similar images in database (Fine-grained)...');
+      
       const results = await prisma.$queryRaw<any[]>(Prisma.sql`
+        WITH ranked_images AS (
+            SELECT 
+                "productId", 
+                "url", 
+                "imageEmbedding" <=> ${vectorString}::vector AS distance,
+                ROW_NUMBER() OVER(PARTITION BY "productId" ORDER BY ("imageEmbedding" <=> ${vectorString}::vector) ASC) as rank
+            FROM "ProductImage"
+            WHERE "imageEmbedding" IS NOT NULL
+        )
         SELECT p.id, p.name, p.slug, 
-               p."imageEmbedding" <=> ${vectorString}::vector AS distance,
+               ri.url as "matchedImageUrl",
+               ri.distance as "distance",
                MIN(v.price) as "minPrice"
-        FROM "Product" p
+        FROM ranked_images ri
+        JOIN "Product" p ON p.id = ri."productId"
         JOIN "ProductVariant" v ON p.id = v."productId"
         WHERE p."isDeleted" = false 
-          AND p."imageEmbedding" IS NOT NULL
-        GROUP BY p.id
-        ORDER BY distance ASC
+          AND p."isActive" = true
+          AND ri.rank = 1
+        GROUP BY p.id, ri.url, ri.distance
+        ORDER BY ri.distance ASC
         LIMIT ${limit}
       `);
 
@@ -49,7 +62,6 @@ export class VisualSearchService {
       const fullProducts = await prisma.product.findMany({
         where: { id: { in: productIds } },
         include: {
-          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
           category: { select: { name: true } },
           variants: { orderBy: { price: 'asc' }, take: 1 }
         }
@@ -62,13 +74,13 @@ export class VisualSearchService {
           ...p,
           distance: r.distance,
           minPrice: Number(r.minPrice),
-          primaryImage: p.images[0]?.url || null,
+          primaryImage: r.matchedImageUrl, // Đưa "ảnh giống nhất" lên làm ảnh hiển thị
           variants: p.variants.map(v => ({ ...v, price: Number(v.price) }))
         };
       }).filter(Boolean);
 
       return {
-        description: `Đã tìm thấy ${formattedProducts.length} sản phẩm tương tự với hình ảnh bạn cung cấp.`,
+        description: `Đã tìm thấy ${formattedProducts.length} sản phẩm tương tự. Ảnh hiển thị đã được tự động chọn theo mức độ giống nhất.`,
         products: formattedProducts
       };
 

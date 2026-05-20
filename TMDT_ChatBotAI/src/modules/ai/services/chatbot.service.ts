@@ -31,200 +31,93 @@ export class ChatbotService {
     let paymentContext = '';
     let supportContext = '';
     let stockContext = '';
-
+    let history: any[] = [];
     try {
-      // 2. Xác định xem người dùng có đang hỏi các vấn đề không liên quan đến tìm sản phẩm hay không
+      // 2. Lấy lịch sử hội thoại sớm để xác định ngữ cảnh
+      let contextCategoryId: string | undefined = undefined;
+
+      if (userId) {
+        history = await prisma.chatMessage.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 7
+        });
+        history.reverse();
+
+        // Tìm danh mục gần nhất mà khách đang quan tâm từ gợi ý trước đó
+        const lastAssistantMsg = [...history].reverse().find(h => h.role === 'assistant' && h.suggestedProducts && Array.isArray(h.suggestedProducts) && h.suggestedProducts.length > 0);
+        if (lastAssistantMsg) {
+          try {
+            const firstProdId = (lastAssistantMsg.suggestedProducts as any)[0].id;
+            const prod = await prisma.product.findUnique({ where: { id: firstProdId }, select: { categoryId: true } });
+            if (prod) contextCategoryId = prod.categoryId;
+          } catch (e) {}
+        }
+      }
+
       const nonProductKeywords = ['voucher', 'khuyến mãi', 'mã giảm', 'đơn hàng', 'hỗ trợ', 'ticket', 'thanh toán', 'mật khẩu', 'tài khoản'];
-      const productKeywords = ['sản phẩm', 'mua', 'tìm', 'tivi', 'tủ lạnh', 'máy lạnh', 'máy giặt', 'máy lọc', 'bán chạy', 'hot', 'đánh giá'];
+      const productKeywords = ['sản phẩm', 'mua', 'tìm', 'tivi', 'tủ lạnh', 'máy lạnh', 'máy giặt', 'máy lọc', 'bán chạy', 'hot', 'đánh giá', 'quạt', 'nồi', 'bếp', 'lọc'];
       
       const isAskingNonProduct = nonProductKeywords.some(k => msgLower.includes(k));
       const isAskingProduct = productKeywords.some(k => msgLower.includes(k));
 
-      // 3. RAG: Lấy ngữ cảnh sản phẩm (Semantic Search) - Bỏ qua nếu chỉ hỏi voucher/đơn hàng
-      if (!isAskingNonProduct || isAskingProduct) {
-          relevantProducts = await aiService.intelligentSearch(message, 10); // Lấy nhiều hơn để lọc
+      // 3. RAG: Lấy ngữ cảnh sản phẩm (Semantic Search)
+      if (!isAskingNonProduct || isAskingProduct || msgLower.match(/\d+\s*(tr|triệu|k|đ)/)) {
+          relevantProducts = await aiService.intelligentSearch(message, 10, contextCategoryId); 
+          
           if (relevantProducts.length > 0) {
-            // Lọc để các gợi ý liên quan đến cùng 1 danh mục chính nếu query có vẻ tập trung
             const topCategory = relevantProducts[0].categoryId;
             relevantProducts = relevantProducts
               .filter(p => p.categoryId === topCategory)
-              .slice(0, 5); // Chỉ giữ lại 5 thẻ cùng loại
+              .slice(0, 5);
 
             productContext = '--- DANH SÁCH SẢN PHẨM PHÙ HỢP TÌM KIẾM ---\n' + relevantProducts.map(p => {
-            const minP = p.variants?.length > 0 ? Math.min(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
-            const maxP = p.variants?.length > 0 ? Math.max(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
-            const formattedPrice = minP === maxP 
-              ? `${minP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} triệu)` 
-              : `${minP.toLocaleString('vi-VN')} - ${maxP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} - ${(maxP/1000000).toFixed(2)} triệu)`;
-            
-            const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
-            const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
-            return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}... | ${stockStatus} | Link: /product/${p.slug}`;
-          }).join('\n');
-        }
+              const minP = p.variants?.length > 0 ? Math.min(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+              const maxP = p.variants?.length > 0 ? Math.max(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+              const formattedPrice = minP === maxP 
+                ? `${minP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} triệu)` 
+                : `${minP.toLocaleString('vi-VN')} - ${maxP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} - ${(maxP/1000000).toFixed(2)} triệu)`;
+              
+              const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
+              const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
+              return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}... | ${stockStatus} | Link: /product/${p.slug}`;
+            }).join('\n');
+          }
       }
 
-      // 3. Context: Danh mục sản phẩm - LUÔN CUNG CẤP
+      // 4. Context: Danh mục
       const allCategories = await prisma.category.findMany({
         where: { isDeleted: false },
-        select: { name: true, slug: true, _count: { select: { products: { where: { isDeleted: false } } } } }
+        select: { name: true, _count: { select: { products: { where: { isDeleted: false } } } } }
       });
-      categoryContext = '\n--- DANH MỤC SẢN PHẨM ---\n' + allCategories.map(c =>
-        `- ${c.name}: ${c._count.products} sản phẩm (Xem: /shop?categoryId=...)`
-      ).join('\n');
+      categoryContext = '\n--- DANH MỤC SẢN PHẨM ---\n' + allCategories.map(c => `- ${c.name}: ${c._count.products} sản phẩm`).join('\n');
 
-      // 3.5. Context: Sản phẩm bán chạy
-      const trendingKeywords = ['bán chạy', 'hot', 'phổ biến', 'nhiều người mua', 'top', 'best seller'];
-      if (trendingKeywords.some(k => msgLower.includes(k))) {
+      // 5. Context: Bán chạy
+      if (['bán chạy', 'hot', 'top'].some(k => msgLower.includes(k))) {
         const topProducts = await productService.getHotProducts(5);
         if (topProducts.length > 0) {
-          productContext += '\n\n--- DANH SÁCH SẢN PHẨM BÁN CHẠY NHẤT HỆ THỐNG ---\n' + topProducts.map((p: any, idx: number) => {
-             const priceRange = p.variants?.length > 1
-              ? `${Math.min(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} - ${Math.max(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} VNĐ`
-              : `${(p.minPrice || 0).toLocaleString('vi-VN')} VNĐ`;
-             return `[TOP ${idx+1}] - ${p.name} | Giá: ${priceRange} | Đã bán: ${p.soldCount || 0} | Đánh giá: ${p.averageRating || 0}⭐ | Link: /product/${p.slug}`;
-          }).join('\n');
-          
-          // Đưa sản phẩm bán chạy lên đầu mảng relevantProducts để hiển thị card trong UI
-          for (let i = topProducts.length - 1; i >= 0; i--) {
-             const tp = topProducts[i];
-             // Loại bỏ nếu đã có trong mảng để đưa lên đầu
-             relevantProducts = relevantProducts.filter(rp => rp.id !== tp.id);
-             relevantProducts.unshift(tp);
-          }
-          relevantProducts = relevantProducts.slice(0, 5); // Giữ tối đa 5 thẻ
+          productContext += '\n\n--- BÁN CHẠY ---\n' + topProducts.map(p => `${p.name} | Đã bán: ${p.soldCount}`).join('\n');
+          relevantProducts = [...new Set([...topProducts, ...relevantProducts])].slice(0, 5);
         }
       }
 
-      // 3.6. Context: Sản phẩm đánh giá cao
-      const topRatedKeywords = ['đánh giá cao', 'rating cao', 'tốt nhất', 'được yêu thích', 'nhiều sao', 'nhiều đánh giá'];
-      if (topRatedKeywords.some(k => msgLower.includes(k))) {
-        const topRatedProducts = await productService.getTopRatedProducts(5);
-        if (topRatedProducts.length > 0) {
-          productContext += '\n\n--- DANH SÁCH SẢN PHẨM ĐƯỢC ĐÁNH GIÁ CAO NHẤT ---\n' + topRatedProducts.map((p: any, idx: number) => {
-             const priceRange = p.variants?.length > 1
-              ? `${Math.min(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} - ${Math.max(...p.variants.map((v: any) => Number(v.price))).toLocaleString('vi-VN')} VNĐ`
-              : `${(p.minPrice || 0).toLocaleString('vi-VN')} VNĐ`;
-             return `[ĐÁNH GIÁ CAO ${idx+1}] - ${p.name} | Giá: ${priceRange} | Đánh giá: ${p.averageRating || 0}⭐ (${p.totalReviews || 0} lượt) | Đã bán: ${p.soldCount || 0} | Link: /product/${p.slug}`;
-          }).join('\n');
-          
-          // Đưa sản phẩm đánh giá cao lên đầu mảng relevantProducts để hiển thị card trong UI
-          for (let i = topRatedProducts.length - 1; i >= 0; i--) {
-             const tp = topRatedProducts[i];
-             relevantProducts = relevantProducts.filter(rp => rp.id !== tp.id);
-             relevantProducts.unshift(tp);
-          }
-          relevantProducts = relevantProducts.slice(0, 5);
-        }
+      // 6. Context: Voucher
+      if (['giảm giá', 'voucher', 'khuyến mãi'].some(k => msgLower.includes(k))) {
+        const vouchers = await prisma.voucher.findMany({ where: { isActive: true, endDate: { gte: new Date() } }, take: 5 });
+        voucherContext = vouchers.length > 0 ? '\n--- VOUCHER ---\n' + vouchers.map(v => `- ${v.code}: Giảm ${v.discountValue}`).join('\n') : '';
       }
 
-      // 4. Context: Voucher / Khuyến mãi
-      const voucherKeywords = ['giảm giá', 'voucher', 'khuyến mãi', 'mã giảm', 'code', 'ưu đãi', 'sale', 'coupon', 'mã', 'giá rẻ', 'tiết kiệm'];
-      if (voucherKeywords.some(k => msgLower.includes(k))) {
-        const activeVouchers = await prisma.voucher.findMany({
-          where: { isActive: true, endDate: { gte: new Date() } },
-          take: 10
-        });
-        voucherContext = activeVouchers.length > 0
-          ? '\n--- MÃ GIẢM GIÁ ĐANG CÓ ---\n' + activeVouchers.map((v: any) =>
-              `- Mã: "${v.code}" → Giảm ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Điều kiện: Đơn từ ${Number(v.minOrderValue || 0).toLocaleString()}đ | Giảm tối đa: ${v.maxDiscount ? Number(v.maxDiscount).toLocaleString() + 'đ' : 'Không giới hạn'} | Còn ${v.usageLimit - v.usedCount} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')}`
-            ).join('\n')
-          : '\nHiện tại chưa có mã giảm giá mới. Bạn có thể theo dõi trang web để nhận ưu đãi sớm nhất!';
+      // 7. Context: Đơn hàng
+      if (userId && ['đơn hàng', 'mua'].some(k => msgLower.includes(k))) {
+        const orders = await prisma.order.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 3, include: { items: { include: { product: true } } } });
+        orderContext = orders.length > 0 ? '\n--- ĐƠN HÀNG ---\n' + orders.map(o => `- #${o.id.slice(0,8)}: ${o.status}`).join('\n') : '';
       }
 
-      // 5. Context: Đơn hàng của khách
-      const orderKeywords = ['đơn hàng', 'đơn', 'mua', 'lịch sử', 'trạng thái đơn', 'vận chuyển', 'giao hàng', 'theo dõi', 'đã đặt', 'order', 'hủy đơn', 'trả hàng'];
-      if (userId && orderKeywords.some(k => msgLower.includes(k))) {
-        const recentOrders = await prisma.order.findMany({
-          where: { userId },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          include: {
-            items: { include: { product: { select: { name: true } }, variant: { select: { name: true } } } },
-            payment: { select: { method: true, status: true } }
-          }
-        });
-        const { translateOrderStatus, translatePaymentStatus } = require('../../../utils/status-mapper');
-        orderContext = recentOrders.length > 0
-          ? '\n--- ĐƠN HÀNG GẦN ĐÂY CỦA BẠN ---\n' + recentOrders.map((o: any) =>
-              `- Đơn #${String(o.id).slice(0, 8)}: ${translateOrderStatus(o.status)} | Sản phẩm: ${o.items.map((i: any) => `${i.product.name} (${i.variant.name}) x${i.quantity}`).join(', ')} | Tổng: ${Number(o.totalAmount).toLocaleString()}đ | Thanh toán: ${o.payment ? `${o.payment.method} - ${translatePaymentStatus(o.payment.status)}` : 'Chưa thanh toán'} | Ngày đặt: ${new Date(o.createdAt).toLocaleDateString('vi-VN')}`
-            ).join('\n')
-          : '\nBạn chưa có đơn hàng nào. Hãy khám phá cửa hàng tại /shop!';
-      }
-
-      // 6. Context: Reviews / Đánh giá
-      const reviewKeywords = ['đánh giá', 'review', 'nhận xét', 'feedback', 'rating', 'sao', 'chất lượng', 'tốt không', 'có nên mua'];
-      if (reviewKeywords.some(k => msgLower.includes(k))) {
-        // Get reviews for relevant products
-        const productIds = relevantProducts.map(p => p.id);
-        if (productIds.length > 0) {
-          const reviews = await prisma.review.findMany({
-            where: { productId: { in: productIds } },
-            include: { user: { select: { name: true } }, product: { select: { name: true } } },
-            orderBy: { createdAt: 'desc' },
-            take: 8
-          });
-          if (reviews.length > 0) {
-            reviewContext = '\n--- ĐÁNH GIÁ TỪ KHÁCH HÀNG ---\n' + reviews.map(r =>
-              `- "${r.product.name}": ${r.rating}⭐ bởi ${r.user.name} - "${r.comment || 'Không có bình luận'}" (${new Date(r.createdAt).toLocaleDateString('vi-VN')})`
-            ).join('\n');
-          }
-        }
-      }
-
-      // 7. Context: Thanh toán
-      const paymentKeywords = ['thanh toán', 'payment', 'trả tiền', 'chuyển khoản', 'cod', 'momo', 'vnpay', 'visa', 'thẻ'];
-      if (paymentKeywords.some(k => msgLower.includes(k))) {
-        paymentContext = '\n--- PHƯƠNG THỨC THANH TOÁN ---\n' +
-          '- COD (Thanh toán khi nhận hàng): Miễn phí, áp dụng toàn quốc\n' +
-          '- Chuyển khoản ngân hàng: Xác nhận trong 5-15 phút\n' +
-          '- Ví MoMo/VNPay: Thanh toán nhanh, xác nhận tức thì\n' +
-          '- Thẻ VISA/Mastercard: Thanh toán quốc tế\n' +
-          'Lưu ý: Tất cả giao dịch đều được mã hóa SSL và bảo mật tuyệt đối.';
-      }
-
-      // 8. Context: Hỗ trợ / Support tickets
-      const supportKeywords = ['hỗ trợ', 'support', 'khiếu nại', 'phản ánh', 'ticket', 'liên hệ', 'giúp đỡ', 'vấn đề'];
-      if (userId && supportKeywords.some(k => msgLower.includes(k))) {
-        const tickets = await prisma.supportTicket.findMany({
-          where: { userId },
-          orderBy: { updatedAt: 'desc' },
-          take: 3,
-          include: { _count: { select: { messages: true } } }
-        });
-        supportContext = tickets.length > 0
-          ? '\n--- TICKET HỖ TRỢ CỦA BẠN ---\n' + tickets.map(t =>
-              `- Ticket "${t.subject}": Trạng thái ${t.status === 'OPEN' ? '🟢 Đang xử lý' : t.status === 'CLOSED' ? '🔴 Đã đóng' : '🟡 ' + t.status} | ${t._count.messages} tin nhắn | Cập nhật: ${new Date(t.updatedAt).toLocaleDateString('vi-VN')}`
-            ).join('\n') +
-            '\nĐể tạo ticket mới hoặc xem chi tiết, vui lòng truy cập /profile/support'
-          : '\nBạn chưa có ticket hỗ trợ nào. Nếu cần giúp đỡ, hãy tạo ticket tại /profile/support hoặc hỏi trực tiếp em nhé!';
-      }
-
-      // 9. Context: Tồn kho (nếu hỏi về có hàng không)
-      const stockKeywords = ['còn hàng', 'hết hàng', 'tồn kho', 'có hàng', 'stock', 'mua được không', 'đặt hàng được'];
-      if (stockKeywords.some(k => msgLower.includes(k)) && relevantProducts.length > 0) {
-        stockContext = '\n--- TÌNH TRẠNG KHO ---\n' + relevantProducts.map(p => {
-          const variants = p.variants || [];
-          return variants.map((v: any) =>
-            `- ${p.name} (${v.name}): ${v.stock > 0 ? `Còn ${v.stock} sản phẩm` : '⛔ Hết hàng'} | Giá: ${Number(v.price).toLocaleString()}đ`
-          ).join('\n');
-        }).join('\n');
-      }
-
-    } catch (ragError) {
-      console.warn('⚠️ RAG Enhancement Failed, continuing with basic chat:', ragError);
+    } catch (ragError: any) {
+      console.warn('⚠️ RAG Error:', ragError.message);
     }
 
-    // 10. Lấy lịch sử hội thoại (7 tin nhắn gần nhất)
-    let history: any[] = [];
-    if (userId) {
-      history = await prisma.chatMessage.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 7
-      });
-      history.reverse();
-    }
+    // 10. Lịch sử hội thoại đã được lấy ở trên
 
     // 11. System Prompt toàn diện
     const systemPrompt = `
@@ -243,12 +136,13 @@ ${stockContext}
 
 QUY TẮC BẮT BUỘC (QUAN TRỌNG):
 1. Luôn trả lời bằng tiếng Việt, lịch sự, thân thiện.
-2. Kiểm tra kỹ DANH SÁCH SẢN PHẨM PHÙ HỢP. Nếu có sản phẩm trong danh sách khớp với tầm giá khách hỏi, TUYỆT ĐỐI không được nói "không tìm thấy" hoặc "chưa có".
-3. Khi giới thiệu sản phẩm, hãy nêu tên và giá (triệu đồng) để khách dễ nắm bắt.
-4. LUÔN kèm link "/product/slug" cho mỗi sản phẩm được nhắc đến.
-5. Nếu thực sự không có sản phẩm nào khớp, hãy gợi ý các sản phẩm cùng danh mục có giá gần nhất.
-6. Trả lời ngắn gọn, dứt khoát. Sử dụng emoji thân thiện (😊, 🛒, ⭐).
-7. Tuyệt đối không bịa đặt thông số hoặc giá sản phẩm không có trong dữ liệu.
+2. KIỂM TRA KỸ DANH SÁCH SẢN PHẨM PHÙ HỢP BÊN DƯỚI. Bạn CHỈ ĐƯỢC PHÉP tư vấn các sản phẩm có trong danh sách này cho câu trả lời hiện tại. Tuyệt đối không lấy lại sản phẩm từ lịch sử nếu nó không xuất hiện trong danh sách mới (vì có thể nó không khớp với bộ lọc giá/tính năng mới của khách).
+3. Nếu danh sách sản phẩm trống, hãy nói: "Dạ, hiện em chưa tìm thấy sản phẩm nào đúng yêu cầu này của Sếp, Sếp thử điều chỉnh lại tầm giá hoặc từ khóa xem sao ạ".
+4. Khi giới thiệu sản phẩm, hãy nêu tên và giá (triệu đồng) để khách dễ nắm bắt.
+5. LUÔN kèm link "/product/slug" cho mỗi sản phẩm được nhắc đến.
+6. Nếu thực sự không có sản phẩm nào khớp, hãy gợi ý các sản phẩm cùng danh mục có giá gần nhất.
+7. Trả lời ngắn gọn, dứt khoát. Sử dụng emoji thân thiện (😊, 🛒, ⭐).
+8. Tuyệt đối không bịa đặt thông số hoặc giá sản phẩm không có trong dữ liệu.
 
 VÍ DỤ TRẢ LỜI TỐT:
 - Hỏi "máy lạnh nào tốt?": Gợi ý 2-3 sản phẩm kèm giá, rating, link. So sánh ngắn gọn.

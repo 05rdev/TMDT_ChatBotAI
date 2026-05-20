@@ -149,13 +149,7 @@ export class AIService {
     if (q.includes('đánh giá cao') || q.includes('tốt nhất')) filters.sort = 'top_rated';
     if (q.includes('mới nhất') || q.includes('vừa về')) filters.sort = 'newest';
 
-    // Category fallback
-    if (q.includes('tivi') || q.includes('television')) filters.category = 'Tivi';
-    if (q.includes('máy lọc nước')) filters.category = 'Máy lọc nước';
-    if (q.includes('tủ lạnh')) filters.category = 'Tủ lạnh';
-    if (q.includes('máy giặt')) filters.category = 'Máy giặt';
-    if (q.includes('máy lạnh') || (q.includes('điều hòa') && !q.includes('quạt'))) filters.category = 'Máy lạnh';
-    if (q.includes('quạt điều hòa') || q.includes('máy làm mát')) filters.category = 'Quạt điều hòa';
+    // Category fallback (Sẽ được xử lý động trong intelligentSearch)
 
     return filters;
   }
@@ -184,6 +178,7 @@ export class AIService {
    * TÌM KIẾM THÔNG MINH (Hybrid Search)
    */
   async intelligentSearch(query: string, limit: number = 20, categoryId?: string) {
+    const msgLower = query.toLowerCase();
     console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'})`);
 
     // 1. Phân tích ý định người dùng
@@ -199,6 +194,17 @@ export class AIService {
       }
     }
     aiFilters = mergedFilters;
+    
+    // 1.5. TỰ ĐỘNG NHẬN DIỆN DANH MỤC TỪ DATABASE (Thay vì fix cứng trong code)
+    if (!aiFilters.category) {
+      const categories = await prisma.category.findMany({ where: { isDeleted: false }, select: { name: true } });
+      for (const cat of categories) {
+        if (msgLower.includes(cat.name.toLowerCase())) {
+          aiFilters.category = cat.name;
+          break;
+        }
+      }
+    }
     
     console.log('Final Filters:', JSON.stringify(aiFilters));
 

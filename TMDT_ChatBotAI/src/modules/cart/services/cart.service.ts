@@ -14,6 +14,8 @@ export class CartService {
             id: true,
             name: true,
             slug: true,
+            isActive: true,
+            isDeleted: true,
             images: { where: { isPrimary: true }, take: 1 }
           }
         },

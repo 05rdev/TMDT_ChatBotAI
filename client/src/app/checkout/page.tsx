@@ -49,7 +49,10 @@ function CheckoutContent() {
         
         // Kiểm tra xem có sản phẩm nào không khả dụng không
         const invalidItems = filteredItems.filter((item: any) => 
-          (item.variant?.stock || 0) < item.quantity || !item.product?.isActive
+          (item.variant?.stock || 0) < item.quantity || 
+          !item.product || 
+          item.product.isActive === false || 
+          item.product.isDeleted === true
         );
 
         if (invalidItems.length > 0) {
@@ -247,7 +250,10 @@ function CheckoutContent() {
                 orderItems.map((item: any) => {
                   const image = item.product?.images?.[0]?.url || '';
                   const price = item.variant?.price ? Number(item.variant.price) : 0;
-                  const isInvalid = (item.variant?.stock || 0) < item.quantity || !item.product?.isActive;
+                  const isInvalid = !item.product || 
+                                    item.product.isDeleted === true || 
+                                    item.product.isActive === false || 
+                                    (item.variant?.stock || 0) < item.quantity;
                   
                   return (
                     <div key={item.id} className={`flex items-center space-x-3 p-2 rounded-lg ${isInvalid ? 'bg-rose-50 border border-rose-100' : ''}`}>
@@ -261,11 +267,11 @@ function CheckoutContent() {
                          )}
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h5 className={`text-sm font-semibold line-clamp-1 ${isInvalid ? 'text-rose-600' : 'text-foreground'}`}>{item.product?.name}</h5>
+                         <h5 className={`text-sm font-semibold line-clamp-1 ${isInvalid ? 'text-rose-600' : 'text-foreground'}`}>{item.product?.name || 'Sản phẩm không tồn tại'}</h5>
                          <p className="text-xs text-muted-foreground mt-0.5">{price.toLocaleString('vi-VN')}đ</p>
                          {isInvalid && (
                            <p className="text-[10px] text-rose-500 font-bold uppercase mt-0.5">
-                             {!item.product?.isActive ? 'Ngừng kinh doanh' : 'Hết hàng'}
+                             {!item.product || item.product.isDeleted ? 'Sản phẩm không tồn tại' : item.product.isActive === false ? 'Ngừng kinh doanh' : 'Hết hàng'}
                            </p>
                          )}
                        </div>

@@ -42,8 +42,14 @@ export class AdminChatbotService {
       productCount,
       totalOrders,
       ordersToday,
+      ordersPendingToday,
+      ordersProcessingToday,
+      ordersShippedToday,
+      ordersDeliveredToday,
+      ordersCancelledToday,
       ordersPending,
       ordersProcessing,
+      ordersShipped,
       revenueTotal,
       revenueToday,
       revenueThisWeek,
@@ -57,8 +63,14 @@ export class AdminChatbotService {
       prisma.product.count({ where: { isDeleted: false } }),
       prisma.order.count(),
       prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'PENDING', createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'PROCESSING', createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'SHIPPED', createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'DELIVERED', createdAt: { gte: todayStart } } }),
+      prisma.order.count({ where: { status: 'CANCELLED', createdAt: { gte: todayStart } } }),
       prisma.order.count({ where: { status: 'PENDING' } }),
       prisma.order.count({ where: { status: 'PROCESSING' } }),
+      prisma.order.count({ where: { status: 'SHIPPED' } }),
       prisma.order.aggregate({ where: { status: 'DELIVERED' }, _sum: { totalAmount: true } }),
       prisma.order.aggregate({ where: { status: 'DELIVERED', createdAt: { gte: todayStart } }, _sum: { totalAmount: true } }),
       prisma.order.aggregate({ where: { status: 'DELIVERED', createdAt: { gte: weekStart } }, _sum: { totalAmount: true } }),
@@ -71,15 +83,16 @@ export class AdminChatbotService {
 
     let overviewContext = `
 📊 THỐNG KÊ TỔNG QUAN:
-- Tổng khách hàng (active): ${userCount} | Mới hôm nay: ${newUsersToday} | Mới tuần này: ${newUsersThisWeek}
-- Tổng sản phẩm (active): ${productCount}
-- Tổng đơn hàng: ${totalOrders} | Hôm nay: ${ordersToday} | Chờ duyệt (PENDING): ${ordersPending} | Đang gói (PROCESSING): ${ordersProcessing}
-- 💰 Doanh thu (giao thành công): Tổng: ${fmt(revenueTotal)}đ | Hôm nay: ${fmt(revenueToday)}đ | Tuần: ${fmt(revenueThisWeek)}đ | Tháng: ${fmt(revenueThisMonth)}đ
+- Khách hàng: Tổng: ${userCount} | Mới hôm nay: ${newUsersToday} | Tuần này: ${newUsersThisWeek}
+- Sản phẩm (active): ${productCount}
+- ĐƠN HÀNG HÔM NAY: Tổng: ${ordersToday} | Chờ duyệt: ${ordersPendingToday} | Đang gói: ${ordersProcessingToday} | Đang giao: ${ordersShippedToday} | Hoàn tất: ${ordersDeliveredToday} | Đã hủy: ${ordersCancelledToday}
+- TỔNG ĐANG XỬ LÝ (Toàn hệ thống): Chờ duyệt: ${ordersPending} | Đang gói: ${ordersProcessing} | Đang giao: ${ordersShipped}
+- 💰 DOANH THU (Chỉ tính DELIVERED): Tổng: ${fmt(revenueTotal)}đ | Hôm nay: ${fmt(revenueToday)}đ | Tuần: ${fmt(revenueThisWeek)}đ | Tháng: ${fmt(revenueThisMonth)}đ
 - Ticket hỗ trợ đang mở: ${pendingTickets}
-- Tổng đánh giá: ${totalReviews}`;
+- Tổng đánh giá: ${totalReviews} (Rating trung bình: ${fmt(totalReviews)})`;
 
     // ====== ĐƠN HÀNG CHI TIẾT (Lấy nhiều hơn để AI có context) ======
-    const [latestOrders, pendingOrders, processingOrders] = await Promise.all([
+    const [latestOrders, pendingOrders, processingOrders, shippedOrders, ordersTodayList] = await Promise.all([
       prisma.order.findMany({
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -90,31 +103,52 @@ export class AdminChatbotService {
         }
       }),
       prisma.order.findMany({
-        where: { status: 'PENDING' },
+        where: { status: 'PENDING', createdAt: { lt: todayStart } },
         take: 10,
         include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
       }),
       prisma.order.findMany({
-        where: { status: 'PROCESSING' },
+        where: { status: 'PROCESSING', createdAt: { lt: todayStart } },
         take: 10,
+        include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
+      }),
+      prisma.order.findMany({
+        where: { status: 'SHIPPED' },
+        take: 10,
+        include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
+      }),
+      prisma.order.findMany({
+        where: { createdAt: { gte: todayStart } },
+        orderBy: { createdAt: 'desc' },
         include: { user: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } }
       })
     ]);
 
     const { translateOrderStatus, translatePaymentStatus } = require('../../../utils/status-mapper');
     
-    let ordersContext = '\n📦 DANH SÁCH ĐƠN HÀNG CHI TIẾT:\n' + latestOrders.map(o =>
-      `- #${o.id.slice(0, 8)}: ${(o as any).user.name} | ${translateOrderStatus(o.status)} | ${Number(o.totalAmount).toLocaleString()}đ | SP: ${o.items.map((i: any) => i.product.name).join(', ')} | ${new Date(o.createdAt).toLocaleString('vi-VN')}`
+    let ordersContext = '\n📦 DANH SÁCH ĐƠN HÀNG HÔM NAY (MỚI PHÁT SINH):\n' + 
+      (ordersTodayList.length > 0 
+        ? ordersTodayList.map(o => `- Đơn #${o.id.slice(0, 8)} | Khách hàng: ${o.user.name} | Trạng thái: ${translateOrderStatus(o.status)} | Giá trị: ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`).join('\n')
+        : '- Chưa có đơn hàng nào phát sinh trong hôm nay.');
+
+    ordersContext += '\n\n📦 DANH SÁCH ĐƠN HÀNG GẦN ĐÂY (TỔNG HỢP):\n' + latestOrders.map(o =>
+      `- Đơn #${o.id.slice(0, 8)} | Khách hàng: ${o.user.name} | Trạng thái: ${translateOrderStatus(o.status)} | Giá trị: ${Number(o.totalAmount).toLocaleString()}đ | SP: ${o.items.map((i: any) => i.product.name).join(', ')} | Ngày đặt: ${new Date(o.createdAt).toLocaleString('vi-VN')}`
     ).join('\n');
 
     if (pendingOrders.length > 0) {
-      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN CHỜ DUYỆT (PENDING):\n' + pendingOrders.map(o => 
+      ordersContext += '\n\n🔍 ĐƠN TỒN ĐỌNG CHỜ DUYỆT (TỪ TRƯỚC HÔM NAY):\n' + pendingOrders.map(o => 
         `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
       ).join('\n');
     }
 
     if (processingOrders.length > 0) {
       ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GÓI (PROCESSING):\n' + processingOrders.map(o => 
+        `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
+      ).join('\n');
+    }
+    
+    if (shippedOrders.length > 0) {
+      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GIAO (SHIPPED):\n' + shippedOrders.map(o => 
         `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
       ).join('\n');
     }
@@ -126,10 +160,10 @@ export class AdminChatbotService {
       include: { product: { select: { name: true } } },
       orderBy: { stock: 'asc' }
     });
-    let stockContext = '\n⚠️ CẢNH BÁO KHO (Dưới 10 sản phẩm):\n' +
+    let stockContext = '\n⚠️ CẢNH BÁO HÀNG TỒN KHO THẤP (Dưới 10 chiếc):\n' +
       (lowStockProducts.length > 0
-        ? lowStockProducts.map(p => `- ${p.product.name} (${p.name}): Còn ${p.stock} | SKU: ${p.sku}`).join('\n')
-        : '- ✅ Tất cả sản phẩm đều đủ hàng.');
+        ? lowStockProducts.map(p => `- Sản phẩm: ${p.product.name} | Phiên bản: ${p.name} | SKU: ${p.sku} | SỐ LƯỢNG CÒN LẠI: ${p.stock} chiếc`).join('\n')
+        : '- ✅ Hiện tại không có sản phẩm nào ở mức báo động (tất cả đều > 10).');
 
     // ====== TOP SẢN PHẨM BÁN CHẠY ======
     let topProductsContext = '';
@@ -172,12 +206,12 @@ export class AdminChatbotService {
         orderBy: { usedCount: 'desc' },
         take: 10
       });
-      voucherContext = '\n🎟️ VOUCHER ĐANG HOẠT ĐỘNG:\n' +
+      voucherContext = '\n🎟️ DANH SÁCH MÃ GIẢM GIÁ (VOUCHER):\n' +
         (activeVouchers.length > 0
           ? activeVouchers.map(v =>
-              `- "${v.code}": Giảm ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Đã dùng: ${v.usedCount}/${v.usageLimit} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')} | ${new Date(v.endDate) < now ? '⛔ Hết hạn' : '✅ Còn hiệu lực'}`
+              `- Mã: "${v.code}" | Hình thức: ${v.discountType === 'PERCENT' ? 'Giảm theo %' : 'Giảm số tiền cố định'} | Giá trị: ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Đã dùng: ${v.usedCount}/${v.usageLimit} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')} | Trạng thái: ${new Date(v.endDate) < now ? 'Hết hạn' : 'Đang hoạt động'}`
             ).join('\n')
-          : '- Chưa có voucher nào đang hoạt động.');
+          : '- Chưa có voucher nào trong hệ thống.');
     }
 
     // ====== DOANH THU THEO DANH MỤC ======
@@ -234,20 +268,24 @@ QUY TẮC ADMIN ASSISTANT:
 2. Trả lời DỰA TRÊN SỐ LIỆU THỰC TẾ TRONG NGỮ CẢNH HIỆN TẠI. Tuyệt đối không bịa đặt.
 3. THỜI GIAN THỰC: Dữ liệu này vừa được truy xuất lúc ${now.toLocaleString('vi-VN')}. 
    => Nếu số liệu này khác với những gì đã nói ở tin nhắn trước, Sếp phải hiểu đây mới là số liệu mới nhất.
-4. QUY ƯỚC TRẠNG THÁI ĐƠN HÀNG:
-   - PENDING: Chờ duyệt
-   - PROCESSING: Đang gói (Sếp thường gọi là "đang gói")
+4. QUY ƯỚC TRẠNG THÁI ĐƠN HÀNG (BẮT BUỘC):
+   - PENDING: Chờ duyệt (Đây là đơn MỚI, CHƯA thanh toán/xử lý)
+   - PROCESSING: Đang gói
    - SHIPPED: Đang giao hàng
-   - DELIVERED: Hoàn tất
+   - DELIVERED: Hoàn tất (Sếp gọi là "Giao thành công")
    - CANCELLED: Đã hủy
-   => Nếu khách hỏi "đang gói", hãy dùng số liệu của "Đang gói (PROCESSING)".
+   => LƯU Ý MÚI GIỜ: Database lưu giờ UTC. Giờ Việt Nam = UTC + 7. 
+   => LƯU Ý BÁO CÁO: 
+      + "Hôm nay" là các đơn có trong mục "DANH SÁCH ĐƠN HÀNG HÔM NAY".
+      + Tuyệt đối không nhầm lẫn đơn tồn đọng (từ các ngày trước) là đơn của hôm nay.
+   => TUYỆT ĐỐI không báo cáo đơn "Chờ duyệt" là "Giao thành công".
 5. Khi được hỏi phân tích, hãy:
    - Chỉ ra xu hướng (tăng/giảm so với kỳ trước)
-   - Đưa ra GỢI Ý HÀNH ĐỘNG cụ thể (VD: "Nên nhập thêm hàng cho SP X", "Cần phản hồi ticket")
-   - Cảnh báo rủi ro nếu có
+   - Đưa ra GỢI Ý HÀNH ĐỘNG cụ thể.
 6. Format trả lời rõ ràng, dùng bullet points, emoji vừa phải.
 7. Nếu được hỏi về thông tin không có trong dữ liệu, nói rõ "Dạ thưa Sếp, hiện em chưa thấy thông tin chi tiết về phần này trong hệ thống ạ".
-8. Chủ động cảnh báo nếu phát hiện: Hàng sắp hết, đơn chờ xử lý nhiều, đánh giá thấp.
+8. CHỦ ĐỘNG CẢNH BÁO: Phải luôn kiểm tra phần "CẢNH BÁO HÀNG TỒN KHO THẤP". Nếu có sản phẩm trong đó, phải liệt kê rõ Tên sản phẩm, SKU và SỐ LƯỢNG CÒN LẠI chính xác. Tuyệt đối không được nói là "không có thông tin cụ thể".
+9. ĐẶC BIỆT LƯU Ý VỀ TÊN KHÁCH HÀNG: Mỗi đơn hàng trong danh sách có thể thuộc về các khách hàng khác nhau. Phải đối chiếu đúng Tên khách hàng đi kèm với mã đơn hàng tương ứng, TUYỆT ĐỐI không được gán tên của đơn này cho đơn khác.
 
 CÁC LOẠI CÂU HỎI THƯỜNG GẶP:
 - "Doanh thu hôm nay?" → Báo cáo doanh thu chi tiết

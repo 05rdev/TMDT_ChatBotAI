@@ -7,10 +7,13 @@ export interface CartItem {
   productId: string;
   productVariantId?: string;
   name: string;
+  slug?: string;
   price: number;
   quantity: number;
   image: string;
   variant: string;
+  stock?: number;
+  isActive?: boolean;
 }
 
 interface CartStore {

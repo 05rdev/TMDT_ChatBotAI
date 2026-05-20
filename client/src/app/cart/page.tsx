@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Trash2, Plus, Minus, ArrowRight, ShoppingCart, Sparkles, Bot, Loader2, Info } from 'lucide-react';
-import { useCartStore } from '@/store/useCartStore';
+import { useCartStore, CartItem } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { T } from '@/components/T';
@@ -103,22 +103,22 @@ export default function CartPage() {
     );
   }
 
-  const items = user ? serverCart.map(item => ({
+  const items: CartItem[] = user ? serverCart.map(item => ({
     id: item.id,
     productId: item.productId,
     productVariantId: item.productVariantId,
-    name: item.product?.name,
-    price: item.variant?.price || 0,
+    name: item.product?.name || 'Sản phẩm không còn tồn tại',
+    slug: item.product?.slug,
+    price: Number(item.variant?.price || 0),
     quantity: item.quantity,
-    image: item.product?.images?.[0]?.url,
-    variant: item.variant?.name,
-    stock: item.variant?.stock || 0,
-    isActive: item.product?.isActive ?? true
+    image: item.product?.images?.[0]?.url || '',
+    variant: item.variant?.name || '',
+    stock: item.variant?.stock ?? 0,
+    isActive: item.product ? (item.product.isActive && !item.product.isDeleted) : false
   })) : localCart.items;
 
-  // Kiểm tra xem có sản phẩm nào đang chọn bị hết hàng không
-  const hasOutOfStockSelected = items.some(item => 
-    selectedItems.includes(item.id) && (item.stock < item.quantity || !item.isActive)
+   const hasOutOfStockSelected = items.some(item => 
+    selectedItems.includes(item.id) && ((item.stock ?? 0) < item.quantity || item.isActive === false)
   );
 
   const totalAmount = items
@@ -204,7 +204,7 @@ export default function CartPage() {
 
           <div className="space-y-4">
             {items.map((item) => {
-              const isItemOutOfStock = item.stock < item.quantity || !item.isActive;
+              const isItemOutOfStock = (item.stock ?? 0) < item.quantity || item.isActive === false;
               return (
                 <div key={item.id} className={`card-elevated bg-card p-4 sm:p-5 rounded-[var(--radius-lg)] grid grid-cols-1 sm:grid-cols-12 gap-5 items-center transition-all ${selectedItems.includes(item.id) ? 'border-primary/30 ring-1 ring-primary/10' : 'opacity-80'} ${isItemOutOfStock ? 'bg-rose-50/10' : ''}`}>
                   {/* Checkbox */}
@@ -220,7 +220,7 @@ export default function CartPage() {
 
                   {/* Info */}
                   <div className="col-span-1 sm:col-span-5 flex gap-4">
-                    <Link href={`/product/${item.productId}`} className={`w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden relative ${isItemOutOfStock ? 'grayscale opacity-60' : ''}`}>
+                    <Link href={item.slug ? `/product/${item.slug}` : '#'} className={`w-20 h-20 sm:w-24 sm:h-24 bg-secondary rounded-[var(--radius-md)] flex-shrink-0 flex items-center justify-center overflow-hidden relative ${isItemOutOfStock ? 'grayscale opacity-60' : ''}`}>
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
                       ) : (
@@ -233,7 +233,7 @@ export default function CartPage() {
                       )}
                     </Link>
                     <div className="flex flex-col justify-center min-w-0">
-                      <Link href={`/product/${item.productId}`} className={`font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug ${isItemOutOfStock ? 'text-muted-foreground' : ''}`}>
+                      <Link href={item.slug ? `/product/${item.slug}` : '#'} className={`font-semibold text-base text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug ${isItemOutOfStock ? 'text-muted-foreground' : ''}`}>
                         <T>{item.name}</T>
                       </Link>
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -263,7 +263,7 @@ export default function CartPage() {
                       <span className="w-10 text-center font-medium text-sm">{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.id, item.productVariantId || '', item.quantity, 1)} 
-                        disabled={item.stock <= item.quantity || !item.isActive}
+                        disabled={(item.stock ?? 0) <= item.quantity || item.isActive === false}
                         className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-card text-foreground hover:text-primary transition-colors shadow-sm disabled:opacity-50"
                       >
                         <Plus className="w-3.5 h-3.5" />
