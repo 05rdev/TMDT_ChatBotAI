@@ -76,6 +76,7 @@ model Product {
   variants    ProductVariant[]
   reviews     Review[]
   behaviors   UserBehavior[]
+  attributes  ProductAttribute[]
 
   @@index([slug])
 }
@@ -105,6 +106,19 @@ model ProductImage {
   product        Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
+}
+
+model ProductAttribute {
+  id        String  @id @default(uuid())
+  productId String
+  key       String
+  value     String
+  unit      String?
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@index([productId])
+  @@index([key, value])
 }
 
 model Order {

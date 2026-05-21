@@ -80,7 +80,13 @@ export class ChatbotService {
               
               const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
               const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
-              return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}... | ${stockStatus} | Link: /product/${p.slug}`;
+              
+              // Format attributes
+              const attrStr = p.attributes && Array.isArray(p.attributes) && p.attributes.length > 0
+                ? ' | Thông số: ' + p.attributes.map((a: any) => `${a.key}: ${a.value}${a.unit ? a.unit : ''}`).join(', ')
+                : '';
+              
+              return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}...${attrStr} | ${stockStatus} | Link: /product/${p.slug}`;
             }).join('\n');
           }
       }

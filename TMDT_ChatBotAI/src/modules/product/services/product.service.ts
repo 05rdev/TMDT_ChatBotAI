@@ -273,7 +273,7 @@ export class ProductService {
     });
 
     await this.clearProductCache();
-    
+
     // 🔥 Cập nhật Embedding cho AI (chạy nền hoặc đợi)
     this.syncEmbedding(product.id, name, description).catch(err => console.error('Sync embedding error:', err));
 
@@ -282,7 +282,7 @@ export class ProductService {
 
   async update(id: string, data: any) {
     const { variants, ...productData } = data;
-    
+
     // Chuẩn bị dữ liệu cập nhật
     const updateData: any = { ...productData };
 
@@ -301,7 +301,7 @@ export class ProductService {
     });
 
     await this.clearProductCache();
-    
+
     // 🔥 Cập nhật Embedding cho AI và đồng bộ trạng thái
     // Nếu sản phẩm bị ẩn (isActive: false), AI sẽ tự động bỏ qua khi tìm kiếm nhờ filter ở intelligentSearch
     this.syncEmbedding(product.id, product.name, product.description || '').catch(err => console.error('Sync embedding error:', err));
@@ -318,7 +318,7 @@ export class ProductService {
       const text = EmbeddingHelper.buildProductEmbeddingText({ name, description });
       const embedding = await embeddingHelper.generateEmbedding(text);
       const vectorString = `[${embedding.join(',')}]`;
-      
+
       await prisma.$executeRawUnsafe(
         `UPDATE "Product" SET "embedding" = ${vectorString}::vector WHERE "id" = $1`,
         productId
@@ -330,22 +330,22 @@ export class ProductService {
       });
       if (primaryImage) {
         await this.syncSingleImageEmbedding(primaryImage.id, primaryImage.url);
-        
+
         // Cập nhật luôn vào Product.imageEmbedding để tương thích ngược
         const img = await prisma.productImage.findUnique({ where: { id: primaryImage.id } });
         if (img && (img as any).imageEmbedding) {
-           // Lấy lại từ DB vì syncSingleImageEmbedding dùng raw SQL
-           const imgData: any = await prisma.$queryRawUnsafe(
-             `SELECT "imageEmbedding"::text FROM "ProductImage" WHERE id = $1`,
-             primaryImage.id
-           );
-           if (imgData?.[0]?.imageEmbedding) {
-             await prisma.$executeRawUnsafe(
-               `UPDATE "Product" SET "imageEmbedding" = $1::vector WHERE "id" = $2`,
-               imgData[0].imageEmbedding,
-               productId
-             );
-           }
+          // Lấy lại từ DB vì syncSingleImageEmbedding dùng raw SQL
+          const imgData: any = await prisma.$queryRawUnsafe(
+            `SELECT "imageEmbedding"::text FROM "ProductImage" WHERE id = $1`,
+            primaryImage.id
+          );
+          if (imgData?.[0]?.imageEmbedding) {
+            await prisma.$executeRawUnsafe(
+              `UPDATE "Product" SET "imageEmbedding" = $1::vector WHERE "id" = $2`,
+              imgData[0].imageEmbedding,
+              productId
+            );
+          }
         }
       }
 
@@ -377,6 +377,22 @@ export class ProductService {
   }
 
   async softDelete(id: string) {
+    // 1. Kiểm tra xem sản phẩm có trong đơn hàng nào không
+    const orderItemsCount = await prisma.orderItem.count({
+      where: { productId: id }
+    });
+    if (orderItemsCount > 0) {
+      throw new AppError(400, 'Không thể xóa sản phẩm này vì đã tồn tại trong lịch sử đơn hàng.');
+    }
+
+    // 2. Kiểm tra xem sản phẩm có trong giỏ hàng nào không
+    const cartItemsCount = await prisma.cart.count({
+      where: { productId: id }
+    });
+    if (cartItemsCount > 0) {
+      throw new AppError(400, 'Không thể xóa sản phẩm này vì đang có trong giỏ hàng của người dùng.');
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: { isDeleted: true }
@@ -397,9 +413,11 @@ export class ProductService {
     const imagesData = imageUrls.map(url => ({ productId, url, isPrimary: false }));
     const result = await prisma.productImage.createMany({ data: imagesData });
 
+    await this.clearProductCache();
+
     // 🔥 Chạy nền việc tạo embedding cho các ảnh mới
     const newImages = await prisma.productImage.findMany({
-      where: { productId, url: { in: imageUrls }, imageEmbedding: null }
+      where: { productId, url: { in: imageUrls } }
     });
 
     newImages.forEach(img => {
@@ -421,7 +439,7 @@ export class ProductService {
 
     // Cần lấy thêm include cho enrichProductData
     if (products.length === 0) return [];
-    
+
     const fullProducts = await prisma.product.findMany({
       where: { id: { in: products.map(p => p.id) } },
       include: {
@@ -435,13 +453,17 @@ export class ProductService {
   }
 
   async deleteImage(imageId: string) {
-    return prisma.productImage.delete({ where: { id: imageId } });
+    const result = await prisma.productImage.delete({ where: { id: imageId } });
+    await this.clearProductCache();
+    return result;
   }
 
   async setPrimaryImage(productId: string, imageId: string) {
-    return prisma.$transaction([
+    const result = await prisma.$transaction([
       prisma.productImage.updateMany({ where: { productId }, data: { isPrimary: false } }),
       prisma.productImage.update({ where: { id: imageId }, data: { isPrimary: true } })
     ]);
+    await this.clearProductCache();
+    return result;
   }
 }

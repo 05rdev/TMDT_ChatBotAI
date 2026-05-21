@@ -48,7 +48,8 @@ export class AIService {
         "minReviews": number | null,
         "keywords": string | null,
         "features": string[] | null,
-        "sort": "price_asc" | "price_desc" | "newest" | "best_selling" | "top_rated" | "most_reviewed" | null
+        "sort": "price_asc" | "price_desc" | "newest" | "best_selling" | "top_rated" | "most_reviewed" | null,
+        "attributes": object | null
       }
       QUY TẮC: Trả về DUY NHẤT JSON. Không giải thích. 
       XỬ LÝ TIỀN TỆ & TIÊU CHÍ: 
@@ -60,6 +61,13 @@ export class AIService {
       - "bán chạy", "nhiều người mua" -> sort: "best_selling"
       - "đánh giá tốt", "uy tín" -> sort: "top_rated"
       - "nhiều bình luận", "nhiều review" -> sort: "most_reviewed"
+      XỬ LÝ THUỘC TÍNH SẢN PHẨM (attributes):
+      - Các thuộc tính có thể có: capacity (dung tích, lít), power (công suất, W), weight (trọng lượng, kg), screen_size (kích thước màn hình, inch), ram (GB), storage (GB), battery (mAh), camera (MP), resolution (MP), refresh_rate (Hz), cpu
+      - Mỗi attribute là object có dạng: { "min": number|null, "max": number|null, "exact": string|null }
+      - Ví dụ: "tủ lạnh 500 lít" -> attributes: { "capacity": { "min": 450, "max": 550, "exact": null } }
+      - Ví dụ: "laptop ram 16gb" -> attributes: { "ram": { "min": null, "max": null, "exact": "16" } }
+      - Ví dụ: "điện thoại pin trên 5000mah" -> attributes: { "battery": { "min": 5000, "max": null, "exact": null } }
+      - Ví dụ: "máy lạnh công suất 1200W" -> attributes: { "power": { "min": null, "max": null, "exact": "1200" } }
     `;
 
     try {
@@ -213,7 +221,7 @@ export class AIService {
 
     // 3. Xây dựng điều kiện lọc Prisma
     const where: Prisma.ProductWhereInput = { isDeleted: false, isActive: true };
-    const poolLimit = aiFilters?.minRating || aiFilters?.minSold || aiFilters?.minReviews || aiFilters?.sort ? 100 : limit;
+    const poolLimit = aiFilters?.minRating || aiFilters?.minSold || aiFilters?.minReviews || aiFilters?.sort || aiFilters?.attributes ? 100 : limit;
 
     if (aiFilters) {
       if (aiFilters.category) {
@@ -237,6 +245,23 @@ export class AIService {
           }
         };
       }
+
+      // Attribute-based filtering
+      if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
+        const attrConditions: Prisma.ProductWhereInput[] = [];
+        for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
+          if (!attrFilter) continue;
+          const condition: any = { key: attrKey };
+          
+          if (attrFilter.exact) {
+            condition.value = attrFilter.exact.toString();
+          }
+          attrConditions.push({ attributes: { some: condition } });
+        }
+        if (attrConditions.length > 0) {
+          where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), ...attrConditions];
+        }
+      }
     }
 
     let products: any[] = [];
@@ -258,7 +283,8 @@ export class AIService {
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
           category: { select: { name: true } },
-          variants: { orderBy: { price: 'asc' }, take: 1 }
+          variants: { orderBy: { price: 'asc' }, take: 1 },
+          attributes: true
         },
         take: poolLimit,
         orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
@@ -280,7 +306,8 @@ export class AIService {
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
           category: { select: { name: true } },
-          variants: { orderBy: { price: 'asc' }, take: 1 }
+          variants: { orderBy: { price: 'asc' }, take: 1 },
+          attributes: true
         },
         take: limit
       });
@@ -318,7 +345,8 @@ export class AIService {
         },
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-          variants: { orderBy: { price: 'asc' }, take: 1 }
+          variants: { orderBy: { price: 'asc' }, take: 1 },
+          attributes: true
         },
         take: limit
       });
@@ -337,6 +365,26 @@ export class AIService {
       }
       if (aiFilters.minReviews) {
         enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= aiFilters.minReviews);
+      }
+
+      // 6.5 Lọc theo attributes (min/max range)
+      if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
+        for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
+          if (!attrFilter) continue;
+          enrichedProducts = enrichedProducts.filter(p => {
+            const attrs = (p as any).attributes;
+            if (!attrs || !Array.isArray(attrs)) return true;
+            const attr = attrs.find((a: any) => a.key === attrKey);
+            if (!attr) return false; // Product doesn't have this attribute → exclude
+            const numVal = parseFloat(attr.value);
+            if (isNaN(numVal)) {
+              return attrFilter.exact ? attr.value.toLowerCase().includes(attrFilter.exact.toString().toLowerCase()) : true;
+            }
+            if (attrFilter.min != null && numVal < attrFilter.min) return false;
+            if (attrFilter.max != null && numVal > attrFilter.max) return false;
+            return true;
+          });
+        }
       }
 
       if (aiFilters.sort) {
@@ -421,7 +469,8 @@ export class AIService {
       include: {
         images: { orderBy: { isPrimary: 'desc' }, take: 1 },
         category: { select: { name: true } },
-        variants: { orderBy: { price: 'asc' }, take: 1 }
+        variants: { orderBy: { price: 'asc' }, take: 1 },
+        attributes: true
       }
     });
 

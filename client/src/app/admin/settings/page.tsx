@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Globe, Lock, Bell, Store, Send, Users, User, Megaphone, Loader2, CheckCircle2, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
@@ -55,6 +55,51 @@ export default function AdminSettingsPage() {
 }
 
 function GeneralTab() {
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/admin/settings');
+      if (res.data.success) {
+        setMaintenanceMode(!!res.data.data.maintenanceMode);
+      }
+    } catch (err) {
+      toast.error('Lỗi khi tải cấu hình hệ thống');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const res = await api.post('/admin/settings', { maintenanceMode });
+      if (res.data.success) {
+        toast.success('Cập nhật cấu hình hệ thống thành công');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi lưu cấu hình');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground space-y-3">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <p className="text-sm font-medium">Đang tải cấu hình...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="border-b border-border pb-6">
@@ -68,7 +113,8 @@ function GeneralTab() {
           <input 
             type="text" 
             defaultValue="UltraShop - Neo E-commerce"
-            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-not-allowed opacity-70"
+            disabled
           />
         </div>
 
@@ -77,7 +123,8 @@ function GeneralTab() {
           <input 
             type="email" 
             defaultValue="contact@ultrashop.com"
-            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-not-allowed opacity-70"
+            disabled
           />
         </div>
 
@@ -86,7 +133,8 @@ function GeneralTab() {
           <input 
             type="text" 
             defaultValue="0123 456 789"
-            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full bg-background border border-border rounded-[var(--radius-md)] px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-not-allowed opacity-70"
+            disabled
           />
         </div>
 
@@ -97,7 +145,12 @@ function GeneralTab() {
               <p className="text-xs text-muted-foreground leading-relaxed">Kích hoạt để tạm ẩn cửa hàng đối với khách hàng (chỉ admin truy cập được).</p>
             </div>
             <div className="relative shrink-0">
-              <input type="checkbox" className="sr-only peer" />
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={maintenanceMode}
+                onChange={(e) => setMaintenanceMode(e.target.checked)}
+              />
               <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </div>
           </label>
@@ -105,8 +158,9 @@ function GeneralTab() {
       </div>
 
       <div className="pt-8 border-t border-border mt-8">
-        <Button className="rounded-full px-8">
-          <Save className="w-4 h-4 mr-2" /> Lưu thay đổi
+        <Button className="rounded-full px-8" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+          Lưu thay đổi
         </Button>
       </div>
     </div>

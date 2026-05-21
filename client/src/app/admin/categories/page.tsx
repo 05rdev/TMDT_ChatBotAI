@@ -49,8 +49,9 @@ export default function AdminCategoriesPage() {
           toast.success('Xóa danh mục thành công');
           fetchCategories();
         }
-      } catch (error) {
-        toast.error('Lỗi khi xóa danh mục');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Lỗi khi xóa danh mục';
+        toast.error(errorMessage);
       }
     }
   };

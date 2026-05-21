@@ -33,7 +33,7 @@ export class OrderService {
     }, 0);
 
     let appliedVoucherId: string | undefined = undefined;
-    
+
     // 2.5 Kiểm tra và áp dụng Voucher
     if (data.voucherCode) {
       const voucherService = new VoucherService();
@@ -112,7 +112,7 @@ export class OrderService {
 
       // D. XÓA GIỎ HÀNG (Chỉ xóa những món đã đặt)
       await tx.cart.deleteMany({
-        where: { 
+        where: {
           id: { in: cartItems.map(i => i.id) }
         }
       });
@@ -144,15 +144,15 @@ export class OrderService {
         include: {
           items: {
             include: {
-              product: { 
-                select: { 
+              product: {
+                select: {
                   id: true,
-                  name: true, 
-                  images: { 
+                  name: true,
+                  images: {
                     take: 1,
                     orderBy: { isPrimary: 'desc' }
-                  } 
-                } 
+                  }
+                }
               },
               variant: { select: { name: true } }
             }
@@ -186,15 +186,15 @@ export class OrderService {
       include: {
         items: {
           include: {
-            product: { 
-              select: { 
+            product: {
+              select: {
                 id: true,
-                name: true, 
-                images: { 
+                name: true,
+                images: {
                   take: 1,
                   orderBy: { isPrimary: 'desc' }
-                } 
-              } 
+                }
+              }
             },
             variant: { select: { name: true } }
           }
@@ -229,7 +229,7 @@ export class OrderService {
       // 1. Cập nhật trạng thái
       const updatedOrder = await tx.order.update({
         where: { id },
-        data: { 
+        data: {
           status: 'CANCELLED',
           cancelReason: reason
         } as any
@@ -347,6 +347,37 @@ export class OrderService {
   async updateStatus(id: string, status: any) {
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) throw new AppError(404, 'Đơn hàng không tồn tại');
+
+    const currentStatus = order.status;
+    const newStatus = status;
+
+    if (currentStatus !== newStatus) {
+      // 1. DELIVERED và CANCELLED là trạng thái cuối cùng (chỉ đọc)
+      if (currentStatus === 'DELIVERED') {
+        throw new AppError(400, 'Đơn hàng đã hoàn thành (DELIVERED), không thể chỉnh sửa trạng thái.');
+      }
+      if (currentStatus === 'CANCELLED') {
+        throw new AppError(400, 'Đơn hàng đã bị hủy (CANCELLED), không thể chỉnh sửa trạng thái.');
+      }
+
+      // 2. Ràng buộc luồng trạng thái (State Machine)
+      if (currentStatus === 'PENDING') {
+        // PENDING -> PROCESSING hoặc CANCELLED
+        if (newStatus !== 'PROCESSING' && newStatus !== 'CANCELLED') {
+          throw new AppError(400, 'Luồng trạng thái không hợp lệ. Đơn hàng chờ duyệt (PENDING) chỉ có thể chuyển sang đang xử lý (PROCESSING) hoặc hủy (CANCELLED).');
+        }
+      } else if (currentStatus === 'PROCESSING') {
+        // PROCESSING -> SHIPPED hoặc CANCELLED
+        if (newStatus !== 'SHIPPED' && newStatus !== 'CANCELLED') {
+          throw new AppError(400, 'Luồng trạng thái không hợp lệ. Đơn hàng đang xử lý (PROCESSING) chỉ có thể chuyển sang đang giao hàng (SHIPPED) hoặc hủy (CANCELLED).');
+        }
+      } else if (currentStatus === 'SHIPPED') {
+        // SHIPPED -> DELIVERED
+        if (newStatus !== 'DELIVERED') {
+          throw new AppError(400, 'Luồng trạng thái không hợp lệ. Đơn hàng đang giao hàng (SHIPPED) chỉ có thể chuyển sang đã giao hàng (DELIVERED).');
+        }
+      }
+    }
 
     const updatedOrder = await prisma.order.update({
       where: { id },

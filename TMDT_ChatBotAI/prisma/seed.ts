@@ -8,7 +8,7 @@ async function cleanDb() {
   console.log('🧹 Đang dọn dẹp Database...');
   const tablenames = [
     'ChatMessage', 'ActivityLog', 'Cart', 'UserBehavior', 'Review', 
-    'Payment', 'OrderItem', 'Order', 'ProductImage', 'ProductVariant', 
+    'Payment', 'OrderItem', 'Order', 'ProductAttribute', 'ProductImage', 'ProductVariant', 
     'Product', 'Category', 'RefreshToken', 'User'
   ];
 
@@ -22,6 +22,13 @@ async function cleanDb() {
 }
 
 async function main() {
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.log('⚠️ Database đã có dữ liệu. Bỏ qua quá trình seed để bảo vệ dữ liệu cũ.');
+    console.log('💡 Nếu bạn thực sự muốn chạy lại seed, hãy uncomment hàm cleanDb() và xóa điều kiện này.');
+    return;
+  }
+
   await cleanDb();
   console.log('🚀 Bắt đầu seeding dữ liệu UltraShop...');
 
@@ -81,8 +88,8 @@ async function main() {
     const category = faker.helpers.arrayElement(categories);
     const productName = `${faker.commerce.productName()} ${faker.string.alphanumeric(3).toUpperCase()}`;
     
-    // Tạo vector ngẫu nhiên 1536 dims
-    const vector = Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
+    // Tạo vector ngẫu nhiên 768 dims (matching schema)
+    const vector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
     const vectorString = `[${vector.join(',')}]`;
 
     const product = await prisma.product.create({
@@ -127,6 +134,90 @@ async function main() {
     );
 
     products.push(product);
+  }
+
+  // 3.5 Tạo Product Attributes (thuộc tính kỹ thuật theo danh mục)
+  console.log('📐 Đang tạo thuộc tính sản phẩm...');
+  
+  const categoryAttributeMap: Record<string, Array<{ key: string; unit: string; values: () => string }>> = {
+    'Điện thoại': [
+      { key: 'screen_size', unit: 'inch', values: () => faker.helpers.arrayElement(['5.5', '6.1', '6.5', '6.7', '6.9']) },
+      { key: 'ram', unit: 'GB', values: () => faker.helpers.arrayElement(['4', '6', '8', '12', '16']) },
+      { key: 'storage', unit: 'GB', values: () => faker.helpers.arrayElement(['64', '128', '256', '512']) },
+      { key: 'battery', unit: 'mAh', values: () => faker.helpers.arrayElement(['3000', '4000', '4500', '5000', '5500']) },
+      { key: 'camera', unit: 'MP', values: () => faker.helpers.arrayElement(['12', '48', '50', '64', '108', '200']) },
+    ],
+    'Laptop': [
+      { key: 'screen_size', unit: 'inch', values: () => faker.helpers.arrayElement(['13.3', '14', '15.6', '16', '17.3']) },
+      { key: 'ram', unit: 'GB', values: () => faker.helpers.arrayElement(['8', '16', '32', '64']) },
+      { key: 'storage', unit: 'GB', values: () => faker.helpers.arrayElement(['256', '512', '1000', '2000']) },
+      { key: 'cpu', unit: '', values: () => faker.helpers.arrayElement(['Intel i5', 'Intel i7', 'Intel i9', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M2', 'Apple M3']) },
+      { key: 'weight', unit: 'kg', values: () => faker.helpers.arrayElement(['1.2', '1.4', '1.6', '1.8', '2.0', '2.3']) },
+    ],
+    'Máy tính bảng': [
+      { key: 'screen_size', unit: 'inch', values: () => faker.helpers.arrayElement(['8.3', '10.2', '10.9', '11', '12.9']) },
+      { key: 'ram', unit: 'GB', values: () => faker.helpers.arrayElement(['4', '6', '8', '16']) },
+      { key: 'storage', unit: 'GB', values: () => faker.helpers.arrayElement(['64', '128', '256', '512']) },
+    ],
+    'Gia dụng': [
+      { key: 'capacity', unit: 'lít', values: () => faker.helpers.arrayElement(['50', '100', '150', '200', '300', '400', '500', '600']) },
+      { key: 'power', unit: 'W', values: () => faker.helpers.arrayElement(['100', '200', '500', '800', '1000', '1200', '1500', '2000']) },
+      { key: 'weight', unit: 'kg', values: () => faker.helpers.arrayElement(['3', '5', '8', '10', '15', '20', '30', '50']) },
+    ],
+    'Bếp & Phòng ăn': [
+      { key: 'capacity', unit: 'lít', values: () => faker.helpers.arrayElement(['1', '1.5', '2', '3', '4', '5', '6', '8', '10']) },
+      { key: 'power', unit: 'W', values: () => faker.helpers.arrayElement(['300', '500', '800', '1000', '1200', '1500', '1800', '2000']) },
+      { key: 'material', unit: '', values: () => faker.helpers.arrayElement(['Inox 304', 'Nhôm', 'Thép không gỉ', 'Gốm', 'Thủy tinh']) },
+    ],
+    'Nội thất': [
+      { key: 'width', unit: 'cm', values: () => faker.helpers.arrayElement(['60', '80', '100', '120', '150', '180', '200']) },
+      { key: 'height', unit: 'cm', values: () => faker.helpers.arrayElement(['40', '60', '75', '80', '100', '120', '180', '200']) },
+      { key: 'material', unit: '', values: () => faker.helpers.arrayElement(['Gỗ tự nhiên', 'Gỗ MDF', 'Gỗ công nghiệp', 'Kim loại', 'Nhựa cao cấp']) },
+      { key: 'weight', unit: 'kg', values: () => faker.helpers.arrayElement(['5', '10', '15', '20', '30', '50', '80']) },
+    ],
+    'Máy ảnh': [
+      { key: 'resolution', unit: 'MP', values: () => faker.helpers.arrayElement(['20', '24', '26', '33', '45', '61']) },
+      { key: 'sensor_size', unit: '', values: () => faker.helpers.arrayElement(['APS-C', 'Full Frame', 'Micro 4/3', '1 inch']) },
+      { key: 'weight', unit: 'g', values: () => faker.helpers.arrayElement(['300', '400', '500', '650', '800', '1000']) },
+    ],
+    'Gaming Gear': [
+      { key: 'response_time', unit: 'ms', values: () => faker.helpers.arrayElement(['1', '2', '4', '5']) },
+      { key: 'refresh_rate', unit: 'Hz', values: () => faker.helpers.arrayElement(['60', '75', '120', '144', '165', '240', '360']) },
+      { key: 'connectivity', unit: '', values: () => faker.helpers.arrayElement(['USB', 'Bluetooth 5.0', 'Wireless 2.4GHz', 'USB-C', 'USB + Bluetooth']) },
+    ],
+    'Đồng hồ thông minh': [
+      { key: 'screen_size', unit: 'mm', values: () => faker.helpers.arrayElement(['40', '41', '44', '45', '46', '49']) },
+      { key: 'battery_life', unit: 'ngày', values: () => faker.helpers.arrayElement(['1', '2', '3', '5', '7', '14', '18']) },
+      { key: 'water_resistance', unit: 'ATM', values: () => faker.helpers.arrayElement(['3', '5', '10']) },
+    ],
+    'Tai nghe': [
+      { key: 'driver_size', unit: 'mm', values: () => faker.helpers.arrayElement(['6', '8', '10', '12', '14', '40', '50']) },
+      { key: 'battery_life', unit: 'giờ', values: () => faker.helpers.arrayElement(['4', '6', '8', '10', '20', '30', '40', '60']) },
+      { key: 'connectivity', unit: '', values: () => faker.helpers.arrayElement(['Bluetooth 5.0', 'Bluetooth 5.2', 'Bluetooth 5.3', 'Jack 3.5mm', 'USB-C']) },
+    ],
+  };
+
+  for (const product of products) {
+    const category = categories.find(c => c.id === product.categoryId);
+    if (!category) continue;
+    
+    const attrDefs = categoryAttributeMap[category.name];
+    if (!attrDefs) continue;
+
+    for (const attr of attrDefs) {
+      try {
+        await prisma.productAttribute.create({
+          data: {
+            productId: product.id,
+            key: attr.key,
+            value: attr.values(),
+            unit: attr.unit || null,
+          }
+        });
+      } catch (e) {
+        // Skip duplicate key errors
+      }
+    }
   }
 
   // 4. Tạo Đơn hàng & Item

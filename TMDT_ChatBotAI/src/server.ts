@@ -23,6 +23,7 @@ import bannerRouter from './modules/banner/router';
 
 import { errorHandler as globalErrorHandler } from './middlewares/error.middleware';
 import { activityLogger } from './middlewares/activity-logger';
+import { maintenanceMiddleware } from './middlewares/maintenance.middleware';
 
 
 // Load environment variables
@@ -45,6 +46,7 @@ app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(activityLogger);
+app.use(maintenanceMiddleware);
 app.use('/api', limiter);
 
 // Routes

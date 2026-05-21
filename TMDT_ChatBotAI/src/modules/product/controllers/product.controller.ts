@@ -15,11 +15,11 @@ export class ProductController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const validatedQuery = productQuerySchema.parse(req.query);
-      
-      // Nếu có từ khóa tìm kiếm, sử dụng AI Search thông minh
-      if (validatedQuery.search) {
+
+      // Nếu có từ khóa tìm kiếm và KHÔNG phải admin, sử dụng AI Search thông minh
+      if (validatedQuery.search && !validatedQuery.isAdmin) {
         const aiProducts = await aiService.intelligentSearch(
-          validatedQuery.search, 
+          validatedQuery.search,
           validatedQuery.limit || 20,
           validatedQuery.categoryId
         );
@@ -112,7 +112,7 @@ export class ProductController {
     try {
       const validatedData = createProductSchema.parse(req.body);
       const product = await productService.create(validatedData);
-      
+
       return res.status(201).json({
         success: true,
         message: 'Tạo sản phẩm thành công',
@@ -131,7 +131,7 @@ export class ProductController {
       const { id } = req.params;
       const validatedData = updateProductSchema.parse(req.body);
       const product = await productService.update(id as string, validatedData);
-      
+
       return res.json({
         success: true,
         message: 'Cập nhật sản phẩm thành công',
@@ -173,7 +173,7 @@ export class ProductController {
       // Duyệt qua và upload từng file lên Cloudinary
       const uploadPromises = files.map(file => uploadToCloudinary(file.buffer, `products/${id}`));
       const uploadResults = await Promise.all(uploadPromises);
-      
+
       const imageUrls = uploadResults.map(result => result.secure_url);
 
       // Lưu link ảnh vào database
@@ -202,11 +202,11 @@ export class ProductController {
       const embedding = await aiService.generateEmbedding(query as string);
       const products = await productService.searchByVector(embedding);
 
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         query,
         count: products.length,
-        data: products 
+        data: products
       });
     } catch (error) {
       next(error);

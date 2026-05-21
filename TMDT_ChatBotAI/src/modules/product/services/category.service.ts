@@ -65,6 +65,23 @@ export class CategoryService {
    */
   async softDelete(id: string) {
     await this.getById(id);
+
+    // Kiểm tra xem còn sản phẩm hoạt động/chưa bị xóa thuộc danh mục này không
+    const productsCount = await prisma.product.count({
+      where: { categoryId: id, isDeleted: false }
+    });
+    if (productsCount > 0) {
+      throw new AppError(400, 'Không thể xóa danh mục này vì vẫn còn sản phẩm thuộc danh mục.');
+    }
+
+    // Kiểm tra xem danh mục này có phải là danh mục cha của danh mục con khác chưa bị xóa không
+    const childrenCount = await prisma.category.count({
+      where: { parentId: id, isDeleted: false }
+    });
+    if (childrenCount > 0) {
+      throw new AppError(400, 'Không thể xóa danh mục này vì vẫn còn danh mục con trực thuộc.');
+    }
+
     return prisma.category.update({
       where: { id },
       data: { isDeleted: true }

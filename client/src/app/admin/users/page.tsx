@@ -57,8 +57,9 @@ export default function AdminUsersPage() {
         ));
         toast.success(user.isActive ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
       }
-    } catch (error) {
-      toast.error('Có lỗi xảy ra khi cập nhật trạng thái');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái';
+      toast.error(msg);
     }
   };
 
@@ -70,8 +71,9 @@ export default function AdminUsersPage() {
           setUsers(users.filter(u => u.id !== id));
           toast.success('Đã xóa người dùng');
         }
-      } catch (error) {
-        toast.error('Có lỗi xảy ra khi xóa');
+      } catch (error: any) {
+        const msg = error.response?.data?.message || 'Có lỗi xảy ra khi xóa';
+        toast.error(msg);
       }
     }
   };

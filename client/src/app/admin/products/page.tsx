@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Filter, Loader2, PackageX } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Filter, Loader2, PackageX, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -11,6 +11,13 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const [categoryId, setCategoryId] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -20,9 +27,36 @@ export default function AdminProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
 
+  // Debounce search term changes
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 450);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  // Load categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [page]);
+  }, [page, debouncedSearch, categoryId, minPrice, maxPrice]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories');
+      const data = res.data.data || res.data;
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Lỗi tải danh mục', err);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -31,7 +65,11 @@ export default function AdminProductsPage() {
         params: {
           page,
           limit,
-          isAdmin: 'true'
+          isAdmin: 'true',
+          search: debouncedSearch || undefined,
+          categoryId: categoryId || undefined,
+          minPrice: minPrice || undefined,
+          maxPrice: maxPrice || undefined
         }
       });
       if (res.data.success) {
@@ -56,8 +94,9 @@ export default function AdminProductsPage() {
           toast.success('Đã xóa sản phẩm');
           fetchProducts();
         }
-      } catch (error) {
-        toast.error('Lỗi khi xóa sản phẩm');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Lỗi khi xóa sản phẩm';
+        toast.error(errorMessage);
       }
     }
   };
@@ -92,9 +131,7 @@ export default function AdminProductsPage() {
     setIsModalOpen(true);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products;
 
   const getMinPrice = (product: any): string => {
     if (product.variants && product.variants.length > 0) {
@@ -129,10 +166,72 @@ export default function AdminProductsPage() {
           />
         </div>
 
-        <Button variant="outline" className="flex items-center">
+        <Button 
+          variant={isFilterOpen ? "primary" : "outline"} 
+          className="flex items-center transition-all"
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+        >
           <Filter className="w-4 h-4 mr-2 text-muted-foreground" /> Lọc
         </Button>
       </div>
+
+      {/* Filter panel */}
+      {isFilterOpen && (
+        <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card border border-border grid grid-cols-1 sm:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-200">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Danh mục</label>
+            <select
+              value={categoryId}
+              onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Giá tối thiểu (₫)</label>
+            <input
+              type="number"
+              placeholder="Từ..."
+              value={minPrice}
+              onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Giá tối đa (₫)</label>
+            <input
+              type="number"
+              placeholder="Đến..."
+              value={maxPrice}
+              onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          {(categoryId || minPrice || maxPrice || searchTerm) && (
+            <div className="col-span-1 sm:col-span-3 flex justify-end">
+              <button
+                onClick={() => {
+                  setCategoryId('');
+                  setMinPrice('');
+                  setMaxPrice('');
+                  setSearchTerm('');
+                  setPage(1);
+                }}
+                className="text-xs font-bold text-danger hover:underline uppercase tracking-wider transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table Data */}
       <div className="card-elevated bg-card rounded-[var(--radius-xl)] border border-border overflow-hidden">
@@ -141,6 +240,7 @@ export default function AdminProductsPage() {
             <thead>
               <tr className="bg-secondary/50 border-b border-border">
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Ảnh</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Sản phẩm</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Danh mục</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Giá bán</th>
@@ -152,7 +252,7 @@ export default function AdminProductsPage() {
             <tbody className="divide-y divide-border/50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
                       <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       <p className="font-medium text-sm">Đang tải dữ liệu...</p>
@@ -161,7 +261,7 @@ export default function AdminProductsPage() {
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
                       <PackageX className="w-10 h-10 opacity-50" />
                       <p className="font-medium text-sm">Không tìm thấy sản phẩm</p>
@@ -170,10 +270,24 @@ export default function AdminProductsPage() {
                 </tr>
               ) : filteredProducts.map((product) => {
                 const totalStock = product.variants ? product.variants.reduce((sum: number, v: any) => sum + v.stock, 0) : 0;
+                const primaryImage = product.images?.find((img: any) => img.isPrimary)?.url || product.images?.[0]?.url;
                 return (
                   <tr key={product.id} className="hover:bg-secondary/30 transition-colors">
                     <td className="px-6 py-4 text-xs font-medium text-muted-foreground whitespace-nowrap">
                       <span className="truncate max-w-[80px] inline-block">#{product.id.slice(0, 8)}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {primaryImage ? (
+                        <img 
+                          src={primaryImage} 
+                          alt={product.name} 
+                          className="w-12 h-12 object-cover rounded-[var(--radius-md)] border border-border"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-secondary/50 rounded-[var(--radius-md)] border border-border flex items-center justify-center text-muted-foreground">
+                          <Package className="w-5 h-5 opacity-40" />
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm font-semibold text-foreground line-clamp-1">{product.name}</p>

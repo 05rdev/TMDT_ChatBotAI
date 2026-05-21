@@ -60,8 +60,9 @@ export default function AdminOrdersPage() {
         toast.success('Cập nhật trạng thái thành công');
         fetchOrders(pagination.page);
       }
-    } catch (error) {
-      toast.error('Lỗi khi cập nhật trạng thái');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Lỗi khi cập nhật trạng thái';
+      toast.error(errorMessage);
     }
   };
 

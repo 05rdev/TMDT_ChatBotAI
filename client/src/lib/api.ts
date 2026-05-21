@@ -19,6 +19,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Nếu gặp lỗi 503 (bảo trì hệ thống)
+    if (error.response?.status === 503) {
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (!path.startsWith('/admin') && path !== '/maintenance') {
+          window.location.href = '/maintenance';
+          return Promise.reject(error);
+        }
+      }
+    }
+
     // Nếu lỗi 401 và chưa retry
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;

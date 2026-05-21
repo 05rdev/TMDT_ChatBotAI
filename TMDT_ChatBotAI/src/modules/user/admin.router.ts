@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AdminStatsController } from './controllers/admin-stats.controller';
 import { AdminOrderController } from './controllers/admin-order.controller';
 import { AdminUserController } from './controllers/admin-user.controller';
+import { AdminSettingsController } from './controllers/admin-settings.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { authorize } from '../../middlewares/authorize';
 
@@ -9,6 +10,7 @@ const router = Router();
 const adminStatsController = new AdminStatsController();
 const adminOrderController = new AdminOrderController();
 const adminUserController = new AdminUserController();
+const adminSettingsController = new AdminSettingsController();
 
 // Tất cả các route admin yêu cầu xác thực và quyền ADMIN
 router.use(authenticate, authorize(['ADMIN']));
@@ -239,5 +241,8 @@ router.put('/users/:id', adminUserController.updateUser);
  *         description: Đã xoá
  */
 router.delete('/users/:id', adminUserController.delete);
+
+router.get('/settings', adminSettingsController.getSettings);
+router.post('/settings', adminSettingsController.updateSettings);
 
 export default router;
