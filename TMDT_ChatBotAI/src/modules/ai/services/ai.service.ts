@@ -61,13 +61,34 @@ export class AIService {
       - "bán chạy", "nhiều người mua" -> sort: "best_selling"
       - "đánh giá tốt", "uy tín" -> sort: "top_rated"
       - "nhiều bình luận", "nhiều review" -> sort: "most_reviewed"
+      
+      MAPPING TIẾNG VIỆT → KEY TIẾNG ANH (BẮT BUỘC dùng key tiếng Anh):
+      - ram, bộ nhớ RAM → ram
+      - bộ nhớ, dung lượng, lưu trữ, ROM → storage
+      - pin, dung lượng pin → battery
+      - màn hình, kích thước màn hình → screen_size
+      - camera, chụp ảnh → camera
+      - chip, vi xử lý, bộ xử lý, CPU → chip
+      - công suất → power
+      - dung tích → capacity
+      - trọng lượng, cân nặng → weight
+      - kết nối → connectivity
+      - thương hiệu, hãng → brand
+      
       XỬ LÝ THUỘC TÍNH SẢN PHẨM (attributes):
-      - Các thuộc tính có thể có: capacity (dung tích, lít), power (công suất, W), weight (trọng lượng, kg), screen_size (kích thước màn hình, inch), ram (GB), storage (GB), battery (mAh), camera (MP), resolution (MP), refresh_rate (Hz), cpu
-      - Mỗi attribute là object có dạng: { "min": number|null, "max": number|null, "exact": string|null }
-      - Ví dụ: "tủ lạnh 500 lít" -> attributes: { "capacity": { "min": 450, "max": 550, "exact": null } }
-      - Ví dụ: "laptop ram 16gb" -> attributes: { "ram": { "min": null, "max": null, "exact": "16" } }
-      - Ví dụ: "điện thoại pin trên 5000mah" -> attributes: { "battery": { "min": 5000, "max": null, "exact": null } }
-      - Ví dụ: "máy lạnh công suất 1200W" -> attributes: { "power": { "min": null, "max": null, "exact": "1200" } }
+      - Mỗi attribute là object: { "min": number|null, "max": number|null, "exact": string|null }
+      - QUAN TRỌNG: Giá trị value trong DB là SỐ THUẦN (vd: ram="12" không phải "12GB")
+      - Khi có khoảng (từ X đến Y, X-Y): dùng min + max. KHÔNG dùng exact!
+      - Khi có giá trị cụ thể: dùng exact (string)
+      
+      VÍ DỤ BẮT BUỘC:
+      - "ram từ 12 đến 16gb" → attributes: { "ram": { "min": 12, "max": 16, "exact": null } }
+      - "ram 12-16gb" → attributes: { "ram": { "min": 12, "max": 16, "exact": null } }
+      - "ram 8gb" → attributes: { "ram": { "min": null, "max": null, "exact": "8" } }
+      - "ram trên 8gb" → attributes: { "ram": { "min": 8, "max": null, "exact": null } }
+      - "bộ nhớ 256gb" → attributes: { "storage": { "min": null, "max": null, "exact": "256" } }
+      - "pin trên 5000mah" → attributes: { "battery": { "min": 5000, "max": null, "exact": null } }
+      - "điện thoại ram 12gb-16gb" → category: "Điện thoại", attributes: { "ram": { "min": 12, "max": 16, "exact": null } }
     `;
 
     try {
@@ -159,6 +180,58 @@ export class AIService {
 
     // Category fallback (Sẽ được xử lý động trong intelligentSearch)
 
+    // ===== ATTRIBUTE REGEX FALLBACK =====
+    // Khi Ollama timeout, regex này đảm bảo vẫn parse được RAM, storage, battery, screen, camera
+    const attrPatterns: { key: string; aliases: string[] }[] = [
+      { key: 'ram', aliases: ['ram'] },
+      { key: 'storage', aliases: ['bộ nhớ', 'dung lượng', 'lưu trữ', 'rom', 'storage'] },
+      { key: 'battery', aliases: ['pin', 'battery'] },
+      { key: 'screen_size', aliases: ['màn hình', 'màn', 'screen'] },
+      { key: 'camera', aliases: ['camera', 'chụp ảnh'] },
+    ];
+
+    for (const { key, aliases } of attrPatterns) {
+      const aliasGroup = aliases.join('|');
+      const unitSuffix = key === 'battery' ? '(?:mah|)' : key === 'screen_size' ? '(?:inch|\"|)' : '(?:gb|mp|)';
+
+      // Range: "ram 12-16gb", "ram từ 12 đến 16gb"
+      const rangeRx = new RegExp(`(?:${aliasGroup})\\s*(?:từ\\s*)?([\\d.]+)\\s*(?:-|đến|tới)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
+      const rangeM = q.match(rangeRx);
+      if (rangeM) {
+        filters.attributes = filters.attributes || {};
+        filters.attributes[key] = { min: parseFloat(rangeM[1]), max: parseFloat(rangeM[2]), exact: null };
+        continue;
+      }
+
+      // Min: "ram trên 8gb", "pin > 5000mah"
+      const minRx = new RegExp(`(?:${aliasGroup})\\s*(?:trên|hơn|>|>=|tối thiểu|ít nhất)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
+      const minM = q.match(minRx);
+      if (minM) {
+        filters.attributes = filters.attributes || {};
+        filters.attributes[key] = { min: parseFloat(minM[1]), max: null, exact: null };
+        continue;
+      }
+
+      // Max: "ram dưới 8gb"
+      const maxRx = new RegExp(`(?:${aliasGroup})\\s*(?:dưới|thấp hơn|<|<=|tối đa)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
+      const maxM = q.match(maxRx);
+      if (maxM) {
+        filters.attributes = filters.attributes || {};
+        filters.attributes[key] = { min: null, max: parseFloat(maxM[1]), exact: null };
+        continue;
+      }
+
+      // Exact: "ram 8gb", "8gb ram"
+      const exactRx = new RegExp(`(?:${aliasGroup})\\s*(?:là\\s*|:\\s*)?([\\d.]+)\\s*${unitSuffix}`, 'i');
+      const exactRxReverse = new RegExp(`([\\d.]+)\\s*${unitSuffix}\\s*(?:${aliasGroup})`, 'i');
+      const exactM = q.match(exactRx) || q.match(exactRxReverse);
+      if (exactM) {
+        filters.attributes = filters.attributes || {};
+        filters.attributes[key] = { min: null, max: null, exact: exactM[1] };
+        continue;
+      }
+    }
+
     return filters;
   }
 
@@ -246,17 +319,18 @@ export class AIService {
         };
       }
 
-      // Attribute-based filtering
+      // Attribute-based filtering (Prisma level - only exact match, range is post-filtered)
       if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
         const attrConditions: Prisma.ProductWhereInput[] = [];
         for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
           if (!attrFilter) continue;
-          const condition: any = { key: attrKey };
-          
-          if (attrFilter.exact) {
-            condition.value = attrFilter.exact.toString();
+          // Only use Prisma filter for exact match; range (min/max) is handled in post-filter step 6.5
+          if (attrFilter.exact && !attrFilter.min && !attrFilter.max) {
+            attrConditions.push({ attributes: { some: { key: attrKey, value: attrFilter.exact.toString() } } });
+          } else {
+            // For range queries, just ensure the product HAS this attribute key
+            attrConditions.push({ attributes: { some: { key: attrKey } } });
           }
-          attrConditions.push({ attributes: { some: condition } });
         }
         if (attrConditions.length > 0) {
           where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), ...attrConditions];
@@ -367,23 +441,37 @@ export class AIService {
         enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= aiFilters.minReviews);
       }
 
-      // 6.5 Lọc theo attributes (min/max range)
+      // 6.5 Lọc theo attributes (min/max range + exact)
       if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
         for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
           if (!attrFilter) continue;
+          const beforeCount = enrichedProducts.length;
           enrichedProducts = enrichedProducts.filter(p => {
             const attrs = (p as any).attributes;
-            if (!attrs || !Array.isArray(attrs)) return true;
+            if (!attrs || !Array.isArray(attrs)) return false;
             const attr = attrs.find((a: any) => a.key === attrKey);
             if (!attr) return false; // Product doesn't have this attribute → exclude
             const numVal = parseFloat(attr.value);
-            if (isNaN(numVal)) {
-              return attrFilter.exact ? attr.value.toLowerCase().includes(attrFilter.exact.toString().toLowerCase()) : true;
+            
+            // Range filter (min/max)
+            if (attrFilter.min != null || attrFilter.max != null) {
+              if (isNaN(numVal)) return false; // Can't compare range on non-numeric
+              if (attrFilter.min != null && numVal < attrFilter.min) return false;
+              if (attrFilter.max != null && numVal > attrFilter.max) return false;
+              return true;
             }
-            if (attrFilter.min != null && numVal < attrFilter.min) return false;
-            if (attrFilter.max != null && numVal > attrFilter.max) return false;
+            
+            // Exact match
+            if (attrFilter.exact != null) {
+              if (!isNaN(numVal)) {
+                return numVal === parseFloat(attrFilter.exact.toString());
+              }
+              return attr.value.toLowerCase().includes(attrFilter.exact.toString().toLowerCase());
+            }
+            
             return true;
           });
+          console.log(`   Attribute filter [${attrKey}]: ${beforeCount} → ${enrichedProducts.length} products`);
         }
       }
 

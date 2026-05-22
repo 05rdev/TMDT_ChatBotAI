@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { VisionHelper } from '../vision/visionHelper';
+import { AppError } from '../../../middlewares/error.middleware';
 
 const prisma = new PrismaClient();
 const visionHelper = new VisionHelper();
@@ -14,7 +15,7 @@ export class VisualSearchService {
       // 1. Kiểm tra service CLIP
       const isReady = await visionHelper.isServiceReady();
       if (!isReady) {
-        throw new Error('AI Vision Service (CLIP) đang khởi động hoặc chưa sẵn sàng. Vui lòng thử lại sau.');
+        throw new AppError(503, 'AI Vision Service (CLIP) đang khởi động hoặc chưa sẵn sàng. Vui lòng thử lại sau.');
       }
 
       // 2. Sinh image embedding từ buffer (Local CLIP)
@@ -86,7 +87,8 @@ export class VisualSearchService {
 
     } catch (error: any) {
       console.error('❌ Visual Search Error:', error.message);
-      throw new Error(error.message || 'Gặp lỗi khi phân tích hình ảnh. Vui lòng thử lại sau.');
+      if (error instanceof AppError) throw error;
+      throw new AppError(500, error.message || 'Gặp lỗi khi phân tích hình ảnh. Vui lòng thử lại sau.');
     }
   }
 }

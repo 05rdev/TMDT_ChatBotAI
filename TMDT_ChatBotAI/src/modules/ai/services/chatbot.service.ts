@@ -145,15 +145,18 @@ QUY TẮC BẮT BUỘC (QUAN TRỌNG):
 2. KIỂM TRA KỸ DANH SÁCH SẢN PHẨM PHÙ HỢP BÊN DƯỚI. Bạn CHỈ ĐƯỢC PHÉP tư vấn các sản phẩm có trong danh sách này cho câu trả lời hiện tại. Tuyệt đối không lấy lại sản phẩm từ lịch sử nếu nó không xuất hiện trong danh sách mới (vì có thể nó không khớp với bộ lọc giá/tính năng mới của khách).
 3. Nếu danh sách sản phẩm trống, hãy nói: "Dạ, hiện em chưa tìm thấy sản phẩm nào đúng yêu cầu này của Sếp, Sếp thử điều chỉnh lại tầm giá hoặc từ khóa xem sao ạ".
 4. Khi giới thiệu sản phẩm, hãy nêu tên và giá (triệu đồng) để khách dễ nắm bắt.
-5. LUÔN kèm link "/product/slug" cho mỗi sản phẩm được nhắc đến.
+5. ĐIỀU KIỆN BẮT BUỘC: Bạn PHẢI CHÈN text "Link: /product/[slug]" (với [slug] lấy từ dữ liệu) cho MỖI SẢN PHẨM KHUYÊN DÙNG. Nếu thiếu link, UI sẽ bị lỗi và không hiện sản phẩm cho khách! KHÔNG chèn link cho sản phẩm hết hàng hoặc bị loại trừ.
 6. Nếu thực sự không có sản phẩm nào khớp, hãy gợi ý các sản phẩm cùng danh mục có giá gần nhất.
 7. Trả lời ngắn gọn, dứt khoát. Sử dụng emoji thân thiện (😊, 🛒, ⭐).
 8. Tuyệt đối không bịa đặt thông số hoặc giá sản phẩm không có trong dữ liệu.
 
 VÍ DỤ TRẢ LỜI TỐT:
-- Hỏi "máy lạnh nào tốt?": Gợi ý 2-3 sản phẩm kèm giá, rating, link. So sánh ngắn gọn.
-- Hỏi "có mã giảm giá không?": Liệt kê mã đang active kèm điều kiện sử dụng.
-- Hỏi "đơn hàng của tôi?": Hiển thị trạng thái đơn gần nhất với chi tiết.
+User: Tư vấn máy lạnh
+AI: Dạ em gợi ý Sếp các mẫu máy lạnh này ạ:
+- Máy lạnh Daikin Inverter 1 HP [Giá: 9.000.000 VNĐ]. Link: /product/may-lanh-daikin-1hp
+- Máy lạnh Panasonic 1.5 HP [Giá: 12.000.000 VNĐ]. Link: /product/may-lanh-panasonic-1-5hp
+User: Đơn hàng của tôi
+AI: Dạ đơn hàng gần nhất của Sếp đang ở trạng thái PENDING ạ.
 - Hỏi "sản phẩm A còn hàng không?": Cho biết chính xác số lượng tồn kho.
     `;
 
@@ -182,9 +185,25 @@ VÍ DỤ TRẢ LỜI TỐT:
       const data: any = await response.json();
       const aiResponse = data.message.content || 'Xin lỗi, tôi không thể trả lời lúc này.';
 
+      // Lọc lại các sản phẩm thực sự được LLM gợi ý (có gắn link)
+      const slugRegex = /\/product\/([a-zA-Z0-9-]+)/g;
+      const mentionedSlugs = new Set<string>();
+      let match;
+      while ((match = slugRegex.exec(aiResponse)) !== null) {
+        mentionedSlugs.add(match[1]);
+      }
+
+      const finalSuggestedProducts = mentionedSlugs.size > 0 
+        ? relevantProducts.filter(p => mentionedSlugs.has(p.slug))
+        : relevantProducts.filter(p => {
+            // Fallback nếu LLM quên chèn link: tìm theo tên sản phẩm (bỏ qua hậu tố dung lượng)
+            const baseName = p.name.split(' (')[0].toLowerCase();
+            return aiResponse.toLowerCase().includes(baseName);
+        });
+
       // 12. Lưu phản hồi AI
       if (userId) {
-        const productsData = relevantProducts.map(p => ({
+        const productsData = finalSuggestedProducts.map(p => ({
           id: p.id,
           name: p.name,
           slug: p.slug,
@@ -203,7 +222,7 @@ VÍ DỤ TRẢ LỜI TỐT:
 
       return {
         message: aiResponse,
-        suggestedProducts: relevantProducts.map(p => ({
+        suggestedProducts: finalSuggestedProducts.map(p => ({
           id: p.id,
           name: p.name,
           slug: p.slug,

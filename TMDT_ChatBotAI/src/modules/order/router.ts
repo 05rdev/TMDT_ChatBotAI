@@ -8,6 +8,39 @@ const router = Router();
 const orderController = new OrderController();
 const paymentController = new PaymentController();
 
+/**
+ * @swagger
+ * /api/orders/sepay-webhook:
+ *   post:
+ *     summary: Webhook nhận thông báo giao dịch chuyển khoản từ SePay (Server-to-Server)
+ *     tags: [Orders]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id: { type: number }
+ *               gateway: { type: string }
+ *               transactionDate: { type: string }
+ *               accountNumber: { type: string }
+ *               subAccount: { type: string }
+ *               transferType: { type: string, enum: ['in', 'out'] }
+ *               transferAmount: { type: number }
+ *               accumulated: { type: number }
+ *               transactionContent: { type: string }
+ *               referenceNumber: { type: string }
+ *               code: { type: string }
+ *     responses:
+ *       200:
+ *         description: Xử lý giao dịch SePay thành công
+ *       401:
+ *         description: Webhook API Key không hợp lệ
+ */
+// Route công khai nhận Webhook tự động chuyển khoản từ SePay (Server-to-Server)
+router.post('/sepay-webhook', paymentController.sepayWebhook);
+
 // Tất cả route đơn hàng yêu cầu đăng nhập
 router.use(authenticate);
 
@@ -36,7 +69,7 @@ router.use(authenticate);
  *             properties:
  *               address: { type: string }
  *               phone: { type: string }
- *               paymentMethod: { type: string, enum: [COD, STRIPE, MOMO] }
+ *               paymentMethod: { type: string, enum: [COD, STRIPE, MOMO, VNPAY, SEPAY] }
  *     responses:
  *       201:
  *         description: Đặt hàng thành công
@@ -123,7 +156,7 @@ router.patch('/:id/return', orderController.returnOrder);
  *             required: [orderId, method]
  *             properties:
  *               orderId: { type: string }
- *               method: { type: string, enum: [STRIPE, MOMO] }
+ *               method: { type: string, enum: [STRIPE, MOMO, VNPAY, SEPAY] }
  *     responses:
  *       200:
  *         description: Link thanh toán giả lập

@@ -133,7 +133,7 @@ export class AdminStatsService {
       where: { stock: { lt: 10 } },
       include: {
         product: {
-          select: { name: true, slug: true, images: { where: { isPrimary: true }, take: 1 } }
+          select: { name: true, slug: true, images: { orderBy: { isPrimary: 'desc' }, take: 1 } }
         }
       },
       orderBy: { stock: 'asc' }

@@ -141,18 +141,22 @@ function CheckoutContent() {
         clearCart(); 
         const orderId = res.data.data.id;
 
-        if (formData.paymentMethod === 'VNPAY') {
+        if (formData.paymentMethod === 'VNPAY' || formData.paymentMethod === 'SEPAY') {
           try {
             const paymentRes = await api.post('/orders/checkout', {
               orderId,
-              method: 'VNPAY'
+              method: formData.paymentMethod
             });
             if (paymentRes.data.success && paymentRes.data.data.payUrl) {
-              window.location.href = paymentRes.data.data.payUrl;
+              if (formData.paymentMethod === 'VNPAY') {
+                window.location.href = paymentRes.data.data.payUrl;
+              } else if (formData.paymentMethod === 'SEPAY') {
+                router.push(`/checkout/sepay?orderId=${orderId}&qrCode=${encodeURIComponent(paymentRes.data.data.payUrl)}`);
+              }
               return;
             }
           } catch (paymentError) {
-            toast.error('Lỗi khởi tạo thanh toán VNPAY, vui lòng thử lại sau');
+            toast.error(`Lỗi khởi tạo thanh toán ${formData.paymentMethod}, vui lòng thử lại sau`);
           }
         }
 
@@ -229,6 +233,15 @@ function CheckoutContent() {
                   <p className="text-sm text-muted-foreground mt-0.5">Thanh toán qua mã QR ngay lập tức an toàn.</p>
                 </div>
                 <CreditCard className="w-6 h-6 text-accent opacity-80 hidden sm:block" />
+              </label>
+
+              <label className={`block flex items-center p-4 border rounded-[var(--radius-lg)] cursor-pointer transition-all ${formData.paymentMethod === 'SEPAY' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-foreground/30 bg-card'}`}>
+                <input type="radio" name="paymentOption" className="w-4.5 h-4.5 accent-primary" checked={formData.paymentMethod === 'SEPAY'} onChange={() => setFormData({...formData, paymentMethod: 'SEPAY'})} />
+                <div className="ml-4 flex-1">
+                  <h4 className="font-semibold text-foreground">Chuyển khoản ngân hàng (SePay)</h4>
+                  <p className="text-sm text-muted-foreground mt-0.5">Quét mã QR VietQR để chuyển khoản. Tự động xác nhận.</p>
+                </div>
+                <CreditCard className="w-6 h-6 text-primary opacity-80 hidden sm:block" />
               </label>
             </div>
           </section>

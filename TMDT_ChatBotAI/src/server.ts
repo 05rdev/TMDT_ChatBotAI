@@ -93,6 +93,14 @@ const startServer = async () => {
     
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      
+      // Khởi chạy trình quét giao dịch SePay tự động (Giải quyết vấn đề phát triển trên localhost không nhận được webhook)
+      try {
+        const { startSepayPolling } = require('./modules/order/services/sepay-polling.service');
+        startSepayPolling(10000);
+      } catch (pollingErr) {
+        console.error('Failed to start SePay polling service:', pollingErr);
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);

@@ -60,4 +60,36 @@ export class PaymentController {
       next(error);
     }
   }
+
+  /**
+   * Webhook nhận thông báo giao dịch chuyển khoản từ SePay
+   */
+  async sepayWebhook(req: Request, res: Response, next: NextFunction) {
+    try {
+      let apiKey = process.env.SEPAY_WEBHOOK_API_KEY;
+      if (apiKey) {
+        apiKey = apiKey.replace(/^["']|["']$/g, ''); // Loại bỏ dấu nháy kép nếu bị giữ lại từ file .env
+      }
+      const authHeader = req.headers.authorization;
+
+      // Xác thực API Key từ SePay gửi qua Header Authorization (Apikey xyz...)
+      if (apiKey && authHeader !== `Apikey ${apiKey}`) {
+        return res.status(401).json({
+          success: false,
+          message: 'Webhook API Key không hợp lệ hoặc thiếu Authorization header'
+        });
+      }
+
+      const transaction = req.body;
+      const result = await paymentService.processSepayWebhook(transaction);
+
+      return res.json({
+        success: true,
+        message: result.message || 'Xử lý giao dịch SePay thành công',
+        data: (result as any).order || null
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

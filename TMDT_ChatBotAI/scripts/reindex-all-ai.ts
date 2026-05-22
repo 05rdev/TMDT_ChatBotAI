@@ -24,7 +24,8 @@ async function reindex() {
     where: { isDeleted: false },
     include: {
       images: true, // Lấy tất cả ảnh
-      category: { select: { name: true } }
+      category: { select: { name: true } },
+      attributes: { select: { key: true, value: true, unit: true } }
     }
   });
 
@@ -38,7 +39,8 @@ async function reindex() {
       const textToEmbed = EmbeddingHelper.buildProductEmbeddingText({
         name: product.name,
         description: product.description,
-        categoryName: product.category?.name
+        categoryName: product.category?.name,
+        attributes: product.attributes
       });
       const textVector = await embeddingHelper.generateEmbedding(textToEmbed);
       const textVectorStr = `[${textVector.join(',')}]`;

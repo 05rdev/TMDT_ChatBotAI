@@ -74,13 +74,25 @@ export class EmbeddingHelper {
     name: string;
     description?: string | null;
     categoryName?: string | null;
+    attributes?: { key: string; value: string; unit?: string | null }[];
   }): string {
     const parts = [
       product.name,
       product.categoryName ? `Danh mục: ${product.categoryName}` : '',
-      product.description ? product.description.substring(0, 500) : '',
-    ].filter(Boolean);
+    ];
 
-    return parts.join('. ');
+    // Thêm attributes có cấu trúc để AI search chính xác hơn
+    if (product.attributes && product.attributes.length > 0) {
+      const attrText = product.attributes
+        .map(a => `${a.key}: ${a.value}${a.unit ? ' ' + a.unit : ''}`)
+        .join(', ');
+      parts.push(`Thông số: ${attrText}`);
+    }
+
+    if (product.description) {
+      parts.push(product.description.substring(0, 500));
+    }
+
+    return parts.filter(Boolean).join('. ');
   }
 }

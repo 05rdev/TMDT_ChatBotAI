@@ -16,7 +16,7 @@ export class CartService {
             slug: true,
             isActive: true,
             isDeleted: true,
-            images: { where: { isPrimary: true }, take: 1 }
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 }
           }
         },
         variant: {
