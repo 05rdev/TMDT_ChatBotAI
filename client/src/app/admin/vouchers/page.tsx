@@ -127,10 +127,10 @@ export default function AdminVouchersPage() {
 
   return (
     <>
-      <div className="space-y-8 animate-fade-in-up">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-6">
+      <div className="admin-page animate-fade-in-up">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-5">
           <div className="space-y-1">
-            <h1 className="font-heading text-3xl sm:text-4xl text-foreground flex items-center">
+            <h1 className="admin-title flex items-center">
               Quản lý Voucher
             </h1>
             <p className="text-muted-foreground text-sm">Tạo và quản lý các chương trình khuyến mãi</p>
@@ -138,7 +138,7 @@ export default function AdminVouchersPage() {
 
           <Button 
             onClick={() => { setEditingVoucher(null); setIsModalOpen(true); }}
-            className="rounded-full shadow-md hover:shadow-lg"
+            className="shadow-md hover:shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" /> Tạo mã mới
           </Button>
@@ -150,10 +150,10 @@ export default function AdminVouchersPage() {
             <p className="text-sm font-medium text-muted-foreground">Đang tải dữ liệu...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             {vouchers.map((v) => (
-              <div key={v.id} className="card-elevated bg-card border border-border rounded-[var(--radius-xl)] flex flex-col group overflow-hidden hover:shadow-md transition-shadow">
-                <div className="p-6 space-y-5 flex-1 relative">
+              <div key={v.id} className="admin-card flex flex-col group overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-4 sm:p-6 space-y-5 flex-1 relative">
                   {/* Decorator */}
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-[100px] pointer-events-none" />
 
@@ -230,10 +230,10 @@ export default function AdminVouchersPage() {
           <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
           
           {/* Modal Container */}
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-card border border-border rounded-[var(--radius-xl)] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-card border border-border rounded-[8px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
             
             {/* Header */}
-            <div className="px-8 py-5 border-b border-border flex items-center justify-between bg-secondary/30">
+            <div className="px-4 sm:px-8 py-5 border-b border-border flex items-center justify-between gap-4 bg-secondary/30">
               <div>
                 <h2 className="text-xl font-semibold text-foreground tracking-tight">
                   {editingVoucher ? 'Cập nhật Voucher' : 'Tạo Voucher mới'}
@@ -243,14 +243,14 @@ export default function AdminVouchersPage() {
               <button 
                 type="button" 
                 onClick={() => setIsModalOpen(false)} 
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-all"
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-[8px] transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Scrollable Form Content */}
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
               <form id="voucher-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="Mã Voucher" placeholder="VD: SUMMER2024" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})} required />
@@ -307,18 +307,18 @@ export default function AdminVouchersPage() {
             </div>
 
             {/* Static Footer */}
-            <div className="px-8 py-4 border-t border-border bg-secondary/10 flex justify-end gap-3">
+            <div className="px-4 sm:px-8 py-4 border-t border-border bg-secondary/10 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-full"
+                className="px-5 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-[8px]"
               >
                 Hủy
               </button>
               <Button 
                 type="submit" 
                 form="voucher-form" 
-                className="px-6 h-10 shadow-md hover:shadow-lg rounded-full"
+                className="px-6 h-10 shadow-md hover:shadow-lg"
               >
                 {editingVoucher ? 'Cập nhật ngay' : 'Tạo mã Voucher'}
               </Button>

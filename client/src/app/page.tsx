@@ -123,15 +123,15 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background animate-fade-in-up">
       {/* Hero Banner - Container Width */}
-      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8">
-        <BannerCarousel height="h-[350px] md:h-[450px] lg:h-[500px]" />
+      <section className="page-shell pt-4 sm:pt-6 md:pt-8">
+        <BannerCarousel height="h-[220px] sm:h-[320px] md:h-[400px] lg:h-[440px]" />
       </section>
 
       {/* Categories Section */}
       {categories.length > 0 && (
-        <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <section className="page-shell py-8 md:py-12">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-end justify-between gap-4 mb-6 md:mb-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-primary" />
@@ -151,7 +151,7 @@ export default function HomePage() {
           </div>
 
           {/* Category Cards - Horizontal scroll on mobile, grid on desktop */}
-          <div className="flex gap-3 md:gap-4 overflow-x-auto pb-2 no-scrollbar sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible sm:pb-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
             {categories.map((cat, index) => {
               const categoryIcons: Record<string, string> = {
                 'laptop': '💻', 'máy tính bảng': '📱', 'điện thoại': '📲',
@@ -168,18 +168,18 @@ export default function HomePage() {
                 <Link
                   key={cat.id}
                   href={`/shop?categoryId=${cat.id}`}
-                  className="group relative flex-shrink-0 w-[140px] sm:w-auto"
+                  className="group relative min-w-0"
                   style={{ animationDelay: `${index * 60}ms` }}
                 >
-                  <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border/60 bg-card transition-all duration-400 group-hover:border-primary/30 group-hover:shadow-xl group-hover:shadow-primary/[0.08] group-hover:-translate-y-1.5">
+                   <div className="relative overflow-hidden rounded-[8px] border border-border/60 bg-card transition-all duration-300 group-hover:border-primary/30 group-hover:shadow-xl group-hover:shadow-primary/[0.08] group-hover:-translate-y-1">
                     {/* Background Gradient Accent */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-accent/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Content */}
-                    <div className="relative p-5 sm:p-6 flex flex-col items-center text-center gap-3">
+                     <div className="relative p-4 sm:p-5 flex flex-col items-center text-center gap-3">
                       {/* Category Image */}
                       <div className="relative">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[var(--radius-lg)] bg-gradient-to-br from-secondary to-secondary/60 flex items-center justify-center overflow-hidden transition-all duration-400 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/10">
+                         <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-[8px] bg-gradient-to-br from-secondary to-secondary/60 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/10">
                           {cat.image ? (
                             <img
                               src={cat.image}
@@ -274,8 +274,8 @@ export default function HomePage() {
       )}
 
       {/* CTA Section */}
-      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border border-primary/10 p-8 md:p-16 text-center">
+      <section className="page-shell py-12 md:py-20">
+        <div className="relative overflow-hidden rounded-[8px] bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border border-primary/10 p-7 md:p-14 text-center">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,var(--primary)/0.08,transparent_70%)]" />
           <div className="relative z-10 max-w-2xl mx-auto space-y-5">
             <h2 className="text-2xl md:text-4xl font-heading text-foreground tracking-tight">
@@ -322,7 +322,7 @@ function ProductSection({
 }) {
   return (
     <section className={`w-full ${bgAccent ? 'bg-secondary/30' : ''}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+      <div className="page-shell py-10 md:py-16">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div className="space-y-2">
@@ -343,7 +343,7 @@ function ProductSection({
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="product-grid">
           {products.map((product, index) => (
             <HomeProductCard key={product.id} product={product} index={index} t={t} />
           ))}
@@ -404,17 +404,17 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
 
   return (
     <div
-      className={`group relative bg-card border border-border/50 rounded-[var(--radius-xl)] overflow-hidden transition-all duration-400 hover:shadow-lg hover:shadow-black/[0.06] dark:hover:shadow-black/[0.25] hover:-translate-y-1 flex flex-col h-full cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
+      className={`product-card group relative flex flex-col h-full cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Image */}
-      <div className="relative block aspect-square overflow-hidden bg-secondary/30">
+      <div className="product-image-box relative block overflow-hidden">
         <Link href={`/product/${product.slug}`} className="block w-full h-full z-10">
           {product.primaryImage ? (
             <img
               src={product.primaryImage}
               alt={product.name}
-              className={`object-cover w-full h-full transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-105' : ''}`}
+               className={`object-contain w-full h-full p-2 sm:p-3 transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-105' : ''}`}
               loading="lazy"
             />
           ) : (
@@ -426,7 +426,7 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
 
         {isOutOfStock && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[2px] pointer-events-none">
-            <span className="px-4 py-2 bg-rose-600 text-white text-sm font-bold uppercase tracking-wider rounded-full shadow-lg border-2 border-white/20">
+              <span className="px-3 py-2 bg-rose-600 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-full shadow-lg border-2 border-white/20">
               Hết hàng
             </span>
           </div>
@@ -463,10 +463,10 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
 
         {/* Quick Actions */}
         {!isOutOfStock && (
-          <div className="absolute bottom-3 left-3 right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
             <button
               onClick={handleQuickAddCart}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[var(--radius-md)] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[8px] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Thêm giỏ</span>
@@ -474,7 +474,7 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
             <Link
               href={`/product/${product.slug}`}
               onClick={(e) => e.stopPropagation()}
-              className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[var(--radius-md)] hover:bg-white dark:hover:bg-card transition-all shadow-md"
+              className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[8px] hover:bg-white dark:hover:bg-card transition-all shadow-md"
             >
               <Eye className="w-4 h-4" />
             </Link>
@@ -483,7 +483,7 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
       </div>
 
       {/* Info */}
-      <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2">
+      <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2 min-w-0">
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           <T>{product.category?.name || 'Khác'}</T>
         </span>
@@ -492,8 +492,8 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
             <T>{product.name}</T>
           </h3>
         </Link>
-        <div className="flex items-end justify-between mt-auto pt-1">
-          <span className="text-base md:text-lg font-bold text-foreground leading-none tracking-tight">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 mt-auto pt-1 min-w-0">
+          <span className="text-base md:text-lg font-bold text-foreground leading-tight tracking-tight break-words">
             {product.minPrice ? `${product.minPrice.toLocaleString('vi-VN')}đ` : 'Liên hệ'}
           </span>
           {(product.soldCount || 0) > 0 && (

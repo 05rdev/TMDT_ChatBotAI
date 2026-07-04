@@ -142,7 +142,7 @@ export default function AdminProductsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-page">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -154,15 +154,15 @@ export default function AdminProductsPage() {
         </Button>
       </div>
 
-      <div className="card-elevated p-4 rounded-[var(--radius-xl)] bg-card border border-border flex flex-wrap items-center justify-between gap-4">
-        <div className="relative flex-1 min-w-[250px] max-w-md">
+      <div className="admin-toolbar">
+        <div className="relative flex-1 min-w-full sm:min-w-[260px] max-w-md">
           <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Tìm kiếm sản phẩm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-secondary/50 border border-border rounded-[var(--radius-lg)] pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+            className="admin-input pl-10 pr-4 py-2.5"
           />
         </div>
 
@@ -177,7 +177,7 @@ export default function AdminProductsPage() {
 
       {/* Filter panel */}
       {isFilterOpen && (
-        <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card border border-border grid grid-cols-1 sm:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-200">
+        <div className="admin-card p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 animate-in slide-in-from-top-2 duration-200">
           <div className="space-y-2">
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Danh mục</label>
             <select
@@ -234,8 +234,8 @@ export default function AdminProductsPage() {
       )}
 
       {/* Table Data */}
-      <div className="card-elevated bg-card rounded-[var(--radius-xl)] border border-border overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="admin-table-card">
+        <div className="admin-table-scroll">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-secondary/50 border-b border-border">
@@ -338,9 +338,9 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-secondary/20">
+        <div className="admin-pagination">
            <span>Trang {page} / {totalPages} — Tổng {total} sản phẩm</span>
-           <div className="flex items-center space-x-2">
+           <div className="flex items-center flex-wrap gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}

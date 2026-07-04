@@ -49,21 +49,21 @@ export default function AdminSupportPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-6">
+    <div className="admin-page animate-fade-in-up">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-5">
         <div className="space-y-1">
-          <h1 className="font-heading text-3xl sm:text-4xl text-foreground flex items-center">
+          <h1 className="admin-title flex items-center">
             Quản lý Hỗ trợ
           </h1>
           <p className="text-muted-foreground text-sm">Phản hồi và xử lý các yêu cầu từ khách hàng</p>
         </div>
 
-        <div className="flex items-center gap-3 bg-card border border-border rounded-[var(--radius-lg)] p-1.5 shadow-sm">
+        <div className="flex items-center gap-3 bg-card border border-border rounded-[8px] p-1.5 shadow-sm w-full sm:w-auto">
            <Filter className="w-4 h-4 ml-2 text-muted-foreground" />
            <select 
              value={filterStatus} 
              onChange={(e) => setFilterStatus(e.target.value)}
-             className="bg-transparent text-sm font-medium focus:outline-none p-1.5 cursor-pointer text-foreground appearance-none pr-8"
+             className="bg-transparent text-sm font-medium focus:outline-none p-1.5 cursor-pointer text-foreground appearance-none pr-8 w-full sm:w-auto"
            >
              <option value="">Tất cả trạng thái</option>
              <option value="OPEN">Chưa xử lý</option>
@@ -81,8 +81,8 @@ export default function AdminSupportPage() {
             <p className="text-sm font-medium text-muted-foreground">Đang tải dữ liệu yêu cầu...</p>
           </div>
         ) : tickets.length === 0 ? (
-          <div className="h-[400px] card-elevated bg-card rounded-[var(--radius-xl)] flex flex-col items-center justify-center space-y-5 text-center border border-border">
-             <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+          <div className="h-[360px] admin-card flex flex-col items-center justify-center space-y-5 text-center px-4">
+             <div className="w-16 h-16 bg-success/10 rounded-[8px] flex items-center justify-center">
                <CheckCircle2 className="w-8 h-8 text-success" />
              </div>
              <div className="space-y-1">
@@ -91,16 +91,16 @@ export default function AdminSupportPage() {
              </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {tickets.map((ticket) => (
               <div 
                 key={ticket.id} 
-                className="card-elevated bg-card border border-border rounded-[var(--radius-xl)] hover:shadow-md transition-shadow flex flex-col group overflow-hidden relative"
+                className="admin-card hover:shadow-md transition-shadow flex flex-col group overflow-hidden relative"
               >
                 {/* Decorative Background Element */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none" />
 
-                <div className="p-6 space-y-5 flex-1 relative z-10">
+                <div className="p-4 sm:p-6 space-y-5 flex-1 relative z-10">
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -114,7 +114,7 @@ export default function AdminSupportPage() {
                     </div>
                   </div>
 
-                  <div className="bg-secondary/30 p-4 rounded-[var(--radius-md)] border border-border/50">
+                  <div className="bg-secondary/30 p-4 rounded-[8px] border border-border/50">
                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Khách hàng</p>
                      <p className="font-semibold text-foreground">{ticket.user.name}</p>
                   </div>

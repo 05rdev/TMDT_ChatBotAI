@@ -129,7 +129,7 @@
 @utility card-elevated {
   background-color: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
@@ -139,7 +139,7 @@
 @utility solid-card {
   background-color: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
@@ -192,7 +192,7 @@
   .card-elevated-hover {
     background-color: var(--card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
     transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
@@ -204,7 +204,7 @@
 
   /* Container utilities */
   .container-custom {
-    max-width: 1280px;
+    max-width: 1180px;
     margin-left: auto;
     margin-right: auto;
     padding-left: 1rem;
@@ -222,6 +222,185 @@
     .container-custom {
       padding-left: 2rem;
       padding-right: 2rem;
+    }
+  }
+
+  .page-shell {
+    max-width: 1180px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .page-shell {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-shell {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .product-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+  }
+
+  .product-card {
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 0;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .product-card:hover {
+    border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+    transform: translateY(-3px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  }
+
+  .product-image-box {
+    background: #ffffff;
+    aspect-ratio: 1 / 1;
+  }
+
+  .dark .product-image-box {
+    background: #f7f7f4;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .admin-page {
+    width: 100%;
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+  }
+
+  .admin-card {
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    min-width: 0;
+  }
+
+  .admin-toolbar {
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    border-radius: 8px;
+    padding: 0.875rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.875rem;
+    min-width: 0;
+  }
+
+  .admin-table-card {
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .admin-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-table-scroll table {
+    min-width: 760px;
+  }
+
+  .admin-title {
+    font-size: clamp(1.35rem, 2vw, 1.875rem);
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--foreground);
+  }
+
+  .admin-description {
+    margin-top: 0.35rem;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  .admin-input {
+    width: 100%;
+    background: color-mix(in srgb, var(--secondary) 55%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .admin-input:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+  }
+
+  .admin-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 22%, transparent);
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 640px) {
+    .admin-page {
+      gap: 1rem;
+    }
+
+    .admin-toolbar {
+      padding: 0.75rem;
+    }
+
+    .admin-pagination {
+      align-items: stretch;
+      flex-direction: column;
+      font-size: 0.8125rem;
     }
   }
 }

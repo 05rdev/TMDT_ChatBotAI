@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from './ui/Button';
-import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera, MessageSquare } from 'lucide-react';
+import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera, MessageSquare, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -22,6 +22,7 @@ export const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [navSearchQuery, setNavSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -32,6 +33,7 @@ export const Navbar = () => {
     if (!navSearchQuery.trim()) return;
     router.push(`/shop?search=${encodeURIComponent(navSearchQuery.trim())}`);
     setNavSearchQuery('');
+    setIsMobileMenuOpen(false);
   };
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export const Navbar = () => {
 
   return (
     <nav className="solid-nav px-4 sm:px-6 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="page-shell flex items-center justify-between gap-3 px-0 sm:px-0 lg:px-0">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2.5 group shrink-0">
           <div className="w-9 h-9 bg-primary rounded-[var(--radius-md)] flex items-center justify-center transition-transform group-hover:scale-105">
@@ -73,7 +75,7 @@ export const Navbar = () => {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-5 lg:space-x-6">
           <Link href="/" className="text-foreground/80 font-medium hover:text-primary transition-colors">
             {t('nav.home')}
           </Link>
@@ -86,7 +88,7 @@ export const Navbar = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
           <LanguageSwitcher />
           {/* Theme Toggle */}
           {mounted && (
@@ -161,7 +163,11 @@ export const Navbar = () => {
             />
           </div>
 
-          <button className="lg:hidden p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
+            aria-label="Open menu"
+          >
             <Search className="w-5 h-5" />
           </button>
 
@@ -209,11 +215,85 @@ export const Navbar = () => {
             </div>
           )}
 
-          <button className="md:hidden p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors">
+          <button
+            onClick={() => setIsMobileMenuOpen((value) => !value)}
+            className="md:hidden p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
+            aria-label="Toggle menu"
+          >
             <Menu className="w-6 h-6" />
           </button>
         </div>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[80] bg-background/95 backdrop-blur-xl">
+          <div className="px-4 py-4 border-b border-border flex items-center justify-between">
+            <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 bg-primary rounded-[var(--radius-md)] flex items-center justify-center">
+                <Bot className="text-primary-foreground w-5 h-5" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-foreground">
+                Ultra<span className="text-primary">Shop</span>
+              </span>
+            </Link>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors" aria-label="Close menu">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-5">
+            <div className="flex items-center bg-card border border-border rounded-[8px] px-3 py-2.5">
+              <Search className="w-4 h-4 text-muted-foreground mr-2" />
+              <input
+                type="text"
+                placeholder={t('nav.searchPlaceholder')}
+                value={navSearchQuery}
+                onChange={(e) => setNavSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleNavSearch()}
+                className="bg-transparent border-none focus:outline-none text-sm min-w-0 flex-1 placeholder:text-muted-foreground/60"
+              />
+              <button onClick={handleNavSearch} className="text-xs font-semibold text-primary px-2 py-1">
+                Tim
+              </button>
+            </div>
+
+            <div className="grid gap-2">
+              {[
+                { href: '/', label: t('nav.home') },
+                { href: '/shop', label: t('nav.shop') },
+                { href: '/about', label: t('nav.about') },
+                { href: '/cart', label: 'Gio hang' },
+                { href: '/profile/orders', label: 'Don hang' },
+                { href: '/profile/support', label: 'Ho tro' },
+              ].map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-3 rounded-[8px] bg-card border border-border text-foreground font-semibold"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            {hasHydrated && isAuthenticated ? (
+              <button onClick={handleLogout} className="w-full px-4 py-3 rounded-[8px] bg-primary text-primary-foreground font-semibold">
+                {t('nav.logout')}
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-[8px] bg-card border border-border text-center font-semibold">
+                  {t('nav.login')}
+                </Link>
+                <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-[8px] bg-primary text-primary-foreground text-center font-semibold">
+                  {t('nav.register')}
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

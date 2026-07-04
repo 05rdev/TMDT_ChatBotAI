@@ -17,14 +17,14 @@ export default function AdminSettingsPage() {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 animate-fade-in-up">
+    <div className="admin-page lg:flex-row gap-4 lg:gap-8 animate-fade-in-up">
       {/* Sidebar Settings Tabs */}
-      <div className="w-full lg:w-64 flex flex-col gap-2 shrink-0">
+      <div className="w-full lg:w-64 flex flex-row lg:flex-col gap-2 shrink-0 overflow-x-auto pb-1 lg:pb-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center px-5 py-3.5 rounded-[var(--radius-lg)] text-sm font-medium transition-all ${
+            className={`flex items-center px-4 lg:px-5 py-3 rounded-[8px] text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -37,12 +37,12 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* Settings Content */}
-      <div className="flex-1 card-elevated bg-card rounded-[var(--radius-xl)] border border-border p-6 sm:p-10">
+      <div className="flex-1 admin-card p-4 sm:p-6 lg:p-10">
         {activeTab === 'general' && <GeneralTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab !== 'general' && activeTab !== 'notifications' && (
           <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-2">
+              <div className="w-16 h-16 bg-secondary rounded-[8px] flex items-center justify-center mb-2">
               <Globe className="w-8 h-8 text-muted-foreground animate-spin-slow" />
             </div>
             <h2 className="font-heading text-2xl text-foreground">Tính năng đang phát triển</h2>
@@ -158,7 +158,7 @@ function GeneralTab() {
       </div>
 
       <div className="pt-8 border-t border-border mt-8">
-        <Button className="rounded-full px-8" onClick={handleSave} disabled={isSaving}>
+        <Button className="px-8" onClick={handleSave} disabled={isSaving}>
           {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Lưu thay đổi
         </Button>
@@ -179,16 +179,16 @@ function NotificationsTab() {
             Quản lý và gửi thông báo đến người dùng.
           </p>
         </div>
-        <div className="flex bg-secondary p-1 rounded-[var(--radius-lg)] shrink-0 self-start sm:self-auto">
+        <div className="flex bg-secondary p-1 rounded-[8px] shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setSection('send')}
-            className={`px-4 py-2 text-sm font-semibold rounded-[var(--radius-md)] transition-all ${section === 'send' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-[8px] transition-all ${section === 'send' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Gửi thông báo
           </button>
           <button
             onClick={() => setSection('manage')}
-            className={`px-4 py-2 text-sm font-semibold rounded-[var(--radius-md)] transition-all ${section === 'manage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-[8px] transition-all ${section === 'manage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Lịch sử
           </button>
@@ -544,7 +544,7 @@ function NotificationSender() {
       {notifTitle && (
         <div className="space-y-2">
           <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Xem trước</label>
-          <div className="p-4 bg-secondary/40 border border-border rounded-[var(--radius-lg)] space-y-2">
+          <div className="p-4 bg-secondary/40 border border-border rounded-[8px] space-y-2">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary" />
               <span className="text-sm font-bold text-foreground">{notifTitle}</span>
@@ -555,11 +555,11 @@ function NotificationSender() {
       )}
 
       {/* Send Button */}
-      <div className="pt-8 border-t border-border mt-8 flex items-center gap-4">
+      <div className="pt-8 border-t border-border mt-8 flex flex-col sm:flex-row sm:items-center gap-4">
         <Button
           onClick={handleSend}
           disabled={isSending || !notifTitle.trim() || !notifContent.trim()}
-          className="rounded-full px-8 gap-2"
+          className="px-8 gap-2 w-full sm:w-auto"
         >
           {isSending ? (
             <Loader2 className="w-4 h-4 animate-spin" />

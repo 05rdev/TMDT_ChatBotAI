@@ -343,23 +343,23 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-background pb-20 animate-fade-in-up">
       {/* Main Shop Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+      <div className="page-shell py-5 md:py-8">
         
         {/* Top Bar: Title + Sort + Filter Toggle */}
         <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] opacity-80">Collection</p>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-heading text-foreground tracking-tighter flex items-baseline gap-3">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-heading text-foreground tracking-tighter flex flex-wrap items-baseline gap-x-3 gap-y-1 text-balance">
               {selectedCategory ? <T>{categories.find(c => c.id === selectedCategory)?.name || 'Tất cả sản phẩm'}</T> : t('shop.allCategories')}
               <span className="text-sm md:text-base font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 md:pb-0">
             {/* Sort Dropdown */}
             <div className="relative" ref={sortDropdownRef}>
               <button
                 onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                className="flex items-center space-x-2 bg-card border border-border px-4 py-2 rounded-[var(--radius-md)] shadow-sm hover:bg-secondary/50 transition-all"
+                className="flex items-center space-x-2 bg-card border border-border px-3 sm:px-4 py-2 rounded-[8px] shadow-sm hover:bg-secondary/50 transition-all whitespace-nowrap"
               >
                 <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
                 <span className="text-foreground text-sm font-medium pr-1 whitespace-nowrap">
@@ -407,7 +407,7 @@ export default function ShopPage() {
             <Button
               onClick={() => setIsMobileFiltersOpen(true)}
               variant="outline"
-              className="lg:hidden gap-2 rounded-[var(--radius-md)] px-4 py-2 h-auto border-border shadow-sm relative"
+                className="lg:hidden gap-2 rounded-[8px] px-3 sm:px-4 py-2 h-auto border-border shadow-sm relative whitespace-nowrap"
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span className="text-sm font-medium">{t('shop.filter')}</span>
@@ -424,8 +424,8 @@ export default function ShopPage() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           
           {/* Desktop Sidebar Filters */}
-          <aside className="hidden lg:block w-[240px] shrink-0">
-            <div className="sticky top-24 card-elevated bg-card p-5 rounded-[var(--radius-xl)] border border-border">
+          <aside className="hidden lg:block w-[260px] shrink-0">
+            <div className="sticky top-24 card-elevated bg-card p-5 rounded-[8px] border border-border">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                   <SlidersHorizontal className="w-4 h-4 text-primary" />
@@ -461,7 +461,7 @@ export default function ShopPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+                <div className="product-grid">
                   {products.map((product, index) => (
                     <ProductCard key={product.id} product={product} index={index} />
                   ))}
@@ -525,7 +525,7 @@ export default function ShopPage() {
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsMobileFiltersOpen(false)} />
 
         {/* Drawer */}
-        <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-card border-l border-border shadow-2xl transition-transform duration-300 transform ${isMobileFiltersOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+        <div className={`absolute top-0 right-0 h-full w-full max-w-[360px] bg-card border-l border-border shadow-2xl transition-transform duration-300 transform ${isMobileFiltersOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
           <div className="flex items-center justify-between p-5 border-b border-border">
             <h2 className="text-lg font-bold text-foreground">{t('shop.filter')}</h2>
             <button onClick={() => setIsMobileFiltersOpen(false)} className="p-2 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
@@ -591,17 +591,17 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
   return (
     <div
-      className={`group relative bg-card border border-border/50 rounded-[var(--radius-xl)] overflow-hidden transition-all duration-400 hover:shadow-lg hover:shadow-black/[0.06] dark:hover:shadow-black/[0.25] hover:-translate-y-1 flex flex-col h-full cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
+      className={`product-card group relative flex flex-col h-full cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Image Area */}
-      <div className="relative block aspect-square overflow-hidden bg-secondary/30">
+      <div className="product-image-box relative block overflow-hidden">
         <Link href={`/product/${product.slug}`} className="block w-full h-full z-10">
           {product.primaryImage ? (
             <img
               src={product.primaryImage}
               alt={product.name}
-              className={`object-cover w-full h-full transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-105' : ''}`}
+              className={`object-contain w-full h-full p-2 sm:p-3 transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-105' : ''}`}
               loading="lazy"
             />
           ) : (
@@ -614,7 +614,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         {/* Out of Stock Overlay */}
         {isOutOfStock && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[2px] pointer-events-none">
-            <span className="px-4 py-2 bg-rose-600 text-white text-sm font-bold uppercase tracking-wider rounded-full shadow-lg border-2 border-white/20">
+              <span className="px-3 py-2 bg-rose-600 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-full shadow-lg border-2 border-white/20">
               Hết hàng
             </span>
           </div>
@@ -655,10 +655,10 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
         {/* Quick Actions - Bottom on hover */}
         {!isOutOfStock && (
-          <div className="absolute bottom-3 left-3 right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 z-20 flex gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
             <button
               onClick={handleQuickAddCart}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[var(--radius-md)] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-[8px] hover:bg-primary-hover active:scale-[0.97] transition-all shadow-md"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{'Thêm giỏ'}</span>
@@ -666,7 +666,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
             <Link
               href={`/product/${product.slug}`}
               onClick={(e) => e.stopPropagation()}
-              className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[var(--radius-md)] hover:bg-white dark:hover:bg-card transition-all shadow-md"
+              className="w-9 h-9 flex items-center justify-center bg-white/90 dark:bg-card/90 backdrop-blur-sm text-foreground rounded-[8px] hover:bg-white dark:hover:bg-card transition-all shadow-md"
             >
               <Eye className="w-4 h-4" />
             </Link>
@@ -675,7 +675,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
       </div>
 
       {/* Info Area */}
-      <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2">
+      <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2 min-w-0">
         {/* Category */}
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           <T>{product.category?.name || t('shop.other')}</T>
@@ -689,9 +689,9 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         </Link>
 
         {/* Bottom: Price + Sold */}
-        <div className="flex items-end justify-between mt-auto pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 mt-auto pt-1 min-w-0">
           <div>
-            <span className="text-base md:text-lg font-bold text-foreground leading-none tracking-tight">
+            <span className="text-base md:text-lg font-bold text-foreground leading-tight tracking-tight break-words">
               {product.minPrice ? `${product.minPrice.toLocaleString('vi-VN')}đ` : t('shop.contact')}
             </span>
           </div>

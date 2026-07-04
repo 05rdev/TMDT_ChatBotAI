@@ -83,22 +83,22 @@ export default function AdminAIChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] space-y-6 animate-fade-in-up">
+    <div className="admin-page h-[calc(100vh-112px)] min-h-[620px] animate-fade-in-up">
       {/* Admin Header */}
-      <div className="flex items-center justify-between border-b border-border pb-5">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-primary/10 rounded-[var(--radius-lg)] flex items-center justify-center border border-primary/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 bg-primary/10 rounded-[8px] flex items-center justify-center border border-primary/20 shrink-0">
             <ShieldCheck className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="font-heading text-2xl sm:text-3xl text-foreground flex items-center">
+            <h1 className="font-heading text-xl sm:text-3xl text-foreground flex items-center">
               Admin AI Command <Sparkles className="ml-2 w-5 h-5 text-primary" />
             </h1>
             <p className="text-sm font-medium text-muted-foreground mt-0.5">Hệ thống phân tích & Quản trị thông minh</p>
           </div>
         </div>
         
-        <div className="flex space-x-4">
+        <div className="flex gap-4">
             <div className="hidden md:flex flex-col items-end justify-center">
                 <button 
                   onClick={handleClearChat}
@@ -114,11 +114,11 @@ export default function AdminAIChatPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 flex-1 overflow-hidden min-h-0">
         
         {/* Left Sidebar - Quick Actions */}
         <div className="hidden lg:flex flex-col space-y-4">
-            <div className="card-elevated bg-card p-5 rounded-[var(--radius-xl)] border border-border">
+            <div className="admin-card p-5">
                 <h3 className="text-sm font-semibold mb-4 flex items-center text-foreground">
                     <LayoutDashboard className="w-4.5 h-4.5 mr-2 text-primary" /> Gợi ý truy vấn
                 </h3>
@@ -141,7 +141,7 @@ export default function AdminAIChatPage() {
                 </div>
             </div>
 
-            <div className="card-elevated bg-card p-5 rounded-[var(--radius-xl)] border border-border flex-1 flex flex-col">
+            <div className="admin-card p-5 flex-1 flex flex-col">
                  <h3 className="text-sm font-semibold mb-4 flex items-center text-foreground">
                     <AlertCircle className="w-4.5 h-4.5 mr-2 text-warning" /> Hệ thống Log
                 </h3>
@@ -158,22 +158,22 @@ export default function AdminAIChatPage() {
         <div className="lg:col-span-3 flex flex-col space-y-4 h-full min-h-0">
             <div 
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto card-elevated bg-card p-6 space-y-6 rounded-[var(--radius-xl)] border border-border custom-scrollbar"
+                className="flex-1 overflow-y-auto admin-card p-4 sm:p-6 space-y-5 sm:space-y-6 custom-scrollbar"
             >
                 {messages.map((msg, idx) => (
                 <div 
                     key={idx} 
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}
                 >
-                    <div className={`flex max-w-[85%] space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
-                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-accent/10 text-accent border border-accent/20'}`}>
+                    <div className={`flex max-w-[94%] sm:max-w-[85%] space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-accent/10 text-accent border border-accent/20'}`}>
                         {msg.role === 'user' ? <Users className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
                     </div>
                     <div className="space-y-4 flex-1">
                         <div className={`p-4 text-sm leading-relaxed ${
                             msg.role === 'user' 
-                                ? 'bg-primary text-primary-foreground rounded-[var(--radius-lg)] rounded-tr-sm shadow-sm' 
-                                : 'bg-secondary/50 text-foreground border border-border rounded-[var(--radius-lg)] rounded-tl-sm'
+                                ? 'bg-primary text-primary-foreground rounded-[8px] rounded-tr-sm shadow-sm' 
+                                : 'bg-secondary/50 text-foreground border border-border rounded-[8px] rounded-tl-sm'
                         }`}>
                             <div className="whitespace-pre-wrap">{msg.content}</div>
                         </div>
@@ -187,7 +187,7 @@ export default function AdminAIChatPage() {
                     <div className="w-10 h-10 rounded-full bg-accent/10 text-accent border border-accent/20 flex items-center justify-center">
                         <ShieldCheck className="w-5 h-5" />
                     </div>
-                    <div className="px-4 py-3 bg-secondary/50 border border-border rounded-[var(--radius-lg)] rounded-tl-sm flex items-center gap-2">
+                    <div className="px-4 py-3 bg-secondary/50 border border-border rounded-[8px] rounded-tl-sm flex items-center gap-2">
                         <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
                         <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-75" />
                         <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-150" />
@@ -198,7 +198,7 @@ export default function AdminAIChatPage() {
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSend} className="flex space-x-3 items-end">
+            <form onSubmit={handleSend} className="flex gap-3 items-end">
                 <div className="flex-1 relative">
                 <textarea 
                     rows={1}
@@ -211,13 +211,13 @@ export default function AdminAIChatPage() {
                     }
                     }}
                     placeholder="Nhập lệnh điều khiển hoặc yêu cầu báo cáo..."
-                    className="w-full bg-card border border-border px-5 py-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none min-h-[56px] rounded-full shadow-sm custom-scrollbar"
+                    className="w-full bg-card border border-border px-4 sm:px-5 py-3.5 sm:py-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none min-h-[52px] sm:min-h-[56px] rounded-[8px] shadow-sm custom-scrollbar"
                 />
                 </div>
                 <Button 
                 type="submit" 
                 disabled={isLoading || !input.trim()}
-                className="w-14 h-[56px] rounded-full flex items-center justify-center shrink-0 shadow-md hover:shadow-lg"
+                className="w-12 sm:w-14 h-[52px] sm:h-[56px] rounded-[8px] flex items-center justify-center shrink-0 shadow-md hover:shadow-lg"
                 >
                 <Send className="w-5 h-5" />
                 </Button>

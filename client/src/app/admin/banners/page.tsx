@@ -119,8 +119,8 @@ export default function AdminBannersPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="flex items-center justify-between">
+    <div className="admin-page animate-fade-in-up">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Quản lý Banner</h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">Cấu hình các banner quảng cáo trên trang chủ</p>
@@ -134,13 +134,13 @@ export default function AdminBannersPage() {
       </div>
 
       {isEditing && (
-        <div className="card-elevated bg-card p-6 rounded-[var(--radius-xl)] border border-border space-y-6 animate-in slide-in-from-top-4 duration-300">
+        <div className="admin-card p-4 sm:p-6 space-y-6 animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <h2 className="text-xl font-semibold flex items-center text-foreground">
               {currentBanner.id ? <Edit className="w-5 h-5 mr-2 text-primary" /> : <Plus className="w-5 h-5 mr-2 text-primary" />}
               {currentBanner.id ? 'Chỉnh sửa Banner' : 'Tạo Banner mới'}
             </h2>
-            <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-secondary rounded-full transition-colors">
+            <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-secondary rounded-[8px] transition-colors">
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
@@ -182,15 +182,15 @@ export default function AdminBannersPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">URL Hình ảnh hoặc Tải lên</label>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input 
                     type="text" 
                     value={currentBanner.imageUrl || ''} 
                     onChange={e => setCurrentBanner({...currentBanner, imageUrl: e.target.value})}
-                    className="flex-1 bg-secondary/50 border border-border px-4 py-2.5 rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                    className="flex-1 bg-secondary/50 border border-border px-4 py-2.5 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm min-w-0"
                     placeholder="https://example.com/banner.jpg"
                   />
-                  <label className="cursor-pointer flex items-center justify-center bg-secondary border border-border rounded-[var(--radius-md)] px-4 hover:bg-secondary/80 transition-colors">
+                  <label className="cursor-pointer flex items-center justify-center bg-secondary border border-border rounded-[8px] px-4 py-2.5 hover:bg-secondary/80 transition-colors">
                     {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Upload className="w-5 h-5 text-muted-foreground" />}
                     <input 
                       type="file" 
@@ -228,13 +228,13 @@ export default function AdminBannersPage() {
             </div>
           </div>
 
-          <div className="bg-secondary/30 rounded-[var(--radius-lg)] p-6 border border-dashed border-border min-h-[200px] flex flex-col items-center justify-center text-center">
+          <div className="bg-secondary/30 rounded-[8px] p-4 sm:p-6 border border-dashed border-border min-h-[200px] flex flex-col items-center justify-center text-center">
             {currentBanner.imageUrl ? (
-              <div className="w-full relative rounded-[var(--radius-md)] overflow-hidden shadow-lg border border-border aspect-[21/9]">
+              <div className="w-full relative rounded-[8px] overflow-hidden shadow-lg border border-border aspect-[16/9] sm:aspect-[21/9]">
                 <img src={currentBanner.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white p-8">
-                   <h3 className="text-3xl font-bold mb-2">{currentBanner.title}</h3>
-                   <p className="text-lg opacity-90">{currentBanner.subtitle}</p>
+                   <h3 className="text-lg sm:text-3xl font-bold mb-2">{currentBanner.title}</h3>
+                   <p className="text-sm sm:text-lg opacity-90">{currentBanner.subtitle}</p>
                 </div>
               </div>
             ) : (
@@ -247,7 +247,7 @@ export default function AdminBannersPage() {
             )}
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-border">
             <Button variant="ghost" onClick={() => setIsEditing(false)}>Hủy</Button>
             <Button onClick={handleSave} className="px-8 shadow-md">
               <Save className="w-4 h-4 mr-2" /> {currentBanner.id ? 'Lưu thay đổi' : 'Tạo mới'}
@@ -264,7 +264,7 @@ export default function AdminBannersPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {banners.length === 0 ? (
-            <div className="text-center py-20 card-elevated bg-card rounded-[var(--radius-xl)] border-2 border-dashed border-border">
+            <div className="text-center py-20 admin-card border-2 border-dashed border-border">
               <ImageIcon className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground">Chưa có banner nào</h3>
               <p className="text-sm text-muted-foreground mt-1">Hãy tạo banner đầu tiên để làm nổi bật trang chủ của bạn</p>
@@ -273,9 +273,9 @@ export default function AdminBannersPage() {
             banners.map((banner) => (
               <div 
                 key={banner.id} 
-                className="group card-elevated-hover bg-card p-4 rounded-[var(--radius-xl)] border border-border flex items-center space-x-6 transition-all"
+                className="group admin-card p-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 transition-all hover:shadow-md"
               >
-                <div className="w-48 aspect-[16/9] bg-secondary rounded-[var(--radius-lg)] overflow-hidden border border-border shrink-0 shadow-sm">
+                <div className="w-full sm:w-48 aspect-[16/9] bg-secondary rounded-[8px] overflow-hidden border border-border shrink-0 shadow-sm">
                   <img src={banner.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
                 
@@ -305,7 +305,7 @@ export default function AdminBannersPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(banner)} className="hover:bg-primary/10 hover:text-primary">
                     <Edit className="w-4 h-4" />
                   </Button>

@@ -84,7 +84,7 @@ export default function AdminCategoriesPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="admin-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -96,20 +96,20 @@ export default function AdminCategoriesPage() {
         </Button>
       </div>
 
-      <div className="card-elevated p-4 rounded-[var(--radius-xl)] bg-card border border-border">
-        <div className="relative max-w-md">
+      <div className="admin-toolbar justify-start">
+        <div className="relative w-full max-w-md">
           <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input 
             type="text" 
             placeholder="Tìm kiếm danh mục..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-secondary/50 border border-border rounded-[var(--radius-lg)] pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+            className="admin-input pl-10 pr-4 py-2.5"
           />
         </div>
       </div>
 
-      <div className="card-elevated rounded-[var(--radius-xl)] border border-border overflow-hidden bg-card">
+      <div className="admin-card overflow-hidden">
         {isLoading ? (
           <div className="p-20 flex flex-col items-center justify-center space-y-4">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -122,7 +122,7 @@ export default function AdminCategoriesPage() {
             <Button variant="outline" onClick={handleAdd}>Tạo danh mục đầu tiên</Button>
           </div>
         ) : (
-          <div className="p-4 space-y-2">
+          <div className="p-3 sm:p-4 space-y-2 overflow-x-auto">
             {categories.map((cat) => (
               <CategoryItem 
                 key={cat.id} 
@@ -159,7 +159,7 @@ function CategoryItem({ category, onEdit, onDelete, depth }: {
   return (
     <div className="space-y-1">
       <div 
-        className={`flex items-center justify-between p-3 rounded-[var(--radius-lg)] border transition-all ${
+        className={`flex items-center justify-between p-3 rounded-[8px] border transition-all min-w-[560px] sm:min-w-0 ${
           depth === 0 ? 'bg-secondary/30 border-border' : 'bg-transparent border-transparent hover:bg-secondary/20'
         }`}
         style={{ marginLeft: `${depth * 24}px` }}

@@ -68,7 +68,7 @@ export const BannerCarousel = ({ height = "h-[400px] md:h-[500px] lg:h-[600px]" 
   const prev = () => setCurrentIndex(prev => (prev - 1 + displayBanners.length) % displayBanners.length);
 
   return (
-    <div className={`relative w-full ${height} overflow-hidden bg-secondary group`}>
+    <div className={`relative w-full ${height} overflow-hidden bg-secondary group rounded-[8px] border border-border/70`}>
       <AnimatePresence mode="wait">
         <motion.div
           key={displayBanners[currentIndex].id}
@@ -99,13 +99,13 @@ export const BannerCarousel = ({ height = "h-[400px] md:h-[500px] lg:h-[600px]" 
           )}
           
           {/* Overlay Content */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent flex flex-col justify-center px-6 sm:px-12 md:px-16 lg:px-24 text-white">
-            <div className="max-w-2xl space-y-3 sm:space-y-4 md:space-y-6">
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-black/5 flex flex-col justify-center px-5 sm:px-10 md:px-14 lg:px-20 text-white">
+            <div className="max-w-xl space-y-3 sm:space-y-4 md:space-y-5">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-heading leading-tight font-black"
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-heading leading-tight font-black text-balance"
               >
                 {displayBanners[currentIndex].title}
               </motion.h2>
@@ -113,7 +113,7 @@ export const BannerCarousel = ({ height = "h-[400px] md:h-[500px] lg:h-[600px]" 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="text-sm sm:text-base md:text-lg lg:text-xl text-white/80 max-w-lg leading-relaxed font-medium"
+                className="text-sm sm:text-base md:text-lg text-white/85 max-w-lg leading-relaxed font-medium"
               >
                 {displayBanners[currentIndex].subtitle}
               </motion.p>
@@ -126,7 +126,7 @@ export const BannerCarousel = ({ height = "h-[400px] md:h-[500px] lg:h-[600px]" 
                 >
                   <Link 
                     href={displayBanners[currentIndex].link!}
-                    className="inline-flex items-center px-6 py-3 sm:px-8 sm:py-4 bg-primary text-white font-bold rounded-full hover:bg-primary-dark transition-all transform hover:scale-105 shadow-xl text-sm sm:text-base"
+                    className="inline-flex items-center px-5 py-2.5 sm:px-6 sm:py-3 bg-primary text-white font-bold rounded-[8px] hover:bg-primary-hover transition-all active:scale-[0.98] shadow-xl text-sm sm:text-base"
                   >
                     Khám phá ngay
                   </Link>
@@ -142,19 +142,19 @@ export const BannerCarousel = ({ height = "h-[400px] md:h-[500px] lg:h-[600px]" 
         <>
           <button 
             onClick={prev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white/20 backdrop-blur-md text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-white/40 cursor-pointer"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-white/20 backdrop-blur-md text-white rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white/40 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
           <button 
             onClick={next}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white/20 backdrop-blur-md text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-white/40 cursor-pointer"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-white/20 backdrop-blur-md text-white rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white/40 cursor-pointer"
           >
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Indicators */}
-          <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex space-x-2 sm:space-x-3">
+          <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 sm:space-x-3">
             {displayBanners.map((_, i) => (
               <button
                 key={i}

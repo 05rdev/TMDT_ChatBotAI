@@ -71,14 +71,14 @@ export default function AdminDashboardPage() {
   ] : [];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="admin-page animate-in fade-in duration-700">
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
         {stats.length > 0 ? stats.map((stat, idx) => (
-          <div key={idx} className="card-elevated p-5 flex flex-col hover:shadow-lg transition-all border-l-4 border-l-primary/20">
+          <div key={idx} className="admin-card p-4 sm:p-5 flex flex-col hover:shadow-lg transition-all border-l-4 border-l-primary/20">
              <div className="flex items-center justify-between mb-4">
                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{stat.label}</span>
-               <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center shadow-sm`}>
+               <div className={`w-10 h-10 ${stat.color} rounded-[8px] flex items-center justify-center shadow-sm`}>
                  <stat.icon className="w-5 h-5" />
                </div>
              </div>
@@ -91,14 +91,14 @@ export default function AdminDashboardPage() {
           </div>
         )) : (
           [...Array(4)].map((_, i) => (
-            <div key={i} className="card-elevated p-5 h-32 animate-pulse bg-secondary/20 rounded-2xl" />
+            <div key={i} className="admin-card p-5 h-32 animate-pulse bg-secondary/20" />
           ))
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="lg:col-span-2 card-elevated p-6 flex flex-col min-h-[400px]">
+        <div className="lg:col-span-2 admin-card p-4 sm:p-6 flex flex-col min-h-[360px]">
            <div className="flex items-center justify-between mb-8">
              <div>
                <h3 className="font-bold text-lg text-foreground">Xu hướng doanh thu</h3>
@@ -154,14 +154,14 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Recent Orders */}
-        <div className="lg:col-span-1 card-elevated p-6 flex flex-col">
+        <div className="lg:col-span-1 admin-card p-4 sm:p-6 flex flex-col">
            <div className="flex items-center justify-between mb-6">
              <h3 className="font-bold text-lg text-foreground">Đơn hàng mới</h3>
              <Link href="/admin/orders" className="text-xs font-bold text-primary hover:bg-primary/5 px-2 py-1 rounded-md transition-all">Tất cả</Link>
            </div>
            <div className="space-y-4 flex-1">
              {recentOrders.length > 0 ? recentOrders.map((order) => (
-               <div key={order.id} className="flex justify-between items-center p-3.5 bg-secondary/30 rounded-2xl hover:bg-secondary/50 transition-all cursor-pointer border border-transparent hover:border-border">
+               <div key={order.id} className="flex justify-between items-center p-3.5 bg-secondary/30 rounded-[8px] hover:bg-secondary/50 transition-all cursor-pointer border border-transparent hover:border-border">
                   <div className="min-w-0">
                     <h5 className="text-[11px] font-black text-foreground tracking-wider uppercase mb-1">#{order.id.slice(0, 8)}</h5>
                     <p className="text-xs font-medium text-muted-foreground truncate max-w-[140px]">{order.user?.name || 'Khách vãng lai'}</p>
@@ -187,12 +187,12 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Top Products */}
-        <div className="card-elevated p-6 flex flex-col">
+        <div className="admin-card p-4 sm:p-6 flex flex-col">
           <h3 className="font-bold text-lg text-foreground mb-6">Top sản phẩm</h3>
           <div className="space-y-4 flex-1">
             {topProducts.length > 0 ? topProducts.map((product, idx) => (
-              <div key={idx} className="flex items-center gap-4 p-3 bg-secondary/20 rounded-xl">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-xs">
+              <div key={idx} className="flex items-center gap-4 p-3 bg-secondary/20 rounded-[8px]">
+                <div className="w-8 h-8 rounded-[8px] bg-primary/10 flex items-center justify-center font-bold text-primary text-xs">
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Category Stats */}
-        <div className="card-elevated p-6 flex flex-col">
+        <div className="admin-card p-4 sm:p-6 flex flex-col">
           <h3 className="font-bold text-lg text-foreground mb-6">Danh mục</h3>
           <div className="space-y-4 flex-1">
             {categoryStats.length > 0 ? categoryStats.map((cat, idx) => (
@@ -231,12 +231,12 @@ export default function AdminDashboardPage() {
 
         {/* AI Insight Section */}
         <div className="lg:col-span-3">
-          <div className="card-elevated overflow-hidden border-2 border-primary/20 relative group">
+            <div className="admin-card overflow-hidden border-2 border-primary/20 relative group">
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
               <Sparkles className="w-32 h-32 text-primary" />
             </div>
             
-            <div className="p-8 relative">
+            <div className="p-4 sm:p-6 lg:p-8 relative">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
@@ -270,14 +270,14 @@ export default function AdminDashboardPage() {
               {aiAnalysis ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4 duration-500">
                   <div className="space-y-6">
-                    <div className="p-5 bg-secondary/30 rounded-2xl border border-border/50">
+                    <div className="p-4 sm:p-5 bg-secondary/30 rounded-[8px] border border-border/50">
                       <h4 className="flex items-center text-xs font-black uppercase tracking-widest text-primary mb-4">
                         <TrendingUp className="w-4 h-4 mr-2" /> Phân tích xu hướng
                       </h4>
                       <p className="text-sm leading-relaxed font-medium text-foreground/80">{aiAnalysis.analysis}</p>
                     </div>
                     
-                    <div className="p-5 bg-emerald-500/5 rounded-2xl border border-emerald-500/20">
+                    <div className="p-4 sm:p-5 bg-emerald-500/5 rounded-[8px] border border-emerald-500/20">
                       <h4 className="flex items-center text-xs font-black uppercase tracking-widest text-emerald-500 mb-4">
                         <Lightbulb className="w-4 h-4 mr-2" /> Insight quan trọng
                       </h4>
@@ -293,13 +293,13 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="p-6 bg-primary text-primary-foreground rounded-2xl shadow-xl shadow-primary/20">
+                    <div className="p-4 sm:p-6 bg-primary text-primary-foreground rounded-[8px] shadow-xl shadow-primary/20">
                       <h4 className="flex items-center text-xs font-black uppercase tracking-widest mb-6 opacity-80">
                         <Activity className="w-4 h-4 mr-2" /> Đề xuất hành động
                       </h4>
                       <div className="space-y-4">
                         {aiAnalysis.suggestions.map((item: string, i: number) => (
-                          <div key={i} className="flex items-center gap-4 p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                          <div key={i} className="flex items-center gap-4 p-3 bg-white/10 rounded-[8px] backdrop-blur-sm">
                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-xs">
                               {i + 1}
                             </div>
@@ -315,7 +315,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               ) : (
-                <div className="h-48 border-2 border-dashed border-border/50 rounded-2xl flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                <div className="h-48 border-2 border-dashed border-border/50 rounded-[8px] flex flex-col items-center justify-center text-muted-foreground opacity-50 text-center px-4">
                   <Sparkles className="w-10 h-10 mb-4" />
                   <p className="text-sm font-bold">Nhấn nút phía trên để AI bắt đầu phân tích dữ liệu kinh doanh của bạn</p>
                 </div>
