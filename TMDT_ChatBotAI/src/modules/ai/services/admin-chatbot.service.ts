@@ -22,6 +22,36 @@ type ContextBlock = {
   content: string;
 };
 
+type AdminActionEntity =
+  | 'order'
+  | 'product'
+  | 'category'
+  | 'customer'
+  | 'voucher'
+  | 'banner'
+  | 'support'
+  | 'settings';
+
+type AdminActionDraft = {
+  entity?: AdminActionEntity | null;
+  idPrefix?: string | null;
+  sku?: string | null;
+  code?: string | null;
+  email?: string | null;
+  status?: string | null;
+  value?: number | null;
+  text?: string | null;
+  url?: string | null;
+  active?: boolean | null;
+  field?: string | null;
+};
+
+type AdminActionResponse = {
+  mode: 'confirm' | 'execute';
+  message: string;
+  actionMessage?: string;
+};
+
 const ORDER_STATUS: Record<string, string> = {
   PENDING: 'Cho duyet',
   PROCESSING: 'Dang goi',
@@ -114,12 +144,186 @@ export class AdminChatbotService {
     if (hashMatch) return hashMatch[1].toLowerCase();
 
     const idMatch = this.normalize(message).match(/\bid\s*(?:la|=|:)?\s*([a-z0-9-]{6,36})/);
-    return idMatch?.[1]?.toLowerCase() || null;
+    if (idMatch) return idMatch[1].toLowerCase();
+
+    const entityIdMatch = this.normalize(message).match(
+      /(?:don hang|don|order|san pham|product|bien the|variant|danh muc|category|banner|ticket|ho tro|khach hang|user|voucher)\s+(?:co\s+)?(?:id\s+)?#?([a-z0-9-]{6,36})/
+    );
+    if (entityIdMatch) return entityIdMatch[1].toLowerCase();
+
+    const bareIdMatch = this.normalize(message).match(/\b([a-z0-9]{8,36}(?:-[a-z0-9]{4,36})*)\b/);
+    return bareIdMatch?.[1]?.toLowerCase() || null;
+  }
+
+  private extractEntityHint(message: string): AdminActionEntity | null {
+    const text = this.normalize(message);
+    if (/(don hang|\bdon\b|order)/.test(text)) return 'order';
+    if (/(san pham|product|bien the|variant|sku|gia|ton kho|stock|so luong)/.test(text)) return 'product';
+    if (/(danh muc|category)/.test(text)) return 'category';
+    if (/(khach hang|customer|user|tai khoan|nguoi dung)/.test(text)) return 'customer';
+    if (/(voucher|ma giam|coupon)/.test(text)) return 'voucher';
+    if (/(banner)/.test(text)) return 'banner';
+    if (/(ticket|ho tro|support)/.test(text)) return 'support';
+    if (/(bao tri|maintenance|cai dat|setting)/.test(text)) return 'settings';
+    return null;
+  }
+
+  private hasMutationIntent(message: string) {
+    const text = this.normalize(message);
+    return (
+      /\b(doi|sua|cap nhat|thay doi|chuyen|khoa|mo|bat|tat|dong|tao|set|update|nhap|xoa|xoa)\b/.test(text) ||
+      /\b(an|hien)\s+(san pham|banner|voucher|danh muc)\b/.test(text)
+    );
+  }
+
+  private isAdminQuestion(message: string) {
+    const text = this.normalize(message);
+    if (this.hasMutationIntent(message)) return false;
+
+    return (
+      /\?/.test(message) ||
+      /\b(vay|hien tai|he thong|co bao nhieu|bao nhieu|nhung .* nao|nao|gi|the nao|tai sao|vi sao|xem|cho xem|liet ke|danh sach|bao cao|thong ke|kiem tra)\b/.test(text)
+    );
+  }
+
+  private extractContextFromHistory(history: Array<{ role: string; content: string }>) {
+    for (const item of [...history].reverse()) {
+      const idPrefix = this.extractIdPrefix(item.content);
+      if (!idPrefix) continue;
+
+      const entity = this.extractEntityHint(item.content);
+      if (entity) return { entity, idPrefix };
+    }
+
+    return { entity: null as AdminActionEntity | null, idPrefix: null as string | null };
+  }
+
+  private extractContextualIdPrefix(message: string, history: Array<{ role: string; content: string }>) {
+    const directPrefix = this.extractIdPrefix(message);
+    if (directPrefix) return directPrefix;
+
+    const text = this.normalize(message);
+    if (/\b(no|nay|do|don do|san pham do|ticket do|banner do)\b/.test(text)) {
+      return this.extractContextFromHistory(history).idPrefix;
+    }
+
+    return null;
+  }
+
+  private extractContextualEntity(message: string, history: Array<{ role: string; content: string }>, draft?: AdminActionDraft | null) {
+    return draft?.entity || this.extractEntityHint(message) || this.extractContextFromHistory(history).entity;
+  }
+
+  private extractJsonObject(text: string) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]) as AdminActionDraft;
+    } catch {
+      return null;
+    }
+  }
+
+  private async extractActionDraftWithAI(message: string, history: Array<{ role: string; content: string }>) {
+    const recentContext = history
+      .slice(-6)
+      .map((item) => `${item.role}: ${item.content}`)
+      .join('\n');
+
+    const prompt = [
+      'Ban la bo tach y dinh quan tri he thong. Chi tra ve JSON hop le, khong giai thich.',
+      'Neu cau noi la lenh sua database, tra ve cac truong co the xac dinh:',
+      '{"entity":"order|product|category|customer|voucher|banner|support|settings","idPrefix":"...","sku":"...","code":"...","email":"...","status":"PENDING|PROCESSING|SHIPPED|DELIVERED|CANCELLED|OPEN|CLOSED","value":123,"text":"...","url":"https://...","active":true,"field":"price|stock|name|image|status|role|maintenance"}',
+      'Quy doi trang thai don: "dang goi/dong goi/xu ly" = PROCESSING, "dang giao" = SHIPPED, "hoan tat/da giao" = DELIVERED, "huy" = CANCELLED.',
+      'Neu cau dung dai tu nhu "no", lay doi tuong gan nhat trong lich su.',
+      'Neu khong phai lenh sua DB, tra ve {"entity":null}.',
+      '',
+      'LICH SU GAN DAY:',
+      recentContext || '(trong)',
+      '',
+      `LENH HIEN TAI: ${message}`,
+    ].join('\n');
+
+    try {
+      const response = await fetch(this.ollamaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: [{ role: 'user', content: prompt }],
+          stream: false,
+          keep_alive: -1,
+          options: {
+            temperature: 0,
+            num_gpu: 0,
+          },
+        }),
+      });
+
+      if (!response.ok) return null;
+      const data: any = await response.json();
+      return this.extractJsonObject(data?.message?.content || '');
+    } catch {
+      return null;
+    }
+  }
+
+  private renderActionDraft(message: string, draft: AdminActionDraft | null) {
+    if (!draft?.entity) return message;
+
+    const id = draft.idPrefix ? ` #${draft.idPrefix}` : '';
+    const parsedValue = this.parseLastNumber(message);
+    const value = parsedValue ?? draft.value ?? null;
+    const targetText = draft.text || this.parseTextAfterTarget(message);
+    const targetUrl = draft.url || this.parseUrl(message);
+
+    if (draft.entity === 'order' && draft.status) return `chuyen don${id} sang ${draft.status}`;
+    if (draft.entity === 'support' && draft.status) return `${draft.status === 'CLOSED' ? 'dong' : 'mo'} ticket${id}`;
+    if (draft.entity === 'settings' && typeof draft.active === 'boolean') return `${draft.active ? 'bat' : 'tat'} bao tri`;
+    if (draft.entity === 'product') {
+      if (draft.sku && draft.field === 'price' && value !== null) return `doi gia san pham sku ${draft.sku} thanh ${value}`;
+      if (draft.sku && draft.field === 'stock' && value !== null) return `doi ton kho san pham sku ${draft.sku} thanh ${value}`;
+      if (draft.field === 'price' && value !== null) return `doi gia san pham${id} thanh ${value}`;
+      if (draft.field === 'stock' && value !== null) return `doi ton kho san pham${id} thanh ${value}`;
+      if (draft.field === 'name' && targetText) return `doi ten san pham${id} thanh ${targetText}`;
+      if (typeof draft.active === 'boolean') return `${draft.active ? 'hien' : 'an'} san pham${id}`;
+    }
+    if (draft.entity === 'category') {
+      if (draft.field === 'image' && targetUrl) return `doi anh danh muc${id} thanh ${targetUrl}`;
+      if (draft.field === 'name' && targetText) return `doi ten danh muc${id} thanh ${targetText}`;
+    }
+    if (draft.entity === 'customer') {
+      if (typeof draft.active === 'boolean') return `${draft.active ? 'mo' : 'khoa'} khach hang ${draft.email || id}`;
+      if (draft.field === 'role' && targetText) return `doi role khach hang ${draft.email || id} thanh ${targetText}`;
+    }
+    if (draft.entity === 'voucher') {
+      const voucherTarget = draft.code ? ` ${draft.code}` : id;
+      if (typeof draft.active === 'boolean') return `${draft.active ? 'mo' : 'khoa'} voucher${voucherTarget}`;
+      if (value !== null) return `doi voucher${voucherTarget} giam thanh ${value}`;
+    }
+    if (draft.entity === 'banner') {
+      if (typeof draft.active === 'boolean') return `${draft.active ? 'bat' : 'tat'} banner${id}`;
+      if (draft.field === 'image' && targetUrl) return `doi anh banner${id} thanh ${targetUrl}`;
+      if (draft.field === 'title' && targetText) return `doi tieu de banner${id} thanh ${targetText}`;
+      if (draft.field === 'link' && (targetUrl || targetText)) return `doi link banner${id} thanh ${targetUrl || targetText}`;
+      if (draft.field === 'order' && value !== null) return `doi thu tu banner${id} thanh ${value}`;
+    }
+
+    return message;
   }
 
   private parseLastNumber(message: string) {
     const normalized = this.normalize(message).replace(/#/g, ' ');
-    const matches = [...normalized.matchAll(/([0-9][0-9.,]*)\s*(trieu|tr|nghin|k|vnd|d)?/g)];
+    const compactMillion = normalized.match(/\b([0-9]+)\s*tr\s*([0-9]+)\b/);
+    if (compactMillion) {
+      const millionPart = Number(compactMillion[1]);
+      const decimalPart = Number(`0.${compactMillion[2]}`);
+      if (Number.isFinite(millionPart) && Number.isFinite(decimalPart)) {
+        return Math.round((millionPart + decimalPart) * 1_000_000);
+      }
+    }
+
+    const matches = [...normalized.matchAll(/([0-9][0-9.,]*)\s*(trieu|tr|cu|nghin|k|vnd|d)?/g)];
     if (!matches.length) return null;
 
     const match = matches[matches.length - 1];
@@ -128,9 +332,44 @@ export class AdminChatbotService {
     if (!Number.isFinite(value)) return null;
 
     const unit = match[2] || '';
-    if (unit === 'trieu' || unit === 'tr') return value * 1_000_000;
+    if (unit === 'trieu' || unit === 'tr' || unit === 'cu') return value * 1_000_000;
     if (unit === 'nghin' || unit === 'k') return value * 1_000;
     return value;
+  }
+
+  private isConfirmMessage(message: string) {
+    const text = this.normalize(message).trim();
+    return /^(xac nhan|dong y|ok|oke|yes|co|chot|lam di|thuc hien|confirm)\b/.test(text);
+  }
+
+  private isCancelMessage(message: string) {
+    const text = this.normalize(message).trim();
+    return /^(huy|khong|dung|bo qua|cancel|thoi)\b/.test(text);
+  }
+
+  private getPendingAction(history: Array<{ role: string; content: string; suggestedProducts?: any }>) {
+    for (const item of [...history].reverse()) {
+      if (item.role !== 'assistant') continue;
+      return item.suggestedProducts?.pendingAdminAction?.actionMessage as string | undefined;
+    }
+
+    return undefined;
+  }
+
+  private buildConfirmationMessage(actionMessage: string) {
+    const value = this.parseLastNumber(actionMessage);
+    const text = this.normalize(actionMessage);
+    const valueLine = value !== null && /(gia|price|voucher|giam|ton kho|stock|so luong|thu tu)/.test(text)
+      ? `\n- Gia tri moi: ${/(ton kho|stock|so luong|thu tu)/.test(text) ? Math.floor(value) : this.formatMoney(value)}`
+      : '';
+
+    return [
+      'Em chua sua database ngay. Sep xac nhan giup em truoc khi thuc hien:',
+      `- Lenh: ${actionMessage}${valueLine}`,
+      '',
+      'Neu dung, Sep nhan: "xac nhan".',
+      'Neu khong dung, Sep nhan: "huy".',
+    ].join('\n');
   }
 
   private parseUrl(message: string) {
@@ -201,7 +440,7 @@ export class AdminChatbotService {
     const codeMatch =
       message.match(/\b(?:voucher|code)\s+([A-Z0-9_-]{3,30})\b/i) ||
       message.match(/\bma\s+(?!giam\b|giảm\b)([A-Z0-9_-]{3,30})\b/i);
-    const code = prefix ? null : codeMatch?.[1]?.toUpperCase();
+    const code = codeMatch?.[1]?.toUpperCase();
     const matches = await prisma.voucher.findMany({
       where: code ? { code } : { id: { startsWith: prefix || '' } },
       take: 2,
@@ -480,49 +719,65 @@ export class AdminChatbotService {
     return `${enabled ? 'Da bat' : 'Da tat'} che do bao tri he thong.`;
   }
 
-  private async tryExecuteAdminAction(message: string) {
-    const text = this.normalize(message);
-    const mutationWords = /(doi|sua|cap nhat|thay doi|chuyen|khoa|mo|bat|tat|an|hien|dong|tao|set|update|nhap)/;
-    if (!mutationWords.test(text)) return null;
+  private async tryExecuteAdminAction(message: string, history: Array<{ role: string; content: string }> = [], confirmed = false): Promise<AdminActionResponse | null> {
+    if (!confirmed && this.isAdminQuestion(message)) return null;
 
-    const settingsResult = await this.handleSettingsAction(message);
-    if (settingsResult) return settingsResult;
+    const draft = await this.extractActionDraftWithAI(message, history);
+    const actionMessage = this.renderActionDraft(message, draft);
+    const text = this.normalize(actionMessage);
+    if (!this.hasMutationIntent(actionMessage)) return null;
 
-    const prefix = this.extractIdPrefix(message);
-
-    try {
-      if (/(don hang|\bdon\b|order)/.test(text)) {
-        if (!prefix) return 'Em can ID don hang, vi du: "chuyen don #a0fca7cb sang dang giao".';
-        return await this.handleOrderAction(message, prefix);
+    const settingsResult = await this.handleSettingsAction(actionMessage);
+    if (settingsResult) {
+      if (!confirmed) {
+        return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
       }
-      if (/(san pham|product|bien the|variant|sku|gia|ton kho|stock|so luong)/.test(text)) {
-        if (!prefix && !/\bsku\b/i.test(message)) return 'Em can ID san pham/bien the hoac SKU de sua chinh xac.';
-        return await this.handleProductAction(message, prefix || '');
-      }
-      if (/(danh muc|category)/.test(text)) {
-        if (!prefix) return 'Em can ID danh muc de sua chinh xac.';
-        return await this.handleCategoryAction(message, prefix);
-      }
-      if (/(khach hang|customer|user|tai khoan|nguoi dung)/.test(text)) {
-        if (!prefix && !message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)) return 'Em can ID hoac email khach hang de sua chinh xac.';
-        return await this.handleCustomerAction(message, prefix);
-      }
-      if (/(voucher|ma giam|coupon)/.test(text)) {
-        return await this.handleVoucherAction(message, prefix);
-      }
-      if (/(banner)/.test(text)) {
-        if (!prefix) return 'Em can ID banner de sua chinh xac.';
-        return await this.handleBannerAction(message, prefix);
-      }
-      if (/(ticket|ho tro|support)/.test(text)) {
-        if (!prefix) return 'Em can ID ticket de sua chinh xac.';
-        return await this.handleSupportAction(message, prefix);
-      }
-    } catch (error: any) {
-      return `Em khong thuc hien duoc thay doi nay: ${error?.message || 'loi khong xac dinh'}. Du lieu co the chua duoc cap nhat.`;
+      return { mode: 'execute', message: settingsResult };
     }
 
-    return this.mutationHelp();
+    const prefix = this.extractContextualIdPrefix(actionMessage, history);
+    const entity = this.extractContextualEntity(actionMessage, history, draft);
+
+    try {
+      if (entity === 'order' || /(don hang|\bdon\b|order)/.test(text)) {
+        if (!prefix) return { mode: 'execute', message: 'Em can ID don hang, vi du: "chuyen don #a0fca7cb sang dang giao".' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleOrderAction(actionMessage, prefix) };
+      }
+      if (entity === 'product' || /(san pham|product|bien the|variant|sku|gia|ton kho|stock|so luong)/.test(text)) {
+        if (!prefix && !/\bsku\b/i.test(actionMessage)) return { mode: 'execute', message: 'Em can ID san pham/bien the hoac SKU de sua chinh xac.' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleProductAction(actionMessage, prefix || '') };
+      }
+      if (entity === 'category' || /(danh muc|category)/.test(text)) {
+        if (!prefix) return { mode: 'execute', message: 'Em can ID danh muc de sua chinh xac.' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleCategoryAction(actionMessage, prefix) };
+      }
+      if (entity === 'customer' || /(khach hang|customer|user|tai khoan|nguoi dung)/.test(text)) {
+        if (!prefix && !actionMessage.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)) return { mode: 'execute', message: 'Em can ID hoac email khach hang de sua chinh xac.' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleCustomerAction(actionMessage, prefix) };
+      }
+      if (entity === 'voucher' || /(voucher|ma giam|coupon)/.test(text)) {
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleVoucherAction(actionMessage, prefix) };
+      }
+      if (entity === 'banner' || /(banner)/.test(text)) {
+        if (!prefix) return { mode: 'execute', message: 'Em can ID banner de sua chinh xac.' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleBannerAction(actionMessage, prefix) };
+      }
+      if (entity === 'support' || /(ticket|ho tro|support)/.test(text)) {
+        if (!prefix) return { mode: 'execute', message: 'Em can ID ticket de sua chinh xac.' };
+        if (!confirmed) return { mode: 'confirm', message: this.buildConfirmationMessage(actionMessage), actionMessage };
+        return { mode: 'execute', message: await this.handleSupportAction(actionMessage, prefix) };
+      }
+    } catch (error: any) {
+      return { mode: 'execute', message: `Em khong thuc hien duoc thay doi nay: ${error?.message || 'loi khong xac dinh'}. Du lieu co the chua duoc cap nhat.` };
+    }
+
+    return { mode: 'execute', message: this.mutationHelp() };
   }
 
   private async buildOverviewContext(): Promise<ContextBlock> {
@@ -1019,18 +1274,65 @@ export class AdminChatbotService {
       },
     });
 
-    const actionResult = await this.tryExecuteAdminAction(cleanMessage);
+    const actionHistory = (
+      await prisma.chatMessage.findMany({
+        where: {
+          userId: adminId,
+          suggestedProducts: { path: ['isAdminChat'], equals: true },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+      })
+    ).reverse();
+
+    const pendingAction = this.getPendingAction(actionHistory);
+    if (pendingAction && this.isCancelMessage(cleanMessage)) {
+      const cancelMessage = 'Da huy lenh dang cho xac nhan. Database chua bi thay doi.';
+      await prisma.chatMessage.create({
+        data: {
+          userId: adminId,
+          role: 'assistant',
+          content: cancelMessage,
+          suggestedProducts: { isAdminChat: true } as any,
+        },
+      });
+
+      return cancelMessage;
+    }
+
+    if (pendingAction && this.isConfirmMessage(cleanMessage)) {
+      const confirmedResult = await this.tryExecuteAdminAction(pendingAction, actionHistory, true);
+      const confirmedMessage = confirmedResult?.message || 'Em khong tim thay lenh dang cho xac nhan de thuc hien.';
+
+      await prisma.chatMessage.create({
+        data: {
+          userId: adminId,
+          role: 'assistant',
+          content: confirmedMessage,
+          suggestedProducts: { isAdminChat: true } as any,
+        },
+      });
+
+      return confirmedMessage;
+    }
+
+    const actionResult = await this.tryExecuteAdminAction(cleanMessage, actionHistory);
     if (actionResult) {
       await prisma.chatMessage.create({
         data: {
           userId: adminId,
           role: 'assistant',
-          content: actionResult,
-          suggestedProducts: { isAdminChat: true } as any,
+          content: actionResult.message,
+          suggestedProducts: {
+            isAdminChat: true,
+            ...(actionResult.mode === 'confirm' && actionResult.actionMessage
+              ? { pendingAdminAction: { actionMessage: actionResult.actionMessage, createdAt: new Date().toISOString() } }
+              : {}),
+          } as any,
         },
       });
 
-      return actionResult;
+      return actionResult.message;
     }
 
     const intent = this.detectIntent(cleanMessage);
