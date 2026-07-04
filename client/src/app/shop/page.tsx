@@ -171,6 +171,7 @@ export default function ShopPage() {
       if (sortBy === 'best_selling') queryParams.append('sort', 'best_selling');
       if (selectedRating) queryParams.append('minRating', String(selectedRating));
 
+      queryParams.append('_', String(Date.now()));
       const url = `/products?${queryParams.toString()}`;
       const response = await api.get(url);
 
@@ -193,6 +194,24 @@ export default function ShopPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const refreshVisiblePage = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchProducts();
+      }
+    };
+
+    window.addEventListener('focus', refreshVisiblePage);
+    window.addEventListener('pageshow', refreshVisiblePage);
+    document.addEventListener('visibilitychange', refreshVisiblePage);
+
+    return () => {
+      window.removeEventListener('focus', refreshVisiblePage);
+      window.removeEventListener('pageshow', refreshVisiblePage);
+      document.removeEventListener('visibilitychange', refreshVisiblePage);
+    };
+  }, [page, searchQuery, selectedCategory, minPrice, maxPrice, sortBy, selectedRating]);
 
   const handleApplyPriceFilter = () => {
     setPage(1);
@@ -563,8 +582,8 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
       });
       await fetchCart();
       toast.success('Đã thêm vào giỏ hàng');
-    } catch {
-      toast.error('Không thể thêm vào giỏ');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Không thể thêm vào giỏ');
     }
   };
 

@@ -2,6 +2,7 @@ import { TranslationDictionary } from '../types';
 
 const vi: TranslationDictionary = {
   // Navbar
+  'nav.home': 'Trang chủ',
   'nav.shop': 'Cửa hàng',
   'nav.about': 'Giới thiệu',
   'nav.login': 'Đăng nhập',

@@ -11,6 +11,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  image?: string | null;
   parentId: string | null;
   children?: Category[];
 }
@@ -173,6 +174,13 @@ function CategoryItem({ category, onEdit, onDelete, depth }: {
           )}
           <div className={`p-1.5 rounded-md ${depth === 0 ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
             <FolderTree className="w-4 h-4" />
+          </div>
+          <div className="w-14 h-14 rounded-[var(--radius-md)] overflow-hidden bg-secondary border border-border flex items-center justify-center shrink-0">
+            {category.image ? (
+              <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-semibold text-muted-foreground">No img</span>
+            )}
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">{category.name}</p>

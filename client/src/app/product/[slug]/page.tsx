@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
 import { useTranslation } from '@/hooks/useTranslation';
 import { T } from '@/components/T';
+import { normalizeProductAttributes } from '@/lib/productAttributes';
 
 interface Product {
   id: string;
@@ -26,7 +27,7 @@ interface Product {
   totalReviews: number;
   category: { id: string; name: string };
   images: { url: string; isPrimary: boolean }[];
-  attributes?: Record<string, string | number | boolean | null>;
+  attributes?: unknown;
   variants: { id: string; name: string; price: number; stock: number; attributes: any }[];
   reviews: any[];
 }
@@ -102,8 +103,8 @@ export default function ProductDetailPage() {
       });
       await fetchCart();
       toast.success('Đã thêm vào giỏ hàng');
-    } catch (error) {
-      toast.error('Lỗi khi thêm vào giỏ hàng');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Lỗi khi thêm vào giỏ hàng');
     }
   };
 
@@ -142,6 +143,7 @@ export default function ProductDetailPage() {
 
   const currentVariant = product.variants[selectedVariant] || product.variants[0];
   const selectedImageUrl = product.images[selectedImage]?.url;
+  const productAttributes = normalizeProductAttributes(product.attributes);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-12 md:space-y-16 pb-20 animate-fade-in-up">
@@ -380,14 +382,16 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Attributes */}
-              {product.attributes && Object.keys(product.attributes).length > 0 && (
+              {productAttributes.length > 0 && (
                 <div className="mt-6 p-4 bg-card border border-border rounded-[var(--radius-lg)]">
                   <h4 className="font-semibold text-foreground mb-3">Thông số kỹ thuật</h4>
                   <div className="space-y-2">
-                    {Object.entries(product.attributes).map(([key, value]) => (
-                      <div key={key} className="flex justify-between py-2 border-b border-border/50 last:border-0">
-                        <span className="text-sm text-muted-foreground">{key}</span>
-                        <span className="text-sm font-medium text-foreground">{value}</span>
+                    {productAttributes.map((attr) => (
+                      <div key={attr.key} className="flex justify-between gap-4 py-2 border-b border-border/50 last:border-0">
+                        <span className="text-sm text-muted-foreground">{attr.key}</span>
+                        <span className="text-sm font-medium text-foreground text-right">
+                          {attr.value}{attr.unit ? ` ${attr.unit}` : ''}
+                        </span>
                       </div>
                     ))}
                   </div>

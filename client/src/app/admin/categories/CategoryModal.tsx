@@ -11,7 +11,7 @@ interface Category {
   name: string;
   slug: string;
   parentId: string | null;
-  image?: string;
+  image?: string | null;
 }
 
 interface Props {

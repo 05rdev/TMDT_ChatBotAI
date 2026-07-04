@@ -28,9 +28,13 @@ export default function CartPage() {
     }
   }, [user]);
 
-  const fetchServerCart = async () => {
+  const recalculateServerTotal = (items: any[]) => {
+    return items.reduce((sum, item) => sum + Number(item.variant?.price || 0) * item.quantity, 0);
+  };
+
+  const fetchServerCart = async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const res = await api.get('/cart');
       if (res.data.success) {
         setServerCart(res.data.data.items);
@@ -41,7 +45,7 @@ export default function CartPage() {
     } catch (error) {
       console.error('Error loading cart', error);
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
@@ -50,9 +54,13 @@ export default function CartPage() {
     if (user) {
       try {
         await api.put(`/cart/${variantId}`, { quantity: newQty });
-        fetchServerCart();
-      } catch (error) {
-        toast.error(t('cart.updateFailed'));
+        const nextCart = serverCart.map(item => item.id === id ? { ...item, quantity: newQty } : item);
+        setServerCart(nextCart);
+        setServerTotal(recalculateServerTotal(nextCart));
+        void localCart.fetchCart();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || t('cart.updateFailed'));
+        void fetchServerCart(false);
       }
     } else {
       localCart.updateQuantity(id, newQty);
@@ -63,9 +71,14 @@ export default function CartPage() {
     if (user) {
       try {
         await api.delete(`/cart/${variantId}`);
-        fetchServerCart();
-      } catch (error) {
-        toast.error(t('cart.removeFailed'));
+        const nextCart = serverCart.filter(item => item.id !== id);
+        setServerCart(nextCart);
+        setServerTotal(recalculateServerTotal(nextCart));
+        setSelectedItems(prev => prev.filter(itemId => itemId !== id));
+        void localCart.fetchCart();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || t('cart.removeFailed'));
+        void fetchServerCart(false);
       }
     } else {
       localCart.removeItem(id);

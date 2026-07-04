@@ -13,6 +13,8 @@
     "prisma:push": "prisma db push",
     "ai:bridge": "scripts\\start-ai-bridge.bat",
     "ai:reindex": "ts-node -r tsconfig-paths/register scripts/reindex-all-ai.ts",
+    "ai:attributes": "ts-node -r tsconfig-paths/register scripts/backfill-ai-attributes.ts",
+    "ai:attributes:reindex": "ts-node -r tsconfig-paths/register scripts/backfill-ai-attributes.ts --reindex",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },

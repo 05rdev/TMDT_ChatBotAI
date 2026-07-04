@@ -2,6 +2,7 @@ import { TranslationDictionary } from '../types';
 
 const en: TranslationDictionary = {
   // Navbar
+  'nav.home': 'Home',
   'nav.shop': 'Shop',
   'nav.about': 'About',
   'nav.login': 'Login',

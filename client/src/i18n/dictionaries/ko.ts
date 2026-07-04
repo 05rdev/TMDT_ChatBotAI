@@ -2,6 +2,7 @@ import { TranslationDictionary } from '../types';
 
 const ko: TranslationDictionary = {
   // Navbar
+  'nav.home': '홈',
   'nav.shop': '쇼핑',
   'nav.about': '소개',
   'nav.login': '로그인',

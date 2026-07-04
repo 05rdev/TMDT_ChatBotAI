@@ -26,6 +26,21 @@ const STOP_WORDS = [
 // Từ chỉ giới tính/ngữ cảnh: dùng để lọc chính xác hơn nhưng không search riêng lẻ
 const GENDER_CONTEXT_WORDS = ['nam', 'nữ', 'trẻ em', 'bé trai', 'bé gái', 'unisex'];
 
+const ATTRIBUTE_KEY_ALIASES: Record<string, string> = {
+  battery: 'battery_mah',
+  battery_life: 'battery_life_hours',
+  capacity: 'capacity_gb',
+  chip: 'cpu',
+  connectivity: 'connection_type',
+  memory: 'ram_gb',
+  ram: 'ram_gb',
+  refresh_rate: 'refresh_rate_hz',
+  rom: 'storage_gb',
+  screen_size: 'screen_size_inch',
+  speed: 'read_speed_mbps',
+  storage: 'storage_gb',
+};
+
 export class AIService {
   private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
   private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
@@ -158,6 +173,16 @@ export class AIService {
 
   private escapeRegExp(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private normalizeAttributeKey(key: string): string {
+    const normalized = key
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    return ATTRIBUTE_KEY_ALIASES[normalized] || normalized;
   }
 
   /**
@@ -527,13 +552,12 @@ export class AIService {
       if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
         const attrConditions: Prisma.ProductWhereInput[] = [];
         // Text attributes need 'contains' or just 'has key' approach
-        const textAttrKeys = ['dimensions', 'material', 'color', 'style', 'type', 'brand', 'origin'];
+        const textAttrKeys = ['dimensions', 'material', 'color', 'style', 'type', 'product_type', 'brand', 'origin', 'use_case', 'search_keywords', 'connection_type', 'gpu_type', 'storage_type', 'panel_type'];
 
         for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
           if (!attrFilter) continue;
 
-          let standardizedKey = attrKey;
-          if (standardizedKey === 'chip') standardizedKey = 'cpu';
+          const standardizedKey = this.normalizeAttributeKey(attrKey);
 
           // Text/dimension attributes: do NOT enforce key at Prisma level to allow name/description fallbacks in post-filter
           if (textAttrKeys.includes(standardizedKey)) {
@@ -544,24 +568,24 @@ export class AIService {
             attrConditions.push({ attributes: { some: { key: standardizedKey, value: attrFilter.exact.toString() } } });
           } else {
             // For range queries, just ensure the product HAS this attribute key
-            if (standardizedKey === 'battery' || standardizedKey === 'battery_life') {
+            if (standardizedKey === 'battery_mah' || standardizedKey === 'battery_life_hours') {
               attrConditions.push({
                 attributes: {
                   some: {
                     OR: [
-                      { key: 'battery' },
-                      { key: 'battery_life' }
+                      { key: 'battery_mah' },
+                      { key: 'battery_life_hours' }
                     ]
                   }
                 }
               });
-            } else if (standardizedKey === 'storage' || standardizedKey === 'rom') {
+            } else if (standardizedKey === 'storage_gb' || standardizedKey === 'capacity_gb') {
               attrConditions.push({
                 attributes: {
                   some: {
                     OR: [
-                      { key: 'storage' },
-                      { key: 'rom' }
+                      { key: 'storage_gb' },
+                      { key: 'capacity_gb' }
                     ]
                   }
                 }
@@ -878,18 +902,17 @@ export class AIService {
           if (!attrFilter) continue;
 
           // Chuẩn hóa key từ AI/LLM sang key trong Database (Vd: chip -> cpu)
-          let attrKey = rawAttrKey;
-          if (attrKey === 'chip') attrKey = 'cpu';
+          const attrKey = this.normalizeAttributeKey(rawAttrKey);
 
           const beforeCount = enrichedProducts.length;
           enrichedProducts = enrichedProducts.filter(p => {
             const attrs = (p as any).attributes;
             const attr = attrs && Array.isArray(attrs) ? attrs.find((a: any) => {
-              if (attrKey === 'battery' || attrKey === 'battery_life') {
-                return a.key === 'battery' || a.key === 'battery_life';
+              if (attrKey === 'battery_mah' || attrKey === 'battery_life_hours') {
+                return a.key === 'battery_mah' || a.key === 'battery_life_hours';
               }
-              if (attrKey === 'storage' || attrKey === 'rom') {
-                return a.key === 'storage' || a.key === 'rom';
+              if (attrKey === 'storage_gb' || attrKey === 'capacity_gb') {
+                return a.key === 'storage_gb' || a.key === 'capacity_gb';
               }
               if (attrKey === 'cpu' || attrKey === 'chip') {
                 return a.key === 'cpu' || a.key === 'chip';
@@ -933,7 +956,7 @@ export class AIService {
                 return false;
               }
 
-              if (attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || attrKey === 'brand') {
+              if (attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || attrKey === 'brand' || attrKey === 'use_case' || attrKey === 'search_keywords' || attrKey === 'product_type') {
                 const filterStr = (filterExact || filterMin || filterMax || '').toString().toLowerCase().trim();
                 if (filterStr) {
                   return prodName.includes(filterStr) || prodDesc.includes(filterStr);
@@ -954,7 +977,7 @@ export class AIService {
             }
 
             // Xử lý thông minh cho các thuộc tính chữ (cpu, brand, material, color, style...) hoặc khi giá trị DB là chữ
-            if (attrKey === 'cpu' || attrKey === 'chip' || attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || !isDbValNumeric) {
+            if (attrKey === 'cpu' || attrKey === 'chip' || attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || attrKey === 'use_case' || attrKey === 'search_keywords' || attrKey === 'product_type' || !isDbValNumeric) {
               const filterStr = (filterExact || filterMin || filterMax || '').toString().toLowerCase().trim();
               if (filterStr) {
                 return dbValStr.includes(filterStr) || filterStr.includes(dbValStr);

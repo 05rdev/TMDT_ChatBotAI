@@ -1,36 +1,40 @@
 import { z } from 'zod';
 
-// Schema cho Product Variant
 const productVariantSchema = z.object({
-  name: z.string().min(1, 'Tên phiên bản không được để trống'),
-  sku: z.string().min(1, 'SKU không được để trống'),
-  price: z.number().min(0, 'Giá không được nhỏ hơn 0'),
-  stock: z.number().int().min(0, 'Tồn kho không được nhỏ hơn 0'),
+  id: z.string().uuid().optional(),
+  productId: z.string().uuid().optional(),
+  name: z.string().min(1, 'Variant name is required'),
+  sku: z.string().min(1, 'SKU is required'),
+  price: z.number().min(0, 'Price must be greater than or equal to 0'),
+  stock: z.number().int().min(0, 'Stock must be greater than or equal to 0'),
   attributes: z.any().optional(),
 });
 
-// Schema tạo sản phẩm mới
-export const createProductSchema = z.object({
-  name: z.string().min(1, 'Tên sản phẩm không được để trống'),
-  slug: z.string().min(1, 'Slug không được để trống'),
-  description: z.string().optional(),
-  categoryId: z.string().uuid('Category ID không hợp lệ'),
-  isActive: z.boolean().optional().default(true),
-  variants: z.array(productVariantSchema).min(1, 'Sản phẩm phải có ít nhất một phiên bản'),
+const productAttributeSchema = z.object({
+  key: z.string().min(1, 'Attribute key is required'),
+  value: z.union([z.string(), z.number(), z.boolean()]),
+  unit: z.string().optional().nullable(),
 });
 
-// Schema cập nhật sản phẩm
+export const createProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
+  slug: z.string().min(1, 'Slug is required'),
+  description: z.string().optional(),
+  categoryId: z.string().uuid('Invalid category ID'),
+  isActive: z.boolean().optional().default(true),
+  variants: z.array(productVariantSchema).min(1, 'Product must have at least one variant'),
+  attributes: z.array(productAttributeSchema).optional(),
+});
+
 export const updateProductSchema = createProductSchema.partial().omit({ slug: true });
 
-// Schema tạo danh mục
 export const createCategorySchema = z.object({
-  name: z.string().min(1, 'Tên danh mục không được để trống'),
-  slug: z.string().min(1, 'Slug không được để trống'),
-  parentId: z.string().uuid('Parent Category ID không hợp lệ').optional().nullable(),
+  name: z.string().min(1, 'Category name is required'),
+  slug: z.string().min(1, 'Slug is required'),
+  parentId: z.string().uuid('Invalid parent category ID').optional().nullable(),
   image: z.string().optional().nullable(),
 });
 
-// Schema Query Parameters (Filter/Sort/Pagination)
 export const productQuerySchema = z.object({
   page: z.string().optional().transform((val) => (val ? parseInt(val) : 1)),
   limit: z.string().optional().transform((val) => (val ? parseInt(val) : 20)),

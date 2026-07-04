@@ -1,5 +1,6 @@
 export interface TranslationDictionary {
   // Navbar
+  'nav.home': string;
   'nav.shop': string;
   'nav.about': string;
   'nav.login': string;

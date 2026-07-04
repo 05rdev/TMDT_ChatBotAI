@@ -2,6 +2,7 @@ import { TranslationDictionary } from '../types';
 
 const ja: TranslationDictionary = {
   // Navbar
+  'nav.home': 'ホーム',
   'nav.shop': 'ショップ',
   'nav.about': '紹介',
   'nav.login': 'ログイン',

@@ -5,6 +5,7 @@ import { X, Plus, Trash2, Loader2, Upload, CheckCircle2, Sparkles, BrainCircuit,
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { productAttributesToPayload, productAttributesToRecord } from '@/lib/productAttributes';
 
 interface Variant {
   name: string;
@@ -83,7 +84,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                 stock: v.stock,
               }))
             : [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
-          attributes: editProduct.attributes || {},
+          attributes: productAttributesToRecord(editProduct.attributes),
           isActive: editProduct.isActive !== undefined ? editProduct.isActive : true,
         });
       } else {
@@ -195,7 +196,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
           price: Number(v.price),
           stock: Number(v.stock),
         })),
-        attributes: form.attributes,
+        attributes: productAttributesToPayload(form.attributes),
         isActive: form.isActive,
       };
 

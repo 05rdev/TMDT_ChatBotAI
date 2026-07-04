@@ -69,6 +69,9 @@ export const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-6">
+          <Link href="/" className="text-foreground/80 font-medium hover:text-primary transition-colors">
+            {t('nav.home')}
+          </Link>
           <Link href="/shop" className="text-foreground/80 font-medium hover:text-primary transition-colors">
             {t('nav.shop')}
           </Link>

@@ -53,31 +53,52 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchHomeData = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      const stamp = Date.now();
+      const [newRes, bestRes, allRes, catRes] = await Promise.all([
+        api.get(`/products?sort=newest&limit=8&_=${stamp}`),
+        api.get(`/products?sort=best_selling&limit=8&_=${stamp}`),
+        api.get(`/products?limit=12&_=${stamp}`),
+        api.get('/categories'),
+      ]);
+
+      setNewProducts(formatProducts(newRes.data.data || []));
+
+      const bestData = formatProducts(bestRes.data.data || []);
+      bestData.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+      setBestSellers(bestData);
+
+      setAllProducts(formatProducts(allRes.data.data || []));
+      setCategories(catRes.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch homepage data', err);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [newRes, bestRes, allRes, catRes] = await Promise.all([
-          api.get('/products?sort=newest&limit=8'),
-          api.get('/products?sort=best_selling&limit=8'),
-          api.get('/products?limit=12'),
-          api.get('/categories'),
-        ]);
+    void fetchHomeData();
+  }, []);
 
-        setNewProducts(formatProducts(newRes.data.data || []));
-
-        const bestData = formatProducts(bestRes.data.data || []);
-        bestData.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
-        setBestSellers(bestData);
-
-        setAllProducts(formatProducts(allRes.data.data || []));
-        setCategories(catRes.data.data || []);
-      } catch (err) {
-        console.error('Failed to fetch homepage data', err);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    const refreshVisiblePage = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchHomeData(false);
       }
     };
-    fetchData();
+
+    window.addEventListener('focus', refreshVisiblePage);
+    window.addEventListener('pageshow', refreshVisiblePage);
+    document.addEventListener('visibilitychange', refreshVisiblePage);
+
+    return () => {
+      window.removeEventListener('focus', refreshVisiblePage);
+      window.removeEventListener('pageshow', refreshVisiblePage);
+      document.removeEventListener('visibilitychange', refreshVisiblePage);
+    };
   }, []);
 
   // Featured = products with highest rating
@@ -154,12 +175,21 @@ export default function HomePage() {
                     
                     {/* Content */}
                     <div className="relative p-5 sm:p-6 flex flex-col items-center text-center gap-3">
-                      {/* Icon Circle */}
+                      {/* Category Image */}
                       <div className="relative">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-secondary to-secondary/60 flex items-center justify-center transition-all duration-400 group-hover:scale-110 group-hover:from-primary/15 group-hover:to-accent/10 group-hover:shadow-lg group-hover:shadow-primary/10">
-                          <span className="text-2xl sm:text-3xl transition-transform duration-400 group-hover:scale-110">
-                            {iconEmoji}
-                          </span>
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[var(--radius-lg)] bg-gradient-to-br from-secondary to-secondary/60 flex items-center justify-center overflow-hidden transition-all duration-400 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/10">
+                          {cat.image ? (
+                            <img
+                              src={cat.image}
+                              alt={cat.name}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="text-2xl sm:text-3xl transition-transform duration-400 group-hover:scale-110">
+                              {iconEmoji}
+                            </span>
+                          )}
                         </div>
                         {/* Floating dot indicator */}
                         <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary/80 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-0 group-hover:scale-100" />
@@ -365,8 +395,8 @@ function HomeProductCard({ product, index, t }: { product: Product; index: numbe
       });
       await fetchCart();
       toast.success('Đã thêm vào giỏ hàng');
-    } catch {
-      toast.error('Không thể thêm vào giỏ');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Không thể thêm vào giỏ');
     }
   };
 

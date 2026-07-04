@@ -5,36 +5,34 @@ export class NotificationService {
   async getMyNotifications(userId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
 
-    // Lấy thông báo cá nhân và thông báo toàn cục
     const [personalNotifications, globalNotifications] = await Promise.all([
       prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: limit * 2 // Lấy dư để merge
+        take: limit * 2,
       }),
       (prisma as any).globalNotification.findMany({
         where: { isActive: true },
         orderBy: { createdAt: 'desc' },
-        take: limit
-      })
+        take: limit,
+      }),
     ]);
 
-    // Hợp nhất và sắp xếp theo thời gian
     const allNotifications = [
       ...personalNotifications,
-      ...globalNotifications.map((gn: any) => ({
-        ...gn,
+      ...globalNotifications.map((notification: any) => ({
+        ...notification,
         userId,
-        isRead: false, // Global notifications are always unread in this context unless we track them, but user said they should show every time
-        isGlobal: true
-      }))
+        isRead: false,
+        isGlobal: true,
+      })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const notifications = allNotifications.slice(skip, skip + limit);
     const total = personalNotifications.length + globalNotifications.length;
 
     const unreadCount = await prisma.notification.count({
-      where: { userId, isRead: false }
+      where: { userId, isRead: false },
     });
 
     return {
@@ -44,88 +42,95 @@ export class NotificationService {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
   async markAsRead(id: string, userId: string) {
     const notification = await prisma.notification.findUnique({ where: { id } });
-    if (!notification) throw new AppError(404, 'Thông báo không tồn tại');
-    if (notification.userId !== userId) throw new AppError(403, 'Không có quyền truy cập');
+
+    if (!notification) {
+      const globalNotification = await (prisma as any).globalNotification.findUnique({ where: { id } });
+      if (globalNotification) return globalNotification;
+      throw new AppError(404, 'Thong bao khong ton tai');
+    }
+
+    if (notification.userId !== userId) throw new AppError(403, 'Khong co quyen truy cap');
 
     return prisma.notification.update({
       where: { id },
-      data: { isRead: true }
+      data: { isRead: true },
     });
   }
 
   async markAllAsRead(userId: string) {
     return prisma.notification.updateMany({
       where: { userId, isRead: false },
-      data: { isRead: true }
+      data: { isRead: true },
     });
   }
 
-  // Phương thức nội bộ để tạo thông báo
   async createNotification(userId: string, title: string, content: string, type: string) {
     return prisma.notification.create({
-      data: { userId, title, content, type }
+      data: { userId, title, content, type },
     });
   }
 
-  // Admin gửi thông báo thủ công
   async sendToUser(userId: string, title: string, content: string, type: string = 'SYSTEM') {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new AppError(404, 'Người dùng không tồn tại');
+    if (!user) throw new AppError(404, 'Nguoi dung khong ton tai');
 
     return this.createNotification(userId, title, content, type);
   }
 
-  // Admin gửi thông báo cho tất cả người dùng (Tạo thông báo toàn cục)
   async broadcast(title: string, content: string, type: string = 'SYSTEM') {
     return (prisma as any).globalNotification.create({
-      data: { title, content, type }
+      data: { title, content, type },
     });
   }
 
   async deleteNotification(id: string, userId: string) {
     const notification = await prisma.notification.findUnique({ where: { id } });
-    if (!notification) throw new AppError(404, 'Thông báo không tồn tại');
-    if (notification.userId !== userId) throw new AppError(403, 'Không có quyền truy cập');
+
+    if (!notification) {
+      const globalNotification = await (prisma as any).globalNotification.findUnique({ where: { id } });
+      if (globalNotification) return globalNotification;
+      throw new AppError(404, 'Thong bao khong ton tai');
+    }
+
+    if (notification.userId !== userId) throw new AppError(403, 'Khong co quyen truy cap');
 
     return prisma.notification.delete({
-      where: { id }
+      where: { id },
     });
   }
 
-  // Lấy tất cả thông báo toàn cục cho Admin quản lý danh sách
   async getAllForAdmin(page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
     const [notifications, total] = await Promise.all([
       (prisma as any).globalNotification.findMany({
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit
+        take: limit,
       }),
-      (prisma as any).globalNotification.count()
+      (prisma as any).globalNotification.count(),
     ]);
+
     return {
       notifications,
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  // Admin xóa thông báo toàn cục
   async deleteGlobalNotification(id: string) {
     return (prisma as any).globalNotification.delete({ where: { id } });
   }
 
-  // Admin cập nhật thông báo toàn cục
   async updateGlobalNotification(id: string, data: { title?: string; content?: string; type?: string }) {
     return (prisma as any).globalNotification.update({
       where: { id },
-      data
+      data,
     });
   }
 }

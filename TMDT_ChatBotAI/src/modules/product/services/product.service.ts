@@ -1,9 +1,10 @@
 import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../../middlewares/error.middleware';
-import { cacheSet, cacheGet, cacheDelPattern } from '../../../lib/redis';
+import { cacheDelPattern } from '../../../lib/redis';
 import { EmbeddingHelper } from '../../ai/embeddingHelper';
 import { VisionHelper } from '../../ai/vision/visionHelper';
+import { buildAttributeEmbeddingText, normalizeProductAttributes, NormalizedProductAttribute } from '../attribute-taxonomy';
 
 const embeddingHelper = new EmbeddingHelper();
 const visionHelper = new VisionHelper();
@@ -58,10 +59,6 @@ export class ProductService {
     const { page, limit, categoryId, minPrice, maxPrice, rating, sortBy, order, search } = query;
     const skip = (page - 1) * limit;
 
-    const cacheKey = `products:list:${JSON.stringify(query)}`;
-    const cachedData = await cacheGet<string>(cacheKey);
-    if (cachedData) return JSON.parse(cachedData);
-
     const where: Prisma.ProductWhereInput = { isDeleted: false };
     if (!query.isAdmin) {
       where.isActive = true;
@@ -94,8 +91,12 @@ export class ProductService {
         where,
         include: {
           images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-          variants: { orderBy: { price: 'asc' }, take: 1 },
+          variants: {
+            orderBy: { price: 'asc' },
+            select: { id: true, name: true, price: true, stock: true }
+          },
           category: { select: { name: true } },
+          attributes: true,
         },
         orderBy: sortBy === 'price' ? { createdAt: 'desc' } : { [sortBy]: order },
         skip,
@@ -116,7 +117,6 @@ export class ProductService {
       },
     };
 
-    await cacheSet(cacheKey, JSON.stringify(result), 300);
     return result;
   }
 
@@ -130,6 +130,7 @@ export class ProductService {
         images: true,
         variants: true,
         category: true,
+        attributes: true,
         reviews: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -160,6 +161,7 @@ export class ProductService {
         images: true,
         variants: true,
         category: true,
+        attributes: true,
         reviews: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -198,10 +200,14 @@ export class ProductService {
     const products = await prisma.product.findMany({
       where: { id: { in: ids }, isDeleted: false, isActive: true },
       include: {
-        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-        variants: { orderBy: { price: 'asc' }, take: 1 },
-        category: { select: { name: true } },
-      },
+          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+          variants: {
+            orderBy: { price: 'asc' },
+            select: { id: true, name: true, price: true, stock: true }
+          },
+          category: { select: { name: true } },
+          attributes: true,
+        },
     });
 
     const productMap = new Map(products.map(p => [p.id, p]));
@@ -227,10 +233,14 @@ export class ProductService {
     const products = await prisma.product.findMany({
       where: { id: { in: ids }, isDeleted: false, isActive: true },
       include: {
-        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-        variants: { orderBy: { price: 'asc' }, take: 1 },
-        category: { select: { name: true } },
-      },
+          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+          variants: {
+            orderBy: { price: 'asc' },
+            select: { id: true, name: true, price: true, stock: true }
+          },
+          category: { select: { name: true } },
+          attributes: true,
+        },
     });
 
     const productMap = new Map(products.map(p => [p.id, p]));
@@ -245,10 +255,14 @@ export class ProductService {
     const products = await prisma.product.findMany({
       where: { isDeleted: false, isActive: true },
       include: {
-        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-        variants: { orderBy: { price: 'asc' }, take: 1 },
-        category: { select: { name: true } },
-      },
+          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+          variants: {
+            orderBy: { price: 'asc' },
+            select: { id: true, name: true, price: true, stock: true }
+          },
+          category: { select: { name: true } },
+          attributes: true,
+        },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -256,10 +270,42 @@ export class ProductService {
     return this.enrichProductData(products);
   }
 
+  private async replaceProductAttributes(
+    tx: Prisma.TransactionClient,
+    productId: string,
+    attributes: NormalizedProductAttribute[]
+  ) {
+    await tx.productAttribute.deleteMany({ where: { productId } });
+    if (attributes.length === 0) return;
+
+    await tx.productAttribute.createMany({
+      data: attributes.map((attr) => ({
+        productId,
+        key: attr.key,
+        value: attr.value,
+        unit: attr.unit || null,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   async create(data: any) {
-    const { name, slug, description, categoryId, variants } = data;
+    const { name, slug, description, categoryId, variants, attributes = [] } = data;
     const existing = await prisma.product.findUnique({ where: { slug } });
     if (existing) throw new AppError(400, 'Slug sản phẩm đã tồn tại');
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { name: true },
+    });
+
+    const normalizedAttributes = normalizeProductAttributes({
+      name,
+      description,
+      categoryName: category?.name,
+      variants,
+      attributes,
+    });
 
     const product = await prisma.product.create({
       data: {
@@ -267,9 +313,10 @@ export class ProductService {
         slug,
         description,
         categoryId,
-        variants: { create: variants }
+        variants: { create: variants },
+        attributes: { create: normalizedAttributes }
       },
-      include: { variants: true }
+      include: { variants: true, attributes: true, category: true }
     });
 
     await this.clearProductCache();
@@ -281,7 +328,7 @@ export class ProductService {
   }
 
   async update(id: string, data: any) {
-    const { variants, ...productData } = data;
+    const { variants, attributes, ...productData } = data;
 
     // Sử dụng transaction để đảm bảo toàn vẹn dữ liệu
     const finalProduct = await prisma.$transaction(async (tx) => {
@@ -357,9 +404,30 @@ export class ProductService {
       }
 
       // Lấy product đầy đủ thông tin variants đã được xử lý xong
+      const productForAttributes = await tx.product.findUnique({
+        where: { id },
+        include: {
+          category: { select: { name: true } },
+          variants: true,
+          attributes: true,
+        }
+      });
+
+      if (productForAttributes) {
+        const normalizedAttributes = normalizeProductAttributes({
+          name: productForAttributes.name,
+          description: productForAttributes.description,
+          categoryName: productForAttributes.category?.name,
+          variants: productForAttributes.variants,
+          attributes: Array.isArray(attributes) ? attributes : productForAttributes.attributes,
+        });
+
+        await this.replaceProductAttributes(tx, id, normalizedAttributes);
+      }
+
       return tx.product.findUnique({
         where: { id },
-        include: { variants: true }
+        include: { variants: true, attributes: true, category: true }
       });
     });
 
@@ -384,7 +452,8 @@ export class ProductService {
         where: { id: productId },
         include: {
           category: { select: { name: true } },
-          attributes: true
+          attributes: true,
+          variants: true,
         }
       });
 
@@ -394,10 +463,11 @@ export class ProductService {
       }
 
       // 1. Text Embedding với đầy đủ thông số kỹ thuật và danh mục
-      const text = EmbeddingHelper.buildProductEmbeddingText({
+      const text = buildAttributeEmbeddingText({
         name: fullProduct.name,
         description: fullProduct.description || '',
         categoryName: fullProduct.category?.name || null,
+        variants: fullProduct.variants,
         attributes: fullProduct.attributes || []
       });
       
@@ -529,7 +599,10 @@ export class ProductService {
       where: { id: { in: products.map(p => p.id) } },
       include: {
         images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-        variants: { orderBy: { price: 'asc' }, take: 1 },
+        variants: {
+          orderBy: { price: 'asc' },
+          select: { id: true, name: true, price: true, stock: true }
+        },
         category: { select: { name: true } },
       }
     });
