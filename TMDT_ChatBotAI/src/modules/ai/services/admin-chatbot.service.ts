@@ -125,9 +125,9 @@ export class AdminChatbotService {
     ]);
 
     const { translateOrderStatus, translatePaymentStatus } = require('../../../utils/status-mapper');
-    
-    let ordersContext = '\n📦 DANH SÁCH ĐƠN HÀNG HÔM NAY (MỚI PHÁT SINH):\n' + 
-      (ordersTodayList.length > 0 
+
+    let ordersContext = '\n📦 DANH SÁCH ĐƠN HÀNG HÔM NAY (MỚI PHÁT SINH):\n' +
+      (ordersTodayList.length > 0
         ? ordersTodayList.map(o => `- Đơn #${o.id.slice(0, 8)} | Khách hàng: ${o.user.name} | Trạng thái: ${translateOrderStatus(o.status)} | Giá trị: ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`).join('\n')
         : '- Chưa có đơn hàng nào phát sinh trong hôm nay.');
 
@@ -136,19 +136,19 @@ export class AdminChatbotService {
     ).join('\n');
 
     if (pendingOrders.length > 0) {
-      ordersContext += '\n\n🔍 ĐƠN TỒN ĐỌNG CHỜ DUYỆT (TỪ TRƯỚC HÔM NAY):\n' + pendingOrders.map(o => 
+      ordersContext += '\n\n🔍 ĐƠN TỒN ĐỌNG CHỜ DUYỆT (TỪ TRƯỚC HÔM NAY):\n' + pendingOrders.map(o =>
         `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
       ).join('\n');
     }
 
     if (processingOrders.length > 0) {
-      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GÓI (PROCESSING):\n' + processingOrders.map(o => 
+      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GÓI (PROCESSING):\n' + processingOrders.map(o =>
         `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
       ).join('\n');
     }
-    
+
     if (shippedOrders.length > 0) {
-      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GIAO (SHIPPED):\n' + shippedOrders.map(o => 
+      ordersContext += '\n\n🔍 CHI TIẾT ĐƠN ĐANG GIAO (SHIPPED):\n' + shippedOrders.map(o =>
         `- Đơn #${o.id.slice(0, 8)}: Khách ${o.user.name} | Tổng ${Number(o.totalAmount).toLocaleString()}đ | Sản phẩm: ${o.items.map((i: any) => i.product.name).join(', ')}`
       ).join('\n');
     }
@@ -210,8 +210,8 @@ export class AdminChatbotService {
       voucherContext = '\n🎟️ DANH SÁCH MÃ GIẢM GIÁ (VOUCHER):\n' +
         (activeVouchers.length > 0
           ? activeVouchers.map(v =>
-              `- Mã: "${v.code}" | Hình thức: ${v.discountType === 'PERCENT' ? 'Giảm theo %' : 'Giảm số tiền cố định'} | Giá trị: ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Đã dùng: ${v.usedCount}/${v.usageLimit} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')} | Trạng thái: ${new Date(v.endDate) < now ? 'Hết hạn' : 'Đang hoạt động'}`
-            ).join('\n')
+            `- Mã: "${v.code}" | Hình thức: ${v.discountType === 'PERCENT' ? 'Giảm theo %' : 'Giảm số tiền cố định'} | Giá trị: ${v.discountType === 'PERCENT' ? v.discountValue + '%' : Number(v.discountValue).toLocaleString() + 'đ'} | Đã dùng: ${v.usedCount}/${v.usageLimit} lượt | HSD: ${new Date(v.endDate).toLocaleDateString('vi-VN')} | Trạng thái: ${new Date(v.endDate) < now ? 'Hết hạn' : 'Đang hoạt động'}`
+          ).join('\n')
           : '- Chưa có voucher nào trong hệ thống.');
     }
 
@@ -245,8 +245,8 @@ export class AdminChatbotService {
       supportContext = '\n🎫 TICKET HỖ TRỢ GẦN ĐÂY:\n' +
         (recentTickets.length > 0
           ? recentTickets.map(t =>
-              `- "${t.subject}" bởi ${t.user.name} (${t.user.email}) | ${t.status === 'OPEN' ? '🟢 Đang mở' : '🔴 Đã đóng'} | ${t._count.messages} tin nhắn | ${new Date(t.createdAt).toLocaleDateString('vi-VN')}`
-            ).join('\n')
+            `- "${t.subject}" bởi ${t.user.name} (${t.user.email}) | ${t.status === 'OPEN' ? '🟢 Đang mở' : '🔴 Đã đóng'} | ${t._count.messages} tin nhắn | ${new Date(t.createdAt).toLocaleDateString('vi-VN')}`
+          ).join('\n')
           : '- Không có ticket nào.');
     }
 
@@ -267,7 +267,7 @@ ${supportContext}
 QUY TẮC ADMIN ASSISTANT:
 1. Luôn trả lời bằng tiếng Việt, chuyên nghiệp, súc tích. Xưng hô "Em" và gọi admin là "Sếp".
 2. Trả lời DỰA TRÊN SỐ LIỆU THỰC TẾ TRONG NGỮ CẢNH HIỆN TẠI. Tuyệt đối không bịa đặt.
-3. THỜI GIAN THỰC: Dữ liệu này vừa đ�    => TUYỆT ĐỐI không báo cáo đơn "Chờ duyệt" là "Giao thành công".
+3. THỜI GIAN THỰC: Dữ liệu này vừa đ�    => TUYỆT ĐỐI không báo cáo đơn "Chờ duyệt" là "Giao thành công".
 5. Khi được hỏi phân tích, hãy:
    - Chỉ ra xu hướng (tăng/giảm so với kỳ trước)
    - Đưa ra GỢI Ý HÀNH ĐỘNG cụ thể.
@@ -315,7 +315,11 @@ CÁC LOẠI CÂU HỎI THƯỜNG GẶP:
             { role: 'system', content: systemPrompt },
             ...history.map(h => ({ role: h.role, content: h.content }))
           ],
-          stream: false
+          stream: false,
+          keep_alive: -1,
+          options: {
+            num_gpu: 0
+          }
         })
       });
 

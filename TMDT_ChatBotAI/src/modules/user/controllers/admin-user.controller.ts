@@ -9,22 +9,55 @@ export class AdminUserController {
    */
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          avatar: true,
-        },
-        orderBy: { createdAt: 'desc' }
-      });
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const search = (req.query.search as string)?.trim() || '';
+      const role = (req.query.role as string)?.toUpperCase() || '';
+      const skip = (page - 1) * limit;
+
+      const where: any = {};
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (role && ['ADMIN', 'USER'].includes(role)) {
+        where.role = role;
+      }
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+            avatar: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.user.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
       
       return res.json({
         success: true,
-        data: users
+        data: users,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+        },
       });
     } catch (error) {
       next(error);

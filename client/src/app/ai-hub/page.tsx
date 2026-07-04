@@ -40,7 +40,7 @@ export default function AIHubPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12 pb-20 animate-fade-in-up px-4 sm:px-6">
+    <div className="max-w-5xl mx-auto space-y-12 pb-20 animate-fade-in-up px-4 sm:px-6 py-10">
       <section className="text-center space-y-6 pt-10">
         <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto ring-8 ring-primary/5">
           <Bot className="text-primary w-10 h-10" />

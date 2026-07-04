@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { CategoryController } from './controllers/category.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { authorize } from '../../middlewares/authorize';
+import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();
 const categoryController = new CategoryController();
@@ -93,5 +94,25 @@ router.put('/:id', authenticate, authorize(['ADMIN']), categoryController.update
  *         description: Xóa thành công
  */
 router.delete('/:id', authenticate, authorize(['ADMIN']), categoryController.delete);
+
+/**
+ * @swagger
+ * /api/categories/{id}/upload:
+ *   post:
+ *     summary: Upload ảnh danh mục (Admin)
+ *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ */
+router.post(
+  '/:id/upload',
+  authenticate,
+  authorize(['ADMIN']),
+  upload.single('image'),
+  categoryController.uploadImage
+);
 
 export default router;

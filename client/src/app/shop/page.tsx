@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { Loader2, Star, ChevronDown, SlidersHorizontal, PackageX, X, ShoppingCart, Eye, Flame, Sparkles, ArrowUpDown, Check } from 'lucide-react';
 import Link from 'next/link';
-import { BannerCarousel } from '@/components/BannerCarousel';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { T } from '@/components/T';
@@ -51,12 +50,23 @@ export default function ShopPage() {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  // Update search query when URL changes
+  // Update search query and category when URL changes
   useEffect(() => {
     const urlSearch = searchParams.get('search');
-    if (urlSearch !== null) {
-      setSearchQuery(urlSearch);
-    }
+    const urlCategory = searchParams.get('categoryId');
+    const urlMinPrice = searchParams.get('minPrice');
+    const urlMaxPrice = searchParams.get('maxPrice');
+    const urlMinRating = searchParams.get('minRating');
+    const urlSort = searchParams.get('sort');
+    const urlPage = searchParams.get('page');
+
+    if (urlSearch !== null) setSearchQuery(urlSearch);
+    if (urlCategory) setSelectedCategory(urlCategory);
+    if (urlMinPrice) setMinPrice(urlMinPrice);
+    if (urlMaxPrice) setMaxPrice(urlMaxPrice);
+    if (urlMinRating) setSelectedRating(Number(urlMinRating));
+    if (urlSort) setSortBy(urlSort as SortOption);
+    if (urlPage) setPage(Number(urlPage));
   }, [searchParams]);
 
   // Pagination
@@ -311,21 +321,16 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20 animate-fade-in-up">
-      {/* Hero Banner Area */}
-      <section className="mb-4">
-        <BannerCarousel height="h-[260px] md:h-[360px]" />
-      </section>
-
       {/* Main Shop Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         
         {/* Top Bar: Title + Sort + Filter Toggle */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] opacity-80">Collection</p>
-            <h2 className="text-3xl md:text-4xl font-heading text-foreground tracking-tighter flex items-baseline gap-3">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-heading text-foreground tracking-tighter flex items-baseline gap-3">
               {selectedCategory ? <T>{categories.find(c => c.id === selectedCategory)?.name || 'Tất cả sản phẩm'}</T> : t('shop.allCategories')}
-              <span className="text-base font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
+              <span className="text-sm md:text-base font-sans font-medium text-muted-foreground/40 tabular-nums">/{total}</span>
             </h2>
           </div>
           <div className="flex items-center gap-3">
@@ -395,7 +400,7 @@ export default function ShopPage() {
         </div>
 
         {/* Content: Sidebar + Products */}
-        <div className="flex gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           
           {/* Desktop Sidebar Filters */}
           <aside className="hidden lg:block w-[240px] shrink-0">
@@ -435,7 +440,7 @@ export default function ShopPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
                   {products.map((product, index) => (
                     <ProductCard key={product.id} product={product} index={index} />
                   ))}
@@ -575,7 +580,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
             <img
               src={product.primaryImage}
               alt={product.name}
-              className={`object-cover w-full h-full transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-108' : ''}`}
+              className={`object-cover w-full h-full transition-transform duration-700 ease-out ${!isOutOfStock ? 'group-hover:scale-105' : ''}`}
               loading="lazy"
             />
           ) : (
@@ -649,7 +654,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
       </div>
 
       {/* Info Area */}
-      <div className="p-3.5 sm:p-4 flex flex-col flex-1 gap-2">
+      <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2">
         {/* Category */}
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           <T>{product.category?.name || t('shop.other')}</T>
@@ -665,7 +670,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         {/* Bottom: Price + Sold */}
         <div className="flex items-end justify-between mt-auto pt-1">
           <div>
-            <span className="text-lg font-bold text-foreground leading-none tracking-tight">
+            <span className="text-base md:text-lg font-bold text-foreground leading-none tracking-tight">
               {product.minPrice ? `${product.minPrice.toLocaleString('vi-VN')}đ` : t('shop.contact')}
             </span>
           </div>

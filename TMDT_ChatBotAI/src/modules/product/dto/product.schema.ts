@@ -27,6 +27,7 @@ export const createCategorySchema = z.object({
   name: z.string().min(1, 'Tên danh mục không được để trống'),
   slug: z.string().min(1, 'Slug không được để trống'),
   parentId: z.string().uuid('Parent Category ID không hợp lệ').optional().nullable(),
+  image: z.string().optional().nullable(),
 });
 
 // Schema Query Parameters (Filter/Sort/Pagination)

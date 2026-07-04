@@ -23,18 +23,54 @@ const STOP_WORDS = [
   'mẫu', 'những', 'các', 'của', 'với', 'khoảng', 'tầm', 'trong', 'dưới', 'trên', 'hơn'
 ];
 
+// Từ chỉ giới tính/ngữ cảnh: dùng để lọc chính xác hơn nhưng không search riêng lẻ
+const GENDER_CONTEXT_WORDS = ['nam', 'nữ', 'trẻ em', 'bé trai', 'bé gái', 'unisex'];
+
 export class AIService {
   private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
   private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
-  private readonly PARSE_TIMEOUT_MS = 8_000;
   private productService = new ProductService();
+
+  /**
+   * Chuẩn hóa truy vấn tiếng Việt trước khi gửi lên Ollama
+   */
+  private normalizeVietnameseQuery(query: string): string {
+    return query
+      .toLowerCase()
+      .replace(/\b(\d+)\s*(?:tr|triệu|củ)\b/g, '$1000000')
+      .replace(/\b(\d+)\s*k\b/g, '$1000')
+      .replace(/\b(\d+)\s*sao\b/g, '$1 sao')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Parser JSON mạnh mẽ, tự động phục hồi nếu LLM trả về markdown block hoặc chữ thừa
+   */
+  private parseRobustJson(text: string): any {
+    try {
+      return JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch { }
+      }
+      return null;
+    }
+  }
 
   /**
    * Phân tích câu truy vấn tự nhiên bằng Ollama sang JSON chuẩn
    */
-  private async parseQueryWithAI(query: string) {
+  private async parseQueryWithAI(query: string, attempt: number = 1) {
+    // Attempt 1: 15s timeout (đủ cho cold start). Attempt 2 (retry): 8s timeout.
+    const timeoutMs = attempt === 1 ? 15000 : 8000;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.PARSE_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    const normalizedQuery = this.normalizeVietnameseQuery(query);
 
     const systemPrompt = `
       Bạn là chuyên gia phân tích dữ liệu mua sắm. 
@@ -99,10 +135,11 @@ export class AIService {
           model: this.modelName,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Phân tích: "${query}"` }
+            { role: 'user', content: `Phân tích: "${normalizedQuery}"` }
           ],
           stream: false,
-          format: 'json'
+          format: 'json',
+          keep_alive: -1
         }),
         signal: controller.signal,
       });
@@ -110,31 +147,51 @@ export class AIService {
       clearTimeout(timeout);
       if (!response.ok) return null;
       const data: any = await response.json();
-      return JSON.parse(data.message.content);
+      return this.parseRobustJson(data.message.content);
     } catch (error: any) {
       clearTimeout(timeout);
       const reason = error.name === 'AbortError' ? 'timeout' : error.message;
-      console.warn(`⚠️ Ollama Query Parsing Failed (${reason}), using fallback regex.`);
+      console.warn(`⚠️ Ollama attempt ${attempt} failed (${reason}).`);
       return null;
     }
+  }
+
+  private escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Chuẩn hóa kích thước kiểu VN (1m8 x 2m -> 1.8x2) để so sánh chính xác
+   */
+  private normalizeDimension(str: string): string {
+    if (!str) return '';
+    let s = str.toLowerCase()
+      .replace(/\s+/g, '')   // strip spaces
+      .replace(/,/g, '.');   // comma to dot
+    // 1m8 -> 1.8
+    s = s.replace(/(\d+)m(\d+)/g, '$1.$2');
+    // strip trailing 'm' units: 1.8m -> 1.8, 2m -> 2
+    s = s.replace(/(\d+(?:\.\d+)?)m/g, '$1');
+    return s;
   }
 
   /**
    * Fallback Regex để bắt giá tiền nếu AI không phân tích được
    */
   private extractFiltersRegex(query: string) {
-    const filters: any = { 
-      category: null, 
-      priceMin: null, 
-      priceMax: null, 
+    const filters: any = {
+      category: null,
+      priceMin: null,
+      priceMax: null,
       minRating: null,
       keywords: null,
-      sort: null 
+      sort: null,
+      attributes: {}
     };
-    const q = query.toLowerCase();
+    let q = query.toLowerCase();
 
-    // Price Range regex (Vd: 5-10tr, 5tr đến 10tr)
-    const rangeMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:-|đến|tới)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+    // Price Range regex with strict word boundary only at the end (Vd: 5-10tr, 5tr đến 10tr)
+    const rangeMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:-|đến|tới)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|k|m)\b/i);
     if (rangeMatch) {
       let min = parseFloat(rangeMatch[1]);
       let max = parseFloat(rangeMatch[2]);
@@ -142,28 +199,31 @@ export class AIService {
       const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
       filters.priceMin = min * multiplier;
       filters.priceMax = max * multiplier;
+      q = q.replace(rangeMatch[0], '[price_range]');
     } else {
       // Single price regex
-      const maxPriceMatch = q.match(/(?:dưới|u|<=|tầm|khoảng|~|giá|quanh)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+      const maxPriceMatch = q.match(/(?:dưới|u|<=|tầm|khoảng|~|giá|quanh)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|k|m)\b/i);
       if (maxPriceMatch) {
         let val = parseFloat(maxPriceMatch[1]);
         const unit = maxPriceMatch[2].toLowerCase();
         const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
-        
+
         if (q.match(/(tầm|khoảng|~|quanh|giá)/)) {
           filters.priceMin = val * 0.8 * multiplier;
           filters.priceMax = val * 1.2 * multiplier;
         } else {
           filters.priceMax = val * multiplier;
         }
+        q = q.replace(maxPriceMatch[0], '[price_max]');
       }
 
-      const minPriceMatch = q.match(/(?:trên|từ|>=|hơn|>)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|m|k)/i);
+      const minPriceMatch = q.match(/(?:trên|từ|>=|hơn|>)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|k|m)\b/i);
       if (minPriceMatch) {
         let val = parseFloat(minPriceMatch[1]);
         const unit = minPriceMatch[2].toLowerCase();
         const multiplier = ['tr', 'triệu', 'củ', 'm'].includes(unit) ? 1000000 : 1000;
         filters.priceMin = val * multiplier;
+        q = q.replace(minPriceMatch[0], '[price_min]');
       }
     }
 
@@ -171,6 +231,7 @@ export class AIService {
     const ratingMatch = q.match(/(\d+)\s*sao/i);
     if (ratingMatch) {
       filters.minRating = parseInt(ratingMatch[1]);
+      q = q.replace(ratingMatch[0], '[rating]');
     }
 
     // Sort/Priority keywords
@@ -178,61 +239,132 @@ export class AIService {
     if (q.includes('đánh giá cao') || q.includes('tốt nhất')) filters.sort = 'top_rated';
     if (q.includes('mới nhất') || q.includes('vừa về')) filters.sort = 'newest';
 
-    // Category fallback (Sẽ được xử lý động trong intelligentSearch)
-
-    // ===== ATTRIBUTE REGEX FALLBACK =====
-    // Khi Ollama timeout, regex này đảm bảo vẫn parse được RAM, storage, battery, screen, camera
-    const attrPatterns: { key: string; aliases: string[] }[] = [
-      { key: 'ram', aliases: ['ram'] },
-      { key: 'storage', aliases: ['bộ nhớ', 'dung lượng', 'lưu trữ', 'rom', 'storage'] },
-      { key: 'battery', aliases: ['pin', 'battery'] },
-      { key: 'screen_size', aliases: ['màn hình', 'màn', 'screen'] },
-      { key: 'camera', aliases: ['camera', 'chụp ảnh'] },
+    // ===== ATTRIBUTE PARSING WITH TOKEN CONSUMPTION =====
+    // Electronics attributes (numeric with units)
+    const attrPatterns = [
+      { key: 'ram', aliases: ['ram'], units: ['gb'] },
+      { key: 'storage', aliases: ['bộ nhớ trong', 'bộ nhớ', 'dung lượng lưu trữ', 'dung lượng', 'lưu trữ', 'rom', 'storage'], units: ['gb', 'tb'] },
+      { key: 'battery', aliases: ['dung lượng pin', 'pin', 'battery'], units: ['mah'] },
+      { key: 'screen_size', aliases: ['kích thước màn hình', 'màn hình', 'màn', 'screen'], units: ['inch', 'in', '"'] },
+      { key: 'camera', aliases: ['camera sau', 'camera trước', 'camera', 'chụp ảnh'], units: ['mp', 'megapixel'] },
+      { key: 'cpu', aliases: ['vi xử lý', 'bộ xử lý', 'chip', 'cpu'], units: [] },
+      // Appliance attributes
+      { key: 'power', aliases: ['công suất', 'power'], units: ['w', 'watt', 'kw'] },
+      { key: 'capacity', aliases: ['dung tích', 'thể tích', 'capacity'], units: ['lít', 'l', 'kg'] },
+      { key: 'weight', aliases: ['cân nặng', 'trọng lượng', 'nặng', 'weight'], units: ['kg', 'g'] },
+      // Furniture numeric: seats
+      { key: 'seats', aliases: ['ghế', 'chỗ ngồi', 'chỗ', 'seats'], units: [] },
     ];
 
-    for (const { key, aliases } of attrPatterns) {
-      const aliasGroup = aliases.join('|');
-      const unitSuffix = key === 'battery' ? '(?:mah|)' : key === 'screen_size' ? '(?:inch|\"|)' : '(?:gb|mp|)';
+    for (const { key, aliases, units } of attrPatterns) {
+      const aliasGroup = aliases.map(a => this.escapeRegExp(a)).join('|');
+      const unitGroup = units.length > 0 ? `(?:${units.map(u => this.escapeRegExp(u)).join('|')})` : '';
+      const unitSuffix = unitGroup ? `(?:\\s*${unitGroup})?` : '';
+      const connector = `(?:\\s*(?:trong|màn|sau|trước|dung lượng|chính)?\\s*(?:là|:|đạt|khoảng|tầm|cỡ)?\\s*)`;
 
-      // Range: "ram 12-16gb", "ram từ 12 đến 16gb"
-      const rangeRx = new RegExp(`(?:${aliasGroup})\\s*(?:từ\\s*)?([\\d.]+)\\s*(?:-|đến|tới)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
-      const rangeM = q.match(rangeRx);
-      if (rangeM) {
-        filters.attributes = filters.attributes || {};
-        filters.attributes[key] = { min: parseFloat(rangeM[1]), max: parseFloat(rangeM[2]), exact: null };
+      // 1. Range: "ram từ 12 đến 16gb", "ram 12-16gb", "12-16gb ram"
+      const rangeRx = new RegExp(`(?:${aliasGroup})${connector}(?:từ\\s+)?([\\d.]+)\\s*(?:-|đến|tới|\\s+to\\s+)\\s*([\\d.]+)${unitSuffix}`, 'i');
+      const rangeRxRev = new RegExp(`(?:từ\\s+)?([\\d.]+)\\s*(?:-|đến|tới|\\s+to\\s+)\\s*([\\d.]+)${unitSuffix}${connector}(?:${aliasGroup})`, 'i');
+
+      let m = q.match(rangeRx) || q.match(rangeRxRev);
+      if (m) {
+        filters.attributes[key] = { min: parseFloat(m[1]), max: parseFloat(m[2]), exact: null };
+        q = q.replace(m[0], `[attr_${key}]`);
         continue;
       }
 
-      // Min: "ram trên 8gb", "pin > 5000mah"
-      const minRx = new RegExp(`(?:${aliasGroup})\\s*(?:trên|hơn|>|>=|tối thiểu|ít nhất)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
-      const minM = q.match(minRx);
-      if (minM) {
-        filters.attributes = filters.attributes || {};
-        filters.attributes[key] = { min: parseFloat(minM[1]), max: null, exact: null };
+      // 2. Min: "ram trên 8gb", "pin > 5000mah"
+      const minRx = new RegExp(`(?:${aliasGroup})${connector}(?:trên|hơn|lớn hơn|>|>=|tối thiểu|ít nhất)\\s*([\\d.]+)${unitSuffix}`, 'i');
+      const minRxRev = new RegExp(`(?:trên|hơn|lớn hơn|>|>=|tối thiểu|ít nhất)\\s*([\\d.]+)${unitSuffix}${connector}(?:${aliasGroup})`, 'i');
+
+      m = q.match(minRx) || q.match(minRxRev);
+      if (m) {
+        filters.attributes[key] = { min: parseFloat(m[1]), max: null, exact: null };
+        q = q.replace(m[0], `[attr_${key}]`);
         continue;
       }
 
-      // Max: "ram dưới 8gb"
-      const maxRx = new RegExp(`(?:${aliasGroup})\\s*(?:dưới|thấp hơn|<|<=|tối đa)\\s*([\\d.]+)\\s*${unitSuffix}`, 'i');
-      const maxM = q.match(maxRx);
-      if (maxM) {
-        filters.attributes = filters.attributes || {};
-        filters.attributes[key] = { min: null, max: parseFloat(maxM[1]), exact: null };
+      // 3. Max: "ram dưới 8gb"
+      const maxRx = new RegExp(`(?:${aliasGroup})${connector}(?:dưới|thấp hơn|nhỏ hơn|<|<=|tối đa)\\s*([\\d.]+)${unitSuffix}`, 'i');
+      const maxRxRev = new RegExp(`(?:dưới|thấp hơn|nhỏ hơn|<|<=|tối đa)\\s*([\\d.]+)${unitSuffix}${connector}(?:${aliasGroup})`, 'i');
+
+      m = q.match(maxRx) || q.match(maxRxRev);
+      if (m) {
+        filters.attributes[key] = { min: null, max: parseFloat(m[1]), exact: null };
+        q = q.replace(m[0], `[attr_${key}]`);
         continue;
       }
 
-      // Exact: "ram 8gb", "8gb ram"
-      const exactRx = new RegExp(`(?:${aliasGroup})\\s*(?:là\\s*|:\\s*)?([\\d.]+)\\s*${unitSuffix}`, 'i');
-      const exactRxReverse = new RegExp(`([\\d.]+)\\s*${unitSuffix}\\s*(?:${aliasGroup})`, 'i');
-      const exactM = q.match(exactRx) || q.match(exactRxReverse);
-      if (exactM) {
-        filters.attributes = filters.attributes || {};
-        filters.attributes[key] = { min: null, max: null, exact: exactM[1] };
+      // 4. Exact: "ram 8gb", "8gb ram", "6 ghế"
+      const exactRx = new RegExp(`(?:${aliasGroup})${connector}([\\d.]+)${unitSuffix}`, 'i');
+      const exactRxRev = new RegExp(`([\\d.]+)${unitSuffix}${connector}(?:${aliasGroup})`, 'i');
+
+      m = q.match(exactRx) || q.match(exactRxRev);
+      if (m) {
+        filters.attributes[key] = { min: null, max: null, exact: m[1] };
+        q = q.replace(m[0], `[attr_${key}]`);
         continue;
       }
     }
 
-    return filters;
+    // ===== DIMENSION PARSING (1m8x2m, 1.8m x 2m, etc.) =====
+    const dimMatch = q.match(/(\d+m\d+|\d+(?:[.,]\d+)?m?)\s*[xX*×]\s*(\d+m\d+|\d+(?:[.,]\d+)?m?)/i);
+    if (dimMatch) {
+      filters.attributes['dimensions'] = { min: null, max: null, exact: dimMatch[0] };
+      q = q.replace(dimMatch[0], '[attr_dimensions]');
+    }
+
+    // ===== TEXT ATTRIBUTE PARSING (material, color, style, brand) =====
+    // Match patterns like "chất liệu gỗ", "bằng da bò", "màu đen"
+    const textAttrPatterns = [
+      {
+        key: 'material',
+        prefixes: ['chất liệu', 'làm bằng', 'bằng', 'vật liệu', 'mặt'],
+        knownValues: ['gỗ', 'da bò', 'da', 'đá', 'mặt đá', 'kính', 'kim loại', 'sắt', 'inox', 'nhựa', 'vải', 'nỉ', 'nệm', 'tre', 'mây']
+      },
+      {
+        key: 'color',
+        prefixes: ['màu sắc', 'màu', 'color'],
+        knownValues: ['đen', 'trắng', 'đỏ', 'xanh', 'xanh lá', 'xanh dương', 'vàng', 'nâu', 'hồng', 'tím', 'cam', 'bạc', 'xám', 'kem', 'be']
+      },
+      {
+        key: 'style',
+        prefixes: ['phong cách', 'kiểu'],
+        knownValues: ['hiện đại', 'cổ điển', 'tối giản', 'bắc âu', 'luxury', 'sang trọng', 'minimalist', 'vintage', 'industrial']
+      },
+    ];
+
+    for (const { key, prefixes, knownValues } of textAttrPatterns) {
+      // Try prefix-based: "chất liệu gỗ", "màu đen"
+      for (const prefix of prefixes) {
+        const prefixRx = new RegExp(`${this.escapeRegExp(prefix)}\\s+([\\p{L}\\s]+?)(?=\\s+(?:có|với|và|cho|được|dưới|trên|từ|tầm|khoảng|\\d)|$)`, 'iu');
+        const pm = q.match(prefixRx);
+        if (pm) {
+          filters.attributes[key] = { min: null, max: null, exact: pm[1].trim() };
+          q = q.replace(pm[0], `[attr_${key}]`);
+          break;
+        }
+      }
+      // Try known value match if prefix didn't match
+      if (!filters.attributes[key]) {
+        for (const val of knownValues) {
+          if (q.includes(val)) {
+            filters.attributes[key] = { min: null, max: null, exact: val };
+            q = q.replace(val, `[attr_${key}]`);
+            break;
+          }
+        }
+      }
+    }
+
+    const cleanedQuery = q
+      .replace(/\[attr_[a-z_]+\]/gi, '')
+      .replace(/\[price_[a-z_]+\]/gi, '')
+      .replace(/\[rating\]/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return { filters, cleanedQuery };
   }
 
   /**
@@ -258,14 +390,24 @@ export class AIService {
   /**
    * TÌM KIẾM THÔNG MINH (Hybrid Search)
    */
-  async intelligentSearch(query: string, limit: number = 20, categoryId?: string) {
+  async intelligentSearch(query: string, limit: number = 20, categoryId?: string, skipCategoryDetection: boolean = false): Promise<any[]> {
     const msgLower = query.toLowerCase();
-    console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'})`);
+    console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'}, SkipDetect: ${skipCategoryDetection})`);
 
-    // 1. Phân tích ý định người dùng
-    let aiFilters = await this.parseQueryWithAI(query);
-    const regexFilters = this.extractFiltersRegex(query);
-    
+    // 1. Phân tích ý định người dùng với cơ chế Retry
+    let aiFilters = null;
+    try {
+      aiFilters = await this.parseQueryWithAI(query, 1);
+      if (!aiFilters) {
+        console.log('🔄 Ollama Attempt 1 returned null. Retrying with Attempt 2...');
+        aiFilters = await this.parseQueryWithAI(query, 2);
+      }
+    } catch (e) {
+      console.warn('⚠️ Ollama parsing errored, falling back to regex.');
+    }
+
+    const { filters: regexFilters, cleanedQuery } = this.extractFiltersRegex(query);
+
     const mergedFilters = { ...regexFilters };
     if (aiFilters) {
       for (const [key, value] of Object.entries(aiFilters)) {
@@ -275,19 +417,78 @@ export class AIService {
       }
     }
     aiFilters = mergedFilters;
-    
-    // 1.5. TỰ ĐỘNG NHẬN DIỆN DANH MỤC TỪ DATABASE (Thay vì fix cứng trong code)
-    if (!aiFilters.category) {
+
+    if (skipCategoryDetection) {
+      aiFilters.category = null;
+    }
+
+    // 1.5. TỰ ĐỘNG NHẬN DIỆN DANH MỤC TỪ DATABASE (2-way fuzzy matching)
+    const activeSearchQuery = cleanedQuery || query;
+    const activeSearchQueryLower = activeSearchQuery.toLowerCase();
+
+    if (!aiFilters.category && !skipCategoryDetection) {
       const categories = await prisma.category.findMany({ where: { isDeleted: false }, select: { name: true } });
+      const queryWords = activeSearchQueryLower.split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.includes(w) && !GENDER_CONTEXT_WORDS.includes(w));
+
+      let bestMatch: { name: string; score: number } | null = null;
+
       for (const cat of categories) {
-        if (msgLower.includes(cat.name.toLowerCase())) {
-          aiFilters.category = cat.name;
+        const catLower = cat.name.toLowerCase();
+        const catWords = catLower.split(/\s+/);
+
+        // 1. Query chứa đúng tên category (VD: "giày dép sport" trong query)
+        if (activeSearchQueryLower.includes(catLower)) {
+          bestMatch = { name: cat.name, score: 100 };
           break;
+        }
+
+        // 2. Từ khóa chính trong query khớp với từ trong category name
+        // VD: "dép" trong query → match "Giày dép Sport"
+        let matchScore = 0;
+        for (const qWord of queryWords) {
+          if (catWords.some(cw => cw.includes(qWord) || qWord.includes(cw))) {
+            matchScore += qWord.length; // Ưu tiên từ dài hơn (chính xác hơn)
+          }
+        }
+
+        if (matchScore > 0 && (!bestMatch || matchScore > bestMatch.score)) {
+          bestMatch = { name: cat.name, score: matchScore };
+        }
+      }
+
+      if (bestMatch) {
+        aiFilters.category = bestMatch.name;
+        console.log(`📁 Auto-detected category: "${bestMatch.name}" (score: ${bestMatch.score})`);
+      }
+    }
+
+    console.log('Final Filters:', JSON.stringify(aiFilters));
+
+    // Phân giải Category và Subcategories đệ quy
+    const categoryIds: string[] = [];
+    if (aiFilters.category && !skipCategoryDetection) {
+      const cat = await prisma.category.findFirst({
+        where: { name: { contains: aiFilters.category, mode: 'insensitive' }, isDeleted: false },
+        include: { children: { where: { isDeleted: false } } }
+      });
+      if (cat) {
+        categoryIds.push(cat.id);
+        if (cat.children.length > 0) {
+          categoryIds.push(...cat.children.map(c => c.id));
+        }
+      }
+    } else if (categoryId) {
+      const cat = await prisma.category.findUnique({
+        where: { id: categoryId, isDeleted: false },
+        include: { children: { where: { isDeleted: false } } }
+      });
+      if (cat) {
+        categoryIds.push(cat.id);
+        if (cat.children.length > 0) {
+          categoryIds.push(...cat.children.map(c => c.id));
         }
       }
     }
-    
-    console.log('Final Filters:', JSON.stringify(aiFilters));
 
     // 2. Quyết định loại search
     const useSemanticSearch = this.shouldUseSemanticSearch(query, aiFilters);
@@ -297,11 +498,14 @@ export class AIService {
     const poolLimit = aiFilters?.minRating || aiFilters?.minSold || aiFilters?.minReviews || aiFilters?.sort || aiFilters?.attributes ? 100 : limit;
 
     if (aiFilters) {
-      if (aiFilters.category) {
+      if (categoryIds.length > 0) {
+        where.categoryId = { in: categoryIds };
+      } else if (aiFilters.category) {
         where.category = { name: { contains: aiFilters.category, mode: 'insensitive' } };
       } else if (categoryId) {
         where.categoryId = categoryId;
       }
+
       if (aiFilters.keywords) {
         where.OR = [
           { name: { contains: aiFilters.keywords, mode: 'insensitive' } },
@@ -319,17 +523,52 @@ export class AIService {
         };
       }
 
-      // Attribute-based filtering (Prisma level - only exact match, range is post-filtered)
+      // Attribute-based filtering (Prisma level)
       if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
         const attrConditions: Prisma.ProductWhereInput[] = [];
+        // Text attributes need 'contains' or just 'has key' approach
+        const textAttrKeys = ['dimensions', 'material', 'color', 'style', 'type', 'brand', 'origin'];
+
         for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
           if (!attrFilter) continue;
-          // Only use Prisma filter for exact match; range (min/max) is handled in post-filter step 6.5
-          if (attrFilter.exact && !attrFilter.min && !attrFilter.max) {
-            attrConditions.push({ attributes: { some: { key: attrKey, value: attrFilter.exact.toString() } } });
+
+          let standardizedKey = attrKey;
+          if (standardizedKey === 'chip') standardizedKey = 'cpu';
+
+          // Text/dimension attributes: do NOT enforce key at Prisma level to allow name/description fallbacks in post-filter
+          if (textAttrKeys.includes(standardizedKey)) {
+            continue;
+          }
+          // Numeric exact match at Prisma level
+          else if (attrFilter.exact && !attrFilter.min && !attrFilter.max) {
+            attrConditions.push({ attributes: { some: { key: standardizedKey, value: attrFilter.exact.toString() } } });
           } else {
             // For range queries, just ensure the product HAS this attribute key
-            attrConditions.push({ attributes: { some: { key: attrKey } } });
+            if (standardizedKey === 'battery' || standardizedKey === 'battery_life') {
+              attrConditions.push({
+                attributes: {
+                  some: {
+                    OR: [
+                      { key: 'battery' },
+                      { key: 'battery_life' }
+                    ]
+                  }
+                }
+              });
+            } else if (standardizedKey === 'storage' || standardizedKey === 'rom') {
+              attrConditions.push({
+                attributes: {
+                  some: {
+                    OR: [
+                      { key: 'storage' },
+                      { key: 'rom' }
+                    ]
+                  }
+                }
+              });
+            } else {
+              attrConditions.push({ attributes: { some: { key: standardizedKey } } });
+            }
           }
         }
         if (attrConditions.length > 0) {
@@ -343,7 +582,7 @@ export class AIService {
     if (useSemanticSearch) {
       console.log('🔍 Executing Semantic Search...');
       try {
-        products = await this.searchSemantic(query, poolLimit, aiFilters, categoryId);
+        products = await this.searchSemantic(query, poolLimit, aiFilters, undefined, categoryIds);
       } catch (err) {
         console.warn('⚠️ Semantic search failed, falling back to keyword search:', err);
       }
@@ -352,29 +591,62 @@ export class AIService {
     // Keyword search nếu không dùng semantic hoặc semantic trả về rỗng
     if (!useSemanticSearch || products.length === 0) {
       console.log('🔍 Executing Keyword Search...');
-      products = await prisma.product.findMany({
-        where,
-        include: {
-          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-          category: { select: { name: true } },
-          variants: { orderBy: { price: 'asc' }, take: 1 },
-          attributes: true
-        },
-        take: poolLimit,
-        orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
-      });
+
+      // Thử tìm bằng CỤM TỪ nguyên vẹn trước (chính xác hơn tách từ)
+      const searchText = activeSearchQueryLower.split(/\s+/)
+        .filter(w => w.length > 1 && !STOP_WORDS.includes(w))
+        .join(' ');
+
+      if (searchText && !where.OR) {
+        const phraseWhere = { ...where };
+        phraseWhere.OR = [
+          { name: { contains: searchText, mode: 'insensitive' as const } },
+          { description: { contains: searchText, mode: 'insensitive' as const } },
+          { slug: { contains: searchText.replace(/\s+/g, '-'), mode: 'insensitive' as const } }
+        ];
+
+        products = await prisma.product.findMany({
+          where: phraseWhere,
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: poolLimit,
+          orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
+        });
+
+        if (products.length > 0) {
+          console.log(`✅ Full-phrase search found ${products.length} results`);
+        }
+      }
+
+      // Nếu cụm từ không tìm được, dùng where gốc (có keywords từ AI)
+      if (products.length === 0) {
+        products = await prisma.product.findMany({
+          where,
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: poolLimit,
+          orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
+        });
+      }
     }
 
     // 3.5 Fallback trung gian: Nếu có lọc mà không ra kết quả, thử bỏ lọc để giữ đúng Category
     if (products.length === 0 && (aiFilters?.priceMin || aiFilters?.priceMax || aiFilters?.minRating)) {
       console.log('🔄 Relaxing filters (removing price/rating) but keeping Category...');
-      const relaxedWhere: Prisma.ProductWhereInput = { 
+      const relaxedWhere: Prisma.ProductWhereInput = {
         isDeleted: false,
         isActive: true,
-        ...(where.category ? { category: where.category } : {}),
-        ...(where.categoryId ? { categoryId: where.categoryId } : {})
+        ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : categoryId ? { categoryId } : {})
       };
-      
+
       products = await prisma.product.findMany({
         where: relaxedWhere,
         include: {
@@ -387,26 +659,175 @@ export class AIService {
       });
     }
 
-    // 4. Fallback cuối: Tìm rộng bằng cách tách từ
+    // 4. Fallback cuối: Tìm rộng bằng cách tách từ (AND trước, OR sau + relevance scoring)
     if (products.length === 0) {
       console.log('🔄 Fallback to broad word search...');
-      const words = query.toLowerCase().split(/\s+/)
-        .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
-      
-      if (words.length === 0) return []; // Không còn từ khóa nào để tìm
-      
-      products = await prisma.product.findMany({
-        where: {
-          OR: words.map(word => ({
-            OR: [
-              { name: { contains: word, mode: 'insensitive' } },
-              { description: { contains: word, mode: 'insensitive' } }
+      // Tách từ chính (bỏ stop words) và từ ngữ cảnh (gender) riêng
+      const allWords = activeSearchQueryLower.split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.includes(w));
+      const mainWords = allWords.filter(w => !GENDER_CONTEXT_WORDS.includes(w));
+      const contextWords = allWords.filter(w => GENDER_CONTEXT_WORDS.includes(w));
+
+      if (mainWords.length === 0 && contextWords.length === 0) return [];
+
+      const basePriceFilter = aiFilters?.priceMin || aiFilters?.priceMax ? {
+        variants: {
+          some: {
+            AND: [
+              aiFilters.priceMin !== null ? { price: { gte: aiFilters.priceMin } } : {},
+              aiFilters.priceMax !== null ? { price: { lte: aiFilters.priceMax } } : {},
             ]
-          })),
-          isDeleted: false,
-          isActive: true,
-          ...(categoryId ? { categoryId } : {}),
-          ...(aiFilters?.priceMin || aiFilters?.priceMax ? {
+          }
+        }
+      } : {};
+
+      // 4a. Thử AND trước: tất cả từ chính phải match
+      if (mainWords.length > 0) {
+        const andConditions = mainWords.map(word => ({
+          OR: [
+            { name: { contains: word, mode: 'insensitive' as const } },
+            { description: { contains: word, mode: 'insensitive' as const } }
+          ]
+        }));
+
+        // Thêm context words vào AND nếu có
+        if (contextWords.length > 0) {
+          for (const cw of contextWords) {
+            andConditions.push({
+              OR: [
+                { name: { contains: cw, mode: 'insensitive' as const } },
+                { description: { contains: cw, mode: 'insensitive' as const } },
+              ]
+            });
+          }
+        }
+
+        products = await prisma.product.findMany({
+          where: {
+            AND: andConditions,
+            isDeleted: false,
+            isActive: true,
+            ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : categoryId ? { categoryId } : {}),
+            ...basePriceFilter
+          },
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: limit
+        });
+
+        if (products.length > 0) {
+          console.log(`✅ AND word search found ${products.length} results`);
+        }
+      }
+
+      // 4b. Nếu AND quá strict (0 kết quả), dùng OR nhưng ưu tiên match nhiều từ hơn
+      if (products.length === 0 && mainWords.length > 0) {
+        console.log('🔄 AND too strict, falling back to OR with relevance...');
+        products = await prisma.product.findMany({
+          where: {
+            OR: mainWords.map(word => ({
+              OR: [
+                { name: { contains: word, mode: 'insensitive' as const } },
+                { description: { contains: word, mode: 'insensitive' as const } }
+              ]
+            })),
+            isDeleted: false,
+            isActive: true,
+            ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : categoryId ? { categoryId } : {}),
+            ...basePriceFilter
+          },
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: limit * 3 // Lấy nhiều hơn để scoring
+        });
+
+        // Relevance scoring: sản phẩm match nhiều từ hơn → điểm cao hơn
+        if (products.length > 0) {
+          const scoredProducts = products.map(p => {
+            const nameL = (p.name || '').toLowerCase();
+            const descL = (p.description || '').toLowerCase();
+            let score = 0;
+            for (const w of mainWords) {
+              if (nameL.includes(w)) score += 10; // Match tên = ưu tiên cao
+              if (descL.includes(w)) score += 3;
+            }
+            for (const w of contextWords) {
+              if (nameL.includes(w)) score += 5;
+              if (descL.includes(w)) score += 1;
+            }
+            return { product: p, score };
+          });
+
+          scoredProducts.sort((a, b) => b.score - a.score);
+          products = scoredProducts.slice(0, limit).map(s => s.product);
+          console.log(`✅ OR+Relevance search returned ${products.length} results (top scores: ${scoredProducts.slice(0, 3).map(s => s.score).join(', ')})`);
+        }
+      }
+    }
+
+    // 4.5 Fallback không giới hạn danh mục: Nếu vẫn không tìm được kết quả và có giới hạn danh mục, thử tìm kiếm lại mà không lọc danh mục.
+    if (products.length === 0 && (categoryIds.length > 0 || categoryId)) {
+      console.log('🔄 No products found with category filter, trying global search (relaxing category)...');
+
+      const globalWhere: Prisma.ProductWhereInput = { isDeleted: false, isActive: true };
+
+      // Thử tìm bằng CỤM TỪ nguyên vẹn trước (toàn cầu)
+      const searchText = activeSearchQueryLower.split(/\s+/)
+        .filter(w => w.length > 1 && !STOP_WORDS.includes(w))
+        .join(' ');
+
+      if (searchText) {
+        const phraseWhere = { ...globalWhere };
+        phraseWhere.OR = [
+          { name: { contains: searchText, mode: 'insensitive' as const } },
+          { description: { contains: searchText, mode: 'insensitive' as const } },
+          { slug: { contains: searchText.replace(/\s+/g, '-'), mode: 'insensitive' as const } }
+        ];
+
+        products = await prisma.product.findMany({
+          where: phraseWhere,
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: poolLimit
+        });
+      }
+
+      // Nếu cụm từ toàn cầu không có kết quả, dùng broad search toàn cầu (AND/OR)
+      if (products.length === 0) {
+        const allWords = activeSearchQueryLower.split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.includes(w));
+        const mainWords = allWords.filter(w => !GENDER_CONTEXT_WORDS.includes(w));
+        const contextWords = allWords.filter(w => GENDER_CONTEXT_WORDS.includes(w));
+
+        if (mainWords.length > 0) {
+          const andConditions = mainWords.map(word => ({
+            OR: [
+              { name: { contains: word, mode: 'insensitive' as const } },
+              { description: { contains: word, mode: 'insensitive' as const } }
+            ]
+          }));
+          if (contextWords.length > 0) {
+            for (const cw of contextWords) {
+              andConditions.push({
+                OR: [
+                  { name: { contains: cw, mode: 'insensitive' as const } },
+                  { description: { contains: cw, mode: 'insensitive' as const } }
+                ]
+              });
+            }
+          }
+
+          const basePriceFilter = aiFilters?.priceMin || aiFilters?.priceMax ? {
             variants: {
               some: {
                 AND: [
@@ -415,15 +836,25 @@ export class AIService {
                 ]
               }
             }
-          } : {})
-        },
-        include: {
-          images: { orderBy: { isPrimary: 'desc' }, take: 1 },
-          variants: { orderBy: { price: 'asc' }, take: 1 },
-          attributes: true
-        },
-        take: limit
-      });
+          } : {};
+
+          products = await prisma.product.findMany({
+            where: {
+              AND: andConditions,
+              isDeleted: false,
+              isActive: true,
+              ...basePriceFilter
+            },
+            include: {
+              images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+              category: { select: { name: true } },
+              variants: { orderBy: { price: 'asc' }, take: 1 },
+              attributes: true
+            },
+            take: limit
+          });
+        }
+      }
     }
 
     // 5. Bổ sung dữ liệu (Sold, Rating, Reviews)
@@ -443,32 +874,112 @@ export class AIService {
 
       // 6.5 Lọc theo attributes (min/max range + exact)
       if (aiFilters.attributes && typeof aiFilters.attributes === 'object') {
-        for (const [attrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
+        for (const [rawAttrKey, attrFilter] of Object.entries(aiFilters.attributes as Record<string, any>)) {
           if (!attrFilter) continue;
+
+          // Chuẩn hóa key từ AI/LLM sang key trong Database (Vd: chip -> cpu)
+          let attrKey = rawAttrKey;
+          if (attrKey === 'chip') attrKey = 'cpu';
+
           const beforeCount = enrichedProducts.length;
           enrichedProducts = enrichedProducts.filter(p => {
             const attrs = (p as any).attributes;
-            if (!attrs || !Array.isArray(attrs)) return false;
-            const attr = attrs.find((a: any) => a.key === attrKey);
-            if (!attr) return false; // Product doesn't have this attribute → exclude
-            const numVal = parseFloat(attr.value);
-            
-            // Range filter (min/max)
-            if (attrFilter.min != null || attrFilter.max != null) {
-              if (isNaN(numVal)) return false; // Can't compare range on non-numeric
-              if (attrFilter.min != null && numVal < attrFilter.min) return false;
-              if (attrFilter.max != null && numVal > attrFilter.max) return false;
+            const attr = attrs && Array.isArray(attrs) ? attrs.find((a: any) => {
+              if (attrKey === 'battery' || attrKey === 'battery_life') {
+                return a.key === 'battery' || a.key === 'battery_life';
+              }
+              if (attrKey === 'storage' || attrKey === 'rom') {
+                return a.key === 'storage' || a.key === 'rom';
+              }
+              if (attrKey === 'cpu' || attrKey === 'chip') {
+                return a.key === 'cpu' || a.key === 'chip';
+              }
+              return a.key === attrKey;
+            }) : null;
+
+            // Lấy tất cả giá trị filter có thể có
+            const filterExact = attrFilter.exact;
+            const filterMin = attrFilter.min;
+            const filterMax = attrFilter.max;
+
+            let dbValStr = '';
+            let numVal = NaN;
+            let isDbValNumeric = false;
+
+            if (attr) {
+              dbValStr = attr.value.toLowerCase().trim();
+              numVal = parseFloat(attr.value);
+              isDbValNumeric = !isNaN(numVal);
+            } else {
+              // FALLBACK: Nếu sản phẩm không có thuộc tính này trong DB ProductAttribute
+              const prodName = (p.name || '').toLowerCase();
+              const prodDesc = (p.description || '').toLowerCase();
+
+              if (attrKey === 'dimensions') {
+                const textToSearch = `${prodName} ${prodDesc}`;
+                const dimRegex = /(\d+m\d+|\d+(?:[.,]\d+)?m?)\s*[xX*×]\s*(\d+m\d+|\d+(?:[.,]\d+)?m?)/gi;
+                const matches = textToSearch.match(dimRegex);
+                if (matches) {
+                  const normFilter = this.normalizeDimension((filterExact || '').toString());
+                  if (normFilter) {
+                    for (const match of matches) {
+                      const normDb = this.normalizeDimension(match);
+                      if (normDb && (normDb === normFilter || normDb.includes(normFilter) || normFilter.includes(normDb))) {
+                        return true;
+                      }
+                    }
+                  }
+                }
+                return false;
+              }
+
+              if (attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || attrKey === 'brand') {
+                const filterStr = (filterExact || filterMin || filterMax || '').toString().toLowerCase().trim();
+                if (filterStr) {
+                  return prodName.includes(filterStr) || prodDesc.includes(filterStr);
+                }
+              }
+
+              return false;
+            }
+
+            // === DIMENSIONS: so sánh bằng normalization (1m8x2m == 1m8 x 2m == 1.8x2) ===
+            if (attrKey === 'dimensions') {
+              const normDb = this.normalizeDimension(dbValStr);
+              const normFilter = this.normalizeDimension((filterExact || '').toString());
+              if (normDb && normFilter) {
+                return normDb === normFilter || normDb.includes(normFilter) || normFilter.includes(normDb);
+              }
+              return false;
+            }
+
+            // Xử lý thông minh cho các thuộc tính chữ (cpu, brand, material, color, style...) hoặc khi giá trị DB là chữ
+            if (attrKey === 'cpu' || attrKey === 'chip' || attrKey === 'material' || attrKey === 'color' || attrKey === 'style' || !isDbValNumeric) {
+              const filterStr = (filterExact || filterMin || filterMax || '').toString().toLowerCase().trim();
+              if (filterStr) {
+                return dbValStr.includes(filterStr) || filterStr.includes(dbValStr);
+              }
               return true;
             }
-            
-            // Exact match
-            if (attrFilter.exact != null) {
-              if (!isNaN(numVal)) {
-                return numVal === parseFloat(attrFilter.exact.toString());
-              }
-              return attr.value.toLowerCase().includes(attrFilter.exact.toString().toLowerCase());
+
+            // Range filter (min/max) cho thuộc tính số (RAM, dung lượng, pin, công suất...)
+            if (filterMin != null || filterMax != null) {
+              const minVal = parseFloat(filterMin?.toString() || '');
+              const maxVal = parseFloat(filterMax?.toString() || '');
+              if (!isNaN(minVal) && numVal < minVal) return false;
+              if (!isNaN(maxVal) && numVal > maxVal) return false;
+              return true;
             }
-            
+
+            // Exact match cho thuộc tính số
+            if (filterExact != null) {
+              const exactNum = parseFloat(filterExact.toString());
+              if (!isNaN(exactNum)) {
+                return numVal === exactNum;
+              }
+              return dbValStr.includes(filterExact.toString().toLowerCase());
+            }
+
             return true;
           });
           console.log(`   Attribute filter [${attrKey}]: ${beforeCount} → ${enrichedProducts.length} products`);
@@ -496,6 +1007,12 @@ export class AIService {
       }
     }
 
+    // Nếu lọc xong mà không có sản phẩm nào, nhưng trước đó có lọc theo category, thử tìm kiếm lại trên phạm vi toàn cầu
+    if (enrichedProducts.length === 0 && !skipCategoryDetection && (categoryIds.length > 0 || categoryId || aiFilters?.category)) {
+      console.log('🔄 Relaxing category restriction completely as no products matched the attributes...');
+      return this.intelligentSearch(query, limit, undefined, true);
+    }
+
     return enrichedProducts.slice(0, limit).map(p => ({
       ...p,
       searchType: useSemanticSearch ? 'semantic' : 'keyword',
@@ -505,9 +1022,30 @@ export class AIService {
   /**
    * Tìm kiếm Semantic (Vector) kết hợp lọc SQL
    */
-  async searchSemantic(query: string, limit: number = 10, filters: any = null, categoryId?: string): Promise<any[]> {
+  async searchSemantic(query: string, limit: number = 10, filters: any = null, categoryId?: string, categoryIds: string[] = []): Promise<any[]> {
     const queryVector = await embeddingHelper.generateEmbedding(query);
     const vectorString = `[${queryVector.join(',')}]`;
+
+    // Chuẩn bị các bộ lọc SQL động để tránh lồng ghép ES6 template literal phức tạp
+    let categoryFilter = Prisma.empty;
+    if (categoryIds.length > 0) {
+      categoryFilter = Prisma.sql`AND p."categoryId" IN (${Prisma.join(categoryIds)})`;
+    } else if (filters?.category) {
+      categoryFilter = Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}`;
+    } else if (categoryId) {
+      categoryFilter = Prisma.sql`AND p."categoryId" = ${categoryId}`;
+    }
+
+    const priceMinFilter = filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty;
+    const priceMaxFilter = filters?.priceMax ? Prisma.sql`AND v.price <= ${filters.priceMax}` : Prisma.empty;
+
+    const minRatingFilter = filters?.minRating ? Prisma.sql`AND COALESCE(avg_rating.rating, 0) >= ${filters.minRating}` : Prisma.empty;
+    const minSoldFilter = filters?.minSold ? Prisma.sql`AND COALESCE(sold_stats.sold, 0) >= ${filters.minSold}` : Prisma.empty;
+    const minReviewsFilter = filters?.minReviews ? Prisma.sql`AND COALESCE(avg_rating.total_reviews, 0) >= ${filters.minReviews}` : Prisma.empty;
+
+    const sortFilter = filters?.sort === 'best_selling'
+      ? Prisma.sql`"soldCount" DESC,`
+      : (filters?.sort === 'top_rated' ? Prisma.sql`"averageRating" DESC,` : Prisma.empty);
 
     const results = await prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id, p.name, p.slug, p.description,
@@ -534,17 +1072,16 @@ export class AIService {
       WHERE p."isDeleted" = false 
         AND p."isActive" = true
         AND p.embedding IS NOT NULL
-        ${filters?.category ? Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}` : (categoryId ? Prisma.sql`AND p."categoryId" = ${categoryId}` : Prisma.empty)}
-        ${filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty}
-        ${filters?.priceMax ? Prisma.sql`AND v.price <= ${filters.priceMax}` : Prisma.empty}
+        ${categoryFilter}
+        ${priceMinFilter}
+        ${priceMaxFilter}
       GROUP BY p.id, c.name, avg_rating.rating, avg_rating.total_reviews, sold_stats.sold
       HAVING 1=1
-        ${filters?.minRating ? Prisma.sql`AND COALESCE(avg_rating.rating, 0) >= ${filters.minRating}` : Prisma.empty}
-        ${filters?.minSold ? Prisma.sql`AND COALESCE(sold_stats.sold, 0) >= ${filters.minSold}` : Prisma.empty}
-        ${filters?.minReviews ? Prisma.sql`AND COALESCE(avg_rating.total_reviews, 0) >= ${filters.minReviews}` : Prisma.empty}
+        ${minRatingFilter}
+        ${minSoldFilter}
+        ${minReviewsFilter}
       ORDER BY 
-        ${filters?.sort === 'best_selling' ? Prisma.sql`"soldCount" DESC,` : Prisma.empty}
-        ${filters?.sort === 'top_rated' ? Prisma.sql`"averageRating" DESC,` : Prisma.empty}
+        ${sortFilter}
         distance ASC
       LIMIT ${limit}
     `);
@@ -593,11 +1130,11 @@ export class AIService {
     });
 
     if (!product || product.reviews.length === 0) {
-      return { 
-        pros: [], 
-        cons: [], 
-        sentiment: "Chưa có dữ liệu", 
-        conclusion: "Sản phẩm chưa có đánh giá nào để tóm tắt." 
+      return {
+        pros: [],
+        cons: [],
+        sentiment: "Chưa có dữ liệu",
+        conclusion: "Sản phẩm chưa có đánh giá nào để tóm tắt."
       };
     }
 
@@ -627,7 +1164,8 @@ export class AIService {
             { role: 'user', content: `Danh sách đánh giá:\n${reviewTexts}` }
           ],
           stream: false,
-          format: 'json'
+          format: 'json',
+          keep_alive: -1
         })
       });
 
@@ -671,7 +1209,8 @@ export class AIService {
             { role: 'user', content: `Dữ liệu doanh thu:\n${dataText}` }
           ],
           stream: false,
-          format: 'json'
+          format: 'json',
+          keep_alive: -1
         })
       });
 

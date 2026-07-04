@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Check, Loader2, Package, Sparkles, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -17,7 +17,7 @@ interface Notification {
 }
 
 export function NotificationBell() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, hasHydrated, resetAuth } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -25,11 +25,40 @@ export function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
+  const fetchNotifications = useCallback(async () => {
+    try {
+      if (!isOpen && notifications.length > 0) return;
+      setIsLoading(true);
+      const res = await api.get('/notifications?limit=10');
+      if (res.data.success) {
+        setNotifications(res.data.data.notifications);
+        setUnreadCount(res.data.data.unreadCount);
+      }
+    } catch {
+      console.error('Failed to load notifications');
+    } finally {
+      setIsLoading(false);
     }
-  }, [isAuthenticated, isOpen]);
+  }, [isOpen, notifications.length]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    if (!localStorage.getItem('accessToken')) {
+      resetAuth();
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void fetchNotifications();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [hasHydrated, isAuthenticated, isOpen, resetAuth, fetchNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,22 +69,6 @@ export function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      if (!isOpen && notifications.length > 0) return;
-      setIsLoading(true);
-      const res = await api.get('/notifications?limit=10');
-      if (res.data.success) {
-        setNotifications(res.data.data.notifications);
-        setUnreadCount(res.data.data.unreadCount);
-      }
-    } catch (error) {
-      console.error('Failed to load notifications');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const markAsRead = async (id: string) => {
     try {
@@ -85,7 +98,7 @@ export function NotificationBell() {
     }
   };
 
-  if (!isAuthenticated) return null;
+  if (!hasHydrated || !isAuthenticated) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>

@@ -3,6 +3,8 @@ import { PaymentService } from './payment.service';
 
 const paymentService = new PaymentService();
 let isPolling = false;
+let hasInitialized = false;
+const seenTransactionIds = new Set<string>();
 
 export function startSepayPolling(intervalMs: number = 10000) {
   let apiKey = process.env.SEPAY_WEBHOOK_API_KEY;
@@ -33,15 +35,34 @@ export function startSepayPolling(intervalMs: number = 10000) {
 
       const transactions = response.data?.transactions;
       if (Array.isArray(transactions) && transactions.length > 0) {
+        if (!hasInitialized && process.env.SEPAY_PROCESS_EXISTING_ON_STARTUP !== 'true') {
+          for (const tx of transactions) {
+            if (tx.id) seenTransactionIds.add(String(tx.id));
+          }
+          hasInitialized = true;
+          return;
+        }
+
+        hasInitialized = true;
+
         for (const tx of transactions) {
+          const txId = tx.id ? String(tx.id) : `${tx.reference_number || ''}:${tx.transaction_content || ''}`;
+          if (seenTransactionIds.has(txId)) continue;
+          seenTransactionIds.add(txId);
+
           const amountIn = parseFloat(tx.amount_in || '0');
           if (amountIn <= 0) continue; // Bỏ qua giao dịch chi tiền ra
+
+          const content = tx.transaction_content || '';
+          if (!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32}/i.test(content)) {
+            continue;
+          }
 
           const mappedTx = {
             id: tx.id,
             transferType: 'in',
             transferAmount: amountIn,
-            transactionContent: tx.transaction_content,
+            transactionContent: content,
             referenceNumber: tx.reference_number
           };
 
@@ -69,5 +90,6 @@ export function startSepayPolling(intervalMs: number = 10000) {
   poll();
 
   // Thiết lập chu kỳ chạy lặp lại
-  setInterval(poll, intervalMs);
+  const timer = setInterval(poll, intervalMs);
+  timer.unref?.();
 }

@@ -283,30 +283,95 @@ export class ProductService {
   async update(id: string, data: any) {
     const { variants, ...productData } = data;
 
-    // Chuẩn bị dữ liệu cập nhật
-    const updateData: any = { ...productData };
+    // Sử dụng transaction để đảm bảo toàn vẹn dữ liệu
+    const finalProduct = await prisma.$transaction(async (tx) => {
+      // 1. Cập nhật thông tin cơ bản của product trước
+      const updatedProduct = await tx.product.update({
+        where: { id },
+        data: productData,
+      });
 
-    // Chỉ cập nhật variants nếu được cung cấp và có dữ liệu
-    if (variants && Array.isArray(variants) && variants.length > 0) {
-      updateData.variants = {
-        deleteMany: {},
-        create: variants
-      };
-    }
+      // 2. Xử lý logic variants thông minh (Smart Sync)
+      if (variants && Array.isArray(variants)) {
+        // Lấy danh sách variants hiện có trong DB của sản phẩm này
+        const dbVariants = await tx.productVariant.findMany({
+          where: { productId: id },
+          include: { 
+            _count: { 
+              select: { orderItems: true, cartItems: true } 
+            } 
+          }
+        });
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: updateData,
-      include: { variants: true }
+        const incomingIds = variants.map(v => v.id).filter(Boolean) as string[];
+
+        // A. Xóa hoặc vô hiệu hóa các variant cũ không còn xuất hiện trong incoming variants
+        const toDelete = dbVariants.filter(dbV => !incomingIds.includes(dbV.id));
+        for (const variantToDelete of toDelete) {
+          const hasOrders = variantToDelete._count.orderItems > 0;
+          if (hasOrders) {
+            // Nếu đã có order, KHÔNG xóa cứng để tránh vi phạm khoá ngoại (P2003)
+            // Thay vào đó, cập nhật stock = 0 để vô hiệu hóa việc mua sắm biến thể này
+            await tx.productVariant.update({
+              where: { id: variantToDelete.id },
+              data: { 
+                stock: 0, 
+                // Thay đổi sku để tránh trùng lặp SKU khi tạo variant mới
+                sku: `${variantToDelete.sku}_archived_${Date.now()}` 
+              }
+            });
+          } else {
+            // Nếu chưa có order, xóa cứng an toàn
+            // Trước hết xóa cart items liên quan (nếu có)
+            if (variantToDelete._count.cartItems > 0) {
+              await tx.cart.deleteMany({
+                where: { productVariantId: variantToDelete.id }
+              });
+            }
+            await tx.productVariant.delete({
+              where: { id: variantToDelete.id }
+            });
+          }
+        }
+
+        // B. Cập nhật các variant đang có hoặc tạo mới các variant chưa có
+        for (const v of variants) {
+          if (v.id && dbVariants.some(dbV => dbV.id === v.id)) {
+            // Update
+            const { id: _, productId: __, ...updatePayload } = v;
+            await tx.productVariant.update({
+              where: { id: v.id },
+              data: updatePayload
+            });
+          } else {
+            // Create
+            const { id: _, ...createPayload } = v;
+            await tx.productVariant.create({
+              data: {
+                ...createPayload,
+                productId: id
+              }
+            });
+          }
+        }
+      }
+
+      // Lấy product đầy đủ thông tin variants đã được xử lý xong
+      return tx.product.findUnique({
+        where: { id },
+        include: { variants: true }
+      });
     });
 
     await this.clearProductCache();
 
     // 🔥 Cập nhật Embedding cho AI và đồng bộ trạng thái
     // Nếu sản phẩm bị ẩn (isActive: false), AI sẽ tự động bỏ qua khi tìm kiếm nhờ filter ở intelligentSearch
-    this.syncEmbedding(product.id, product.name, product.description || '').catch(err => console.error('Sync embedding error:', err));
+    if (finalProduct) {
+      this.syncEmbedding(finalProduct.id, finalProduct.name, finalProduct.description || '').catch(err => console.error('Sync embedding error:', err));
+    }
 
-    return product;
+    return finalProduct;
   }
 
   /**
@@ -314,8 +379,28 @@ export class ProductService {
    */
   private async syncEmbedding(productId: string, name: string, description: string) {
     try {
-      // 1. Text Embedding
-      const text = EmbeddingHelper.buildProductEmbeddingText({ name, description });
+      // Lấy đầy đủ thông tin Product kèm Category và Attributes để sinh embedding chính xác nhất
+      const fullProduct = await prisma.product.findUnique({
+        where: { id: productId },
+        include: {
+          category: { select: { name: true } },
+          attributes: true
+        }
+      });
+
+      if (!fullProduct) {
+        console.warn(`⚠️ Cannot sync embedding: Product ${productId} not found.`);
+        return;
+      }
+
+      // 1. Text Embedding với đầy đủ thông số kỹ thuật và danh mục
+      const text = EmbeddingHelper.buildProductEmbeddingText({
+        name: fullProduct.name,
+        description: fullProduct.description || '',
+        categoryName: fullProduct.category?.name || null,
+        attributes: fullProduct.attributes || []
+      });
+      
       const embedding = await embeddingHelper.generateEmbedding(text);
       const vectorString = `[${embedding.join(',')}]`;
 

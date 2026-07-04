@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { NotificationPopup } from '@/components/NotificationPopup';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import type { Locale } from '@/i18n';
@@ -21,6 +22,15 @@ export function ClientWrapper({ children, initialLang }: { children: React.React
     initialized.current = true;
   }
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      useAuthStore.getState().resetAuth();
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
+
   if (isAdmin) {
     return <>{children}</>;
   }
@@ -28,7 +38,7 @@ export function ClientWrapper({ children, initialLang }: { children: React.React
   return (
     <>
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10">
+      <main>
         {children}
       </main>
 

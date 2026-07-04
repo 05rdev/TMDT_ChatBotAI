@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Bell, Clock, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -16,25 +16,13 @@ interface Notification {
 }
 
 export function NotificationPopup() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, hasHydrated, resetAuth } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    // Check localStorage for dismissed time
-    const dismissedUntil = localStorage.getItem('notif_dismissed_until');
-    if (dismissedUntil && Date.now() < Number(dismissedUntil)) {
-      return;
-    }
-
-    fetchUnreadNotifications();
-  }, [isAuthenticated]);
-
-  const fetchUnreadNotifications = async () => {
+  const fetchUnreadNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications');
       if (res.data.success) {
@@ -60,7 +48,32 @@ export function NotificationPopup() {
     } catch (err) {
       console.error('Failed to fetch notifications for popup', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    if (!localStorage.getItem('accessToken')) {
+      resetAuth();
+      return;
+    }
+
+    // Check localStorage for dismissed time
+    const dismissedUntil = localStorage.getItem('notif_dismissed_until');
+    if (dismissedUntil && Date.now() < Number(dismissedUntil)) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void fetchUnreadNotifications();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [hasHydrated, isAuthenticated, resetAuth, fetchUnreadNotifications]);
 
   const handleDismiss = async () => {
     setIsAnimating(false);
@@ -90,7 +103,7 @@ export function NotificationPopup() {
     setTimeout(() => setIsVisible(false), 300);
   };
 
-  if (!isVisible || notifications.length === 0) return null;
+  if (!hasHydrated || !isAuthenticated || !isVisible || notifications.length === 0) return null;
 
   const current = notifications[currentIndex];
 

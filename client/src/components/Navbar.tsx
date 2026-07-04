@@ -13,7 +13,7 @@ import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Navbar = () => {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated, resetAuth, logout } = useAuthStore();
   const cartItems = useCartStore(state => state.items);
   const fetchCart = useCartStore(state => state.fetchCart);
   const { theme, setTheme } = useTheme();
@@ -34,14 +34,15 @@ export const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchCart();
-    }
-  }, [isAuthenticated, fetchCart]);
+    if (!hasHydrated || !isAuthenticated) return;
 
-  if (pathname.startsWith('/admin')) {
-    return null;
-  }
+    if (!localStorage.getItem('accessToken')) {
+      resetAuth();
+      return;
+    }
+
+    fetchCart();
+  }, [hasHydrated, isAuthenticated, fetchCart, resetAuth]);
 
   // Prevent hydration mismatch for cart badge
   const [cartCount, setCartCount] = useState(0);
@@ -49,15 +50,19 @@ export const Navbar = () => {
     setCartCount(cartItems.reduce((acc, item) => acc + item.quantity, 0));
   }, [cartItems]);
 
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
-    <nav className="solid-nav px-6 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <nav className="solid-nav px-4 sm:px-6 py-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2.5 group">
+        <Link href="/" className="flex items-center space-x-2.5 group shrink-0">
           <div className="w-9 h-9 bg-primary rounded-[var(--radius-md)] flex items-center justify-center transition-transform group-hover:scale-105">
             <Bot className="text-primary-foreground w-5 h-5" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
+          <span className="text-xl font-bold tracking-tight text-foreground hidden sm:block">
             Ultra<span className="text-primary">Shop</span>
           </span>
         </Link>
@@ -73,7 +78,7 @@ export const Navbar = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <LanguageSwitcher />
           {/* Theme Toggle */}
           {mounted && (
@@ -94,7 +99,7 @@ export const Navbar = () => {
               value={navSearchQuery}
               onChange={(e) => setNavSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleNavSearch()}
-              className="bg-transparent border-none focus:outline-none text-sm w-44 placeholder:text-muted-foreground/60"
+              className="bg-transparent border-none focus:outline-none text-sm w-32 md:w-44 placeholder:text-muted-foreground/60"
             />
             <button className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title={t('nav.voiceSearch')}>
               <Mic className="w-3.5 h-3.5" />
@@ -138,7 +143,7 @@ export const Navbar = () => {
                     },
                     error: (err) => 'Lỗi: ' + (err.response?.data?.message || err.message)
                   });
-                } catch (err: any) {
+                } catch {
                   const { toast } = await import('sonner');
                   toast.error('Lỗi khởi tạo tìm kiếm');
                 } finally {
@@ -161,19 +166,21 @@ export const Navbar = () => {
             )}
           </Link>
 
-          <NotificationBell />
+          <div className="hidden sm:block">
+            <NotificationBell />
+          </div>
 
-          <div className="h-6 w-px bg-border mx-1" />
+          <div className="hidden sm:block h-6 w-px bg-border mx-1" />
 
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-2">
+          {hasHydrated && isAuthenticated ? (
+            <div className="flex items-center space-x-1 sm:space-x-2">
               {user?.role === 'ADMIN' && (
                 <Link href="/admin" className="hidden lg:flex items-center px-3 py-1.5 bg-foreground text-background rounded-[var(--radius-sm)] text-xs font-medium hover:opacity-90 transition-opacity">
                   {t('nav.admin')}
                 </Link>
               )}
 
-              <Link href="/profile/support" className="p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors" title={t('nav.support')}>
+              <Link href="/profile/support" className="hidden sm:flex p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors" title={t('nav.support')}>
                 <MessageSquare className="w-5 h-5" />
               </Link>
 
@@ -181,12 +188,12 @@ export const Navbar = () => {
                 <User className="w-5 h-5" />
                 <span className="text-sm font-medium hidden sm:inline">{user?.name}</span>
               </Link>
-              <Button variant="ghost" size="sm" onClick={logout}>{t('nav.logout')}</Button>
+              <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={logout}>{t('nav.logout')}</Button>
             </div>
           ) : (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-2">
               <Link href="/login">
-                <Button variant="ghost" size="sm">{t('nav.login')}</Button>
+                <Button variant="ghost" size="sm" className="hidden sm:flex">{t('nav.login')}</Button>
               </Link>
               <Link href="/register">
                 <Button size="sm">{t('nav.register')}</Button>

@@ -51,44 +51,44 @@ export class ChatbotService {
             const firstProdId = (lastAssistantMsg.suggestedProducts as any)[0].id;
             const prod = await prisma.product.findUnique({ where: { id: firstProdId }, select: { categoryId: true } });
             if (prod) contextCategoryId = prod.categoryId;
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
       const nonProductKeywords = ['voucher', 'khuyến mãi', 'mã giảm', 'đơn hàng', 'hỗ trợ', 'ticket', 'thanh toán', 'mật khẩu', 'tài khoản'];
       const productKeywords = ['sản phẩm', 'mua', 'tìm', 'tivi', 'tủ lạnh', 'máy lạnh', 'máy giặt', 'máy lọc', 'bán chạy', 'hot', 'đánh giá', 'quạt', 'nồi', 'bếp', 'lọc'];
-      
+
       const isAskingNonProduct = nonProductKeywords.some(k => msgLower.includes(k));
       const isAskingProduct = productKeywords.some(k => msgLower.includes(k));
 
       // 3. RAG: Lấy ngữ cảnh sản phẩm (Semantic Search)
       if (!isAskingNonProduct || isAskingProduct || msgLower.match(/\d+\s*(tr|triệu|k|đ)/)) {
-          relevantProducts = await aiService.intelligentSearch(message, 10, contextCategoryId); 
-          
-          if (relevantProducts.length > 0) {
-            const topCategory = relevantProducts[0].categoryId;
-            relevantProducts = relevantProducts
-              .filter(p => p.categoryId === topCategory)
-              .slice(0, 5);
+        relevantProducts = await aiService.intelligentSearch(message, 10, contextCategoryId);
 
-            productContext = '--- DANH SÁCH SẢN PHẨM PHÙ HỢP TÌM KIẾM ---\n' + relevantProducts.map(p => {
-              const minP = p.variants?.length > 0 ? Math.min(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
-              const maxP = p.variants?.length > 0 ? Math.max(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
-              const formattedPrice = minP === maxP 
-                ? `${minP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} triệu)` 
-                : `${minP.toLocaleString('vi-VN')} - ${maxP.toLocaleString('vi-VN')} VNĐ (${(minP/1000000).toFixed(2)} - ${(maxP/1000000).toFixed(2)} triệu)`;
-              
-              const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
-              const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
-              
-              // Format attributes
-              const attrStr = p.attributes && Array.isArray(p.attributes) && p.attributes.length > 0
-                ? ' | Thông số: ' + p.attributes.map((a: any) => `${a.key}: ${a.value}${a.unit ? a.unit : ''}`).join(', ')
-                : '';
-              
-              return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}...${attrStr} | ${stockStatus} | Link: /product/${p.slug}`;
-            }).join('\n');
-          }
+        if (relevantProducts.length > 0) {
+          const topCategory = relevantProducts[0].categoryId;
+          relevantProducts = relevantProducts
+            .filter(p => p.categoryId === topCategory)
+            .slice(0, 5);
+
+          productContext = '--- DANH SÁCH SẢN PHẨM PHÙ HỢP TÌM KIẾM ---\n' + relevantProducts.map(p => {
+            const minP = p.variants?.length > 0 ? Math.min(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+            const maxP = p.variants?.length > 0 ? Math.max(...p.variants.map((v: any) => Number(v.price))) : (Number(p.minPrice) || 0);
+            const formattedPrice = minP === maxP
+              ? `${minP.toLocaleString('vi-VN')} VNĐ (${(minP / 1000000).toFixed(2)} triệu)`
+              : `${minP.toLocaleString('vi-VN')} - ${maxP.toLocaleString('vi-VN')} VNĐ (${(minP / 1000000).toFixed(2)} - ${(maxP / 1000000).toFixed(2)} triệu)`;
+
+            const stockTotal = p.variants?.reduce((sum: number, v: any) => sum + (v.stock || 0), 0) || 0;
+            const stockStatus = stockTotal > 20 ? 'Còn hàng' : stockTotal > 0 ? `Còn ${stockTotal} sản phẩm` : 'Hết hàng';
+
+            // Format attributes
+            const attrStr = p.attributes && Array.isArray(p.attributes) && p.attributes.length > 0
+              ? ' | Thông số: ' + p.attributes.map((a: any) => `${a.key}: ${a.value}${a.unit ? a.unit : ''}`).join(', ')
+              : '';
+
+            return `- ${p.name} [Giá: ${formattedPrice}]: ${p.description?.substring(0, 100)}...${attrStr} | ${stockStatus} | Link: /product/${p.slug}`;
+          }).join('\n');
+        }
       }
 
       // 4. Context: Danh mục
@@ -116,7 +116,7 @@ export class ChatbotService {
       // 7. Context: Đơn hàng
       if (userId && ['đơn hàng', 'mua'].some(k => msgLower.includes(k))) {
         const orders = await prisma.order.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 3, include: { items: { include: { product: true } } } });
-        orderContext = orders.length > 0 ? '\n--- ĐƠN HÀNG ---\n' + orders.map(o => `- #${o.id.slice(0,8)}: ${o.status}`).join('\n') : '';
+        orderContext = orders.length > 0 ? '\n--- ĐƠN HÀNG ---\n' + orders.map(o => `- #${o.id.slice(0, 8)}: ${o.status}`).join('\n') : '';
       }
 
     } catch (ragError: any) {
@@ -176,7 +176,8 @@ AI: Dạ đơn hàng gần nhất của Sếp đang ở trạng thái PENDING �
         body: JSON.stringify({
           model: this.modelName,
           messages: chatMessages,
-          stream: false
+          stream: false,
+          keep_alive: -1
         })
       });
 
@@ -193,12 +194,12 @@ AI: Dạ đơn hàng gần nhất của Sếp đang ở trạng thái PENDING �
         mentionedSlugs.add(match[1]);
       }
 
-      const finalSuggestedProducts = mentionedSlugs.size > 0 
+      const finalSuggestedProducts = mentionedSlugs.size > 0
         ? relevantProducts.filter(p => mentionedSlugs.has(p.slug))
         : relevantProducts.filter(p => {
-            // Fallback nếu LLM quên chèn link: tìm theo tên sản phẩm (bỏ qua hậu tố dung lượng)
-            const baseName = p.name.split(' (')[0].toLowerCase();
-            return aiResponse.toLowerCase().includes(baseName);
+          // Fallback nếu LLM quên chèn link: tìm theo tên sản phẩm (bỏ qua hậu tố dung lượng)
+          const baseName = p.name.split(' (')[0].toLowerCase();
+          return aiResponse.toLowerCase().includes(baseName);
         });
 
       // 12. Lưu phản hồi AI

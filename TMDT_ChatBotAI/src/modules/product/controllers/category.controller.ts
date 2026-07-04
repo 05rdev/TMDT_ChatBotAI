@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { CategoryService } from '../services/category.service';
 import { createCategorySchema } from '../dto/product.schema';
+import { uploadToCloudinary } from '../../../lib/cloudinary';
+import { AppError } from '../../../middlewares/error.middleware';
 
 const categoryService = new CategoryService();
 
@@ -80,6 +82,35 @@ export class CategoryController {
       return res.json({
         success: true,
         message: 'Đã xóa danh mục'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Upload ảnh danh mục (Admin)
+   */
+  async uploadImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const file = req.file as Express.Multer.File;
+
+      if (!file) {
+        throw new AppError(400, 'Vui lòng chọn ảnh');
+      }
+
+      // Upload lên Cloudinary
+      const uploadResult = await uploadToCloudinary(file.buffer, `categories/${id}`);
+      const imageUrl = uploadResult.secure_url;
+
+      // Cập nhật link ảnh vào database
+      const category = await categoryService.update(id as string, { image: imageUrl });
+
+      return res.json({
+        success: true,
+        message: 'Tải lên ảnh danh mục thành công',
+        data: category
       });
     } catch (error) {
       next(error);

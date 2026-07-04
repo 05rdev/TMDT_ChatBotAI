@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, ShieldCheck, UserX, Loader2, UserPlus } from 'lucide-react';
+import { Search, Edit2, Trash2, ShieldCheck, UserX, Loader2, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -18,23 +18,55 @@ interface User {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const [roleFilter, setRoleFilter] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
 
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 450);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page, debouncedSearch, roleFilter]);
 
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get('/admin/users');
+      const res = await api.get('/admin/users', {
+        params: {
+          page,
+          limit,
+          search: debouncedSearch || undefined,
+          role: roleFilter || undefined,
+        },
+      });
       if (res.data.success) {
         setUsers(res.data.data);
+        if (res.data.pagination) {
+          setTotalPages(res.data.pagination.totalPages);
+          setTotal(res.data.pagination.total);
+        }
       }
     } catch (error) {
       toast.error('Lỗi khi tải danh sách người dùng');
@@ -42,11 +74,6 @@ export default function AdminUsersPage() {
       setIsLoading(false);
     }
   };
-
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(search.toLowerCase()) ||
-    user.email.toLowerCase().includes(search.toLowerCase())
-  );
 
   const toggleStatus = async (user: User) => {
     try {
@@ -68,8 +95,8 @@ export default function AdminUsersPage() {
       try {
         const res = await api.delete(`/admin/users/${id}`);
         if (res.data.success) {
-          setUsers(users.filter(u => u.id !== id));
           toast.success('Đã xóa người dùng');
+          fetchUsers();
         }
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Có lỗi xảy ra khi xóa';
@@ -83,26 +110,91 @@ export default function AdminUsersPage() {
     setIsModalOpen(true);
   };
 
+  // Generate smart page numbers (show pages around current page)
+  const getPageNumbers = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let start = Math.max(1, page - Math.floor(maxVisible / 2));
+      let end = start + maxVisible - 1;
+
+      if (end > totalPages) {
+        end = totalPages;
+        start = end - maxVisible + 1;
+      }
+
+      for (let i = start; i <= end; i++) pages.push(i);
+    }
+
+    return pages;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Người dùng</h1>
-          <p className="text-sm text-muted-foreground mt-1">Quản lý tài khoản khách hàng và phân quyền.</p>
+          <p className="text-sm text-muted-foreground mt-1">Tổng cộng {total} tài khoản trên UltraShop.</p>
         </div>
-        
-        <div className="flex items-center bg-card border border-border rounded-[var(--radius-lg)] shadow-sm px-3 w-full sm:w-80">
-          <Search className="w-4.5 h-4.5 text-muted-foreground" />
+      </div>
+
+      <div className="card-elevated p-4 rounded-[var(--radius-xl)] bg-card border border-border flex flex-wrap items-center justify-between gap-4">
+        <div className="relative flex-1 min-w-[250px] max-w-md">
+          <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Tìm kiếm email, tên..."
-            className="bg-transparent border-none focus:outline-none text-sm w-full py-2.5 pl-3 text-foreground"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-secondary/50 border border-border rounded-[var(--radius-lg)] pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
           />
         </div>
+
+        <Button
+          variant={isFilterOpen ? "primary" : "outline"}
+          className="flex items-center transition-all"
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+        >
+          <Filter className="w-4 h-4 mr-2 text-muted-foreground" /> Lọc
+        </Button>
       </div>
+
+      {/* Filter panel */}
+      {isFilterOpen && (
+        <div className="card-elevated p-6 rounded-[var(--radius-xl)] bg-card border border-border grid grid-cols-1 sm:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-200">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Vai trò</label>
+            <select
+              value={roleFilter}
+              onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Tất cả vai trò</option>
+              <option value="ADMIN">Admin</option>
+              <option value="USER">User</option>
+            </select>
+          </div>
+
+          {(roleFilter || searchTerm) && (
+            <div className="col-span-1 sm:col-span-3 flex justify-end">
+              <button
+                onClick={() => {
+                  setRoleFilter('');
+                  setSearchTerm('');
+                  setPage(1);
+                }}
+                className="text-xs font-bold text-danger hover:underline uppercase tracking-wider transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="card-elevated bg-card rounded-[var(--radius-xl)] border border-border overflow-hidden">
@@ -128,7 +220,16 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.map((user) => (
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                      <UserX className="w-10 h-10 opacity-50" />
+                      <p className="font-medium text-sm">Không tìm thấy khách hàng nào</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : users.map((user) => (
                 <tr key={user.id} className="hover:bg-secondary/30 transition-colors group">
                   <td className="px-6 py-4 text-xs font-medium text-muted-foreground">
                     <span className="truncate max-w-[80px] inline-block">{user.id.slice(0, 8)}</span>
@@ -180,18 +281,42 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ))}
-              {!isLoading && filteredUsers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
-                      <UserX className="w-10 h-10 opacity-50" />
-                      <p className="font-medium text-sm">Không tìm thấy khách hàng nào</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-secondary/20">
+          <span>Trang {page} / {totalPages} — Tổng {total} người dùng</span>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              Trước
+            </button>
+            {getPageNumbers().map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setPage(pageNum)}
+                className={`px-3 py-1.5 rounded-[var(--radius-md)] font-medium ${
+                  page === pageNum
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border hover:bg-secondary transition-colors'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              Tiếp
+            </button>
+          </div>
         </div>
       </div>
 

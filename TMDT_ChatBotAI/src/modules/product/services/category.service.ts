@@ -20,7 +20,7 @@ export class CategoryService {
    * Tạo danh mục mới
    */
   async create(data: any) {
-    const { name, slug, parentId } = data;
+    const { name, slug, parentId, image } = data;
 
     // Kiểm tra slug trùng lặp
     const existing = await prisma.category.findUnique({ where: { slug } });
@@ -32,7 +32,8 @@ export class CategoryService {
       data: {
         name,
         slug,
-        parentId
+        parentId,
+        image
       }
     });
   }

@@ -19,6 +19,7 @@ interface ProductFormData {
   description: string;
   categoryId: string;
   variants: Variant[];
+  attributes: Record<string, string>;
   isActive: boolean;
 }
 
@@ -61,6 +62,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
     description: '',
     categoryId: '',
     variants: [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+    attributes: {},
     isActive: true,
   });
 
@@ -81,6 +83,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                 stock: v.stock,
               }))
             : [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+          attributes: editProduct.attributes || {},
           isActive: editProduct.isActive !== undefined ? editProduct.isActive : true,
         });
       } else {
@@ -90,6 +93,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
           description: '',
           categoryId: '',
           variants: [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+          attributes: {},
           isActive: true,
         });
       }
@@ -191,6 +195,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
           price: Number(v.price),
           stock: Number(v.stock),
         })),
+        attributes: form.attributes,
         isActive: form.isActive,
       };
 
@@ -384,16 +389,74 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
             </div>
           )}
 
-          {/* Description */}
+          {/* Description - Simple Textarea with HTML support */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">Mô tả</label>
+            <label className="text-sm font-semibold text-foreground">Mô tả chi tiết (hỗ trợ HTML)</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-              rows={3}
-              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none text-foreground custom-scrollbar"
-              placeholder="Mô tả sản phẩm..."
+              rows={8}
+              className="w-full bg-background border border-border rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none text-foreground custom-scrollbar font-mono"
+              placeholder="Nhập mô tả chi tiết sản phẩm... Có thể sử dụng HTML tags như &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;, &lt;li&gt;..."
             />
+            <p className="text-xs text-muted-foreground">
+              💡 Mẹo: Sử dụng HTML tags để định dạng: &lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;, &lt;br&gt; xuống dòng, &lt;ul&gt;&lt;li&gt;list&lt;/li&gt;&lt;/ul&gt;
+            </p>
+          </div>
+
+          {/* Attributes */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-foreground">Thuộc tính sản phẩm</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const key = prompt('Nhập tên thuộc tính (ví dụ: Màu sắc, Kích thước):');
+                  if (key && key.trim()) {
+                    const value = prompt('Nhập giá trị:');
+                    if (value !== null) {
+                      setForm(prev => ({
+                        ...prev,
+                        attributes: { ...prev.attributes, [key.trim()]: value || '' }
+                      }));
+                    }
+                  }
+                }}
+                className="text-xs font-medium text-primary hover:text-primary-hover flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Thêm thuộc tính
+              </button>
+            </div>
+            
+            {Object.keys(form.attributes).length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(form.attributes).map(([key, value]) => (
+                  <div key={key} className="flex items-center gap-2 p-3 bg-secondary/30 rounded-[var(--radius-md)]">
+                    <div className="flex-1">
+                      <span className="text-xs font-semibold text-foreground block">{key}</span>
+                      <span className="text-sm text-muted-foreground">{value}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm(prev => {
+                          const newAttrs = { ...prev.attributes };
+                          delete newAttrs[key];
+                          return { ...prev, attributes: newAttrs };
+                        });
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 border border-dashed border-border rounded-[var(--radius-md)] text-center">
+                <p className="text-xs text-muted-foreground">Chưa có thuộc tính nào</p>
+              </div>
+            )}
           </div>
 
           {/* Images */}

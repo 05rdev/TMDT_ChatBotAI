@@ -89,8 +89,17 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--foreground);
+  }
+
+  a {
+    color: var(--primary);
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
@@ -138,10 +147,10 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: color-mix(in srgb, var(--background) 85%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: var(--background);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
 }
 
 @layer components {
@@ -191,6 +200,29 @@
   .card-elevated-hover:hover {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
+  }
+
+  /* Container utilities */
+  .container-custom {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-custom {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-custom {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
   }
 }
 

@@ -30,6 +30,10 @@ export class EmbeddingHelper {
         body: JSON.stringify({
           model: this.ollamaModel,
           prompt: cleanText,
+          keep_alive: -1,
+          options: {
+            num_gpu: 0
+          }
         }),
         signal: controller.signal,
       });
@@ -81,12 +85,32 @@ export class EmbeddingHelper {
       product.categoryName ? `Danh mục: ${product.categoryName}` : '',
     ];
 
-    // Thêm attributes có cấu trúc để AI search chính xác hơn
+    // Thêm attributes ở dạng ngôn ngữ tự nhiên (match cách user hỏi) + dạng cấu trúc
     if (product.attributes && product.attributes.length > 0) {
-      const attrText = product.attributes
+      const ATTR_LABELS: Record<string, string> = {
+        ram: 'RAM', storage: 'bộ nhớ', battery: 'pin', battery_life: 'thời lượng pin',
+        screen_size: 'màn hình', screen_tech: 'công nghệ màn hình',
+        camera: 'camera', chip: 'chip', cpu: 'vi xử lý', gpu: 'card đồ họa',
+        power: 'công suất', capacity: 'dung tích', weight: 'trọng lượng',
+        brand: 'thương hiệu', material: 'chất liệu', color: 'màu sắc',
+        style: 'phong cách', type: 'loại', gender: 'giới tính',
+        connectivity: 'kết nối', os: 'hệ điều hành',
+        dimensions: 'kích thước', seats: 'chỗ ngồi',
+      };
+
+      // Dạng tự nhiên: "RAM 8 GB, pin 5000 mAh, màn hình 6.7 inch"
+      const naturalPhrases = product.attributes.map(a => {
+        const label = ATTR_LABELS[a.key] || a.key;
+        const unit = a.unit ? ` ${a.unit}` : '';
+        return `${label} ${a.value}${unit}`;
+      });
+      parts.push(naturalPhrases.join(', '));
+
+      // Dạng cấu trúc: "ram: 8 GB, battery: 5000 mAh"
+      const structuredText = product.attributes
         .map(a => `${a.key}: ${a.value}${a.unit ? ' ' + a.unit : ''}`)
         .join(', ');
-      parts.push(`Thông số: ${attrText}`);
+      parts.push(`Thông số: ${structuredText}`);
     }
 
     if (product.description) {

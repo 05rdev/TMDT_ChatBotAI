@@ -72,7 +72,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-10 space-y-8 animate-fade-in-up">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10 space-y-8 animate-fade-in-up">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar Profile */}
         <aside className="lg:col-span-1 space-y-6">
