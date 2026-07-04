@@ -30,15 +30,15 @@ Thumbs.db
 
 # Project specific
 uploads/
-TMDT_ChatBotAI/coverage/
+server/coverage/
 .next/
 .serverless/
 .agent/
-TMDT_ChatBotAI/postgres_data/
-TMDT_ChatBotAI/redis_data/
-TMDT_ChatBotAI/scratch/
+server/postgres_data/
+server/redis_data/
+server/scratch/
 
 # Prisma
-TMDT_ChatBotAI/prisma/migrations/
+server/prisma/migrations/
 *.db
 *.db-journal
