@@ -96,6 +96,7 @@ router.post('/', orderController.create);
  *         description: Danh sách đơn hàng
  */
 router.get('/', orderController.getMyOrders);
+router.get('/sepay/check/:orderId', paymentController.checkSepayPayment);
 
 /**
  * @swagger

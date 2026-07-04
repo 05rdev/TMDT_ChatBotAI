@@ -97,4 +97,34 @@ export class AuthController {
       next(error);
     }
   }
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ success: false, message: 'Vui long nhap email' });
+      }
+
+      await authService.forgotPassword(email);
+      return res.json({
+        success: true,
+        message: 'Neu email ton tai trong he thong, chung toi da gui huong dan dat lai mat khau.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token, newPassword } = req.body;
+      await authService.resetPassword(token, newPassword);
+      return res.json({
+        success: true,
+        message: 'Dat lai mat khau thanh cong. Vui long dang nhap lai.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

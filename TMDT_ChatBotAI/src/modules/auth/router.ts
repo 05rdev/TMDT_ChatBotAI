@@ -61,6 +61,8 @@ router.post('/register', authController.register);
  *         description: Trả về accessToken và refreshToken
  */
 router.post('/login', authController.login);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
 /**
  * @swagger

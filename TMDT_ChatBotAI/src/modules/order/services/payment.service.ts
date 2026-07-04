@@ -1,8 +1,109 @@
 import { prisma } from '../../../lib/prisma';
 import { AppError } from '../../../middlewares/error.middleware';
+import axios from 'axios';
 import { VNPayService } from './vnpay.service';
+import { mailService } from '../../mail/mail.service';
+import { OrderService } from './order.service';
+
+const orderService = new OrderService();
 
 export class PaymentService {
+  private getSepayDescription(orderId: string) {
+    return `US${orderId.replace(/-/g, '')}`;
+  }
+
+  private getSepayApiToken() {
+    const token = process.env.SEPAY_API_TOKEN || process.env.SEPAY_WEBHOOK_API_KEY;
+    return token?.replace(/^["']|["']$/g, '');
+  }
+
+  private getSepayApiBaseUrl() {
+    return (process.env.SEPAY_API_BASE_URL || 'https://userapi.sepay.vn/v2').replace(/\/$/, '');
+  }
+
+  private mapSepayTransaction(transaction: any) {
+    return {
+      id: transaction.id,
+      transferType: transaction.transferType || transaction.transfer_type || (Number(transaction.amount_in || 0) > 0 ? 'in' : 'out'),
+      transferAmount: transaction.transferAmount ?? transaction.amount_in ?? transaction.amountIn ?? 0,
+      transactionContent: transaction.transactionContent || transaction.transaction_content || transaction.content || '',
+      referenceNumber: transaction.referenceNumber || transaction.reference_number || transaction.referenceCode || '',
+    };
+  }
+
+  private isMatchingSepayTransaction(transaction: any, orderId: string, expectedAmount: number) {
+    const mapped = this.mapSepayTransaction(transaction);
+    if (mapped.transferType !== 'in') return false;
+
+    const amount = Number(mapped.transferAmount || 0);
+    if (amount < expectedAmount - 100) return false;
+
+    const content = String(mapped.transactionContent || '');
+    const compactOrderId = orderId.replace(/-/g, '').toLowerCase();
+    return content.toLowerCase().includes(compactOrderId) || this.extractUUID(content) === orderId;
+  }
+
+  async findSepayTransactionForOrder(orderId: string, expectedAmount: number) {
+    const token = this.getSepayApiToken();
+    if (!token) return null;
+
+    const response = await axios.get(`${this.getSepayApiBaseUrl()}/transactions`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      params: {
+        q: this.getSepayDescription(orderId),
+        transfer_type: 'in',
+        amount_in_min: Math.max(0, Math.floor(expectedAmount - 100)),
+        amount_in_max: Math.ceil(expectedAmount + 100000000),
+        per_page: 20,
+        transaction_date_sort: 'desc',
+        timestamp_format: 'iso8601',
+      },
+      timeout: Number(process.env.SEPAY_API_TIMEOUT_MS || 10000),
+    });
+
+    const transactions = response.data?.data || response.data?.transactions || [];
+    if (!Array.isArray(transactions)) return null;
+
+    return transactions.find((transaction) => this.isMatchingSepayTransaction(transaction, orderId, expectedAmount)) || null;
+  }
+
+  async checkSepayPaymentForOrder(orderId: string, userId?: string) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payment: true },
+    });
+
+    if (!order) throw new AppError(404, 'Don hang khong ton tai');
+    if (userId && order.userId !== userId) throw new AppError(403, 'Ban khong co quyen kiem tra don hang nay');
+
+    if (order.payment?.status === 'SUCCESS' || order.status !== 'PENDING') {
+      return {
+        paid: order.payment?.status === 'SUCCESS' || order.status === 'PROCESSING',
+        order: await orderService.getOrderById(order.id),
+        transaction: null,
+      };
+    }
+
+    const transaction = await this.findSepayTransactionForOrder(order.id, Number(order.totalAmount));
+    if (!transaction) {
+      return {
+        paid: false,
+        order: await orderService.getOrderById(order.id),
+        transaction: null,
+      };
+    }
+
+    const result = await this.processSepayWebhook(this.mapSepayTransaction(transaction));
+    return {
+      paid: Boolean((result as any).order),
+      order: await orderService.getOrderById(order.id),
+      transaction,
+    };
+  }
+
   /**
    * Giả lập việc khởi tạo thanh toán
    */
@@ -40,7 +141,7 @@ export class PaymentService {
       const accountNo = process.env.SEPAY_ACCOUNT_NO || '123115678';
       const accountName = process.env.SEPAY_ACCOUNT_NAME || 'HUYNH VAN DINH';
       // Tạo mã thanh toán không chứa dấu gạch ngang để tối ưu độ dài cho chuyển khoản
-      const description = `US${orderId.replace(/-/g, '')}`;
+      const description = this.getSepayDescription(orderId);
 
       paymentData.bankId = bankId;
       paymentData.accountNo = accountNo;
@@ -59,7 +160,7 @@ export class PaymentService {
    * Xử lý Webhook giả lập để xác nhận thanh toán thành công
    */
   async processPaymentWebhook(orderId: string, success: boolean = true) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
         include: { payment: true }
@@ -78,10 +179,12 @@ export class PaymentService {
         });
 
         // Cập nhật Order sang PROCESSING
-        return tx.order.update({
+        const updatedOrder = await tx.order.update({
           where: { id: orderId },
           data: { status: 'PROCESSING' }
         });
+
+        return { order: updatedOrder, previousStatus: order.status };
       } else {
         // Cập nhật Payment thành FAILED
         await tx.payment.update({
@@ -90,12 +193,23 @@ export class PaymentService {
         });
 
         // Tùy chọn: Để order ở PENDING để khách thử lại hoặc chuyển sang CANCELLED
-        return tx.order.update({
+        const updatedOrder = await tx.order.update({
           where: { id: orderId },
           data: { status: 'PENDING' }
         });
+
+        return { order: updatedOrder, previousStatus: order.status };
       }
     });
+
+    if (result.previousStatus !== result.order.status) {
+      const fullOrder = await orderService.getOrderById(result.order.id);
+      void mailService.sendOrderStatusChanged(fullOrder, result.previousStatus).catch((error) => {
+        console.error('Failed to send payment order status email', error);
+      });
+    }
+
+    return result.order;
   }
 
   /**
@@ -122,7 +236,7 @@ export class PaymentService {
    * Xử lý webhook gọi về từ SePay khi có biến động số dư chuyển khoản
    */
   async processSepayWebhook(transaction: any) {
-    const { transferType, transferAmount, transactionContent, referenceNumber, id } = transaction;
+    const { transferType, transferAmount, transactionContent, referenceNumber, id } = this.mapSepayTransaction(transaction);
 
     if (transferType !== 'in') {
       return { success: false, message: 'Bỏ qua giao dịch không phải nhận tiền (transferType = out)' };
@@ -134,7 +248,7 @@ export class PaymentService {
       return { success: false, message: 'Không tìm thấy mã đơn hàng hợp lệ trong nội dung chuyển khoản' };
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
         include: { payment: true }
@@ -186,8 +300,17 @@ export class PaymentService {
         console.error('Không gửi được thông báo thanh toán thành công:', err);
       }
 
-      return { success: true, order: updatedOrder };
+      return { success: true, order: updatedOrder, previousStatus: order.status };
     });
+
+    if ('order' in result && result.order) {
+      const fullOrder = await orderService.getOrderById(result.order.id);
+      void mailService.sendOrderStatusChanged(fullOrder, result.previousStatus).catch((error) => {
+        console.error('Failed to send SePay order status email', error);
+      });
+    }
+
+    return result;
   }
 
   /**

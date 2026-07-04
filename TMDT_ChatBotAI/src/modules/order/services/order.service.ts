@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma';
 import { AppError } from '../../../middlewares/error.middleware';
 import { VoucherService } from '../../voucher/services/voucher.service';
+import { mailService } from '../../mail/mail.service';
 
 export class OrderService {
   /**
@@ -45,7 +46,7 @@ export class OrderService {
     }
 
     // 3. Thực thi Transaction nguyên tử
-    return prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx) => {
       // A. KIÊM TRA TỒN KHO VÀ CẬP NHẬT
       for (const item of cartItems) {
         const variant = await tx.productVariant.findUnique({
@@ -130,6 +131,13 @@ export class OrderService {
 
       return order;
     });
+
+    const fullOrder = await this.getOrderById(order.id);
+    void mailService.sendOrderCreated(fullOrder).catch((error) => {
+      console.error('Failed to send order created email', error);
+    });
+
+    return fullOrder;
   }
 
   /**
@@ -225,7 +233,7 @@ export class OrderService {
       throw new AppError(400, 'Chỉ có thể hủy đơn hàng đang chờ duyệt hoặc đang đóng gói');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
       // 1. Cập nhật trạng thái
       const updatedOrder = await tx.order.update({
         where: { id },
@@ -245,6 +253,13 @@ export class OrderService {
 
       return updatedOrder;
     });
+
+    const fullOrder = await this.getOrderById(updatedOrder.id);
+    void mailService.sendOrderStatusChanged(fullOrder, order.status).catch((error) => {
+      console.error('Failed to send order cancelled email', error);
+    });
+
+    return fullOrder;
   }
 
   /**
@@ -283,7 +298,7 @@ export class OrderService {
     // Để an toàn không cần đổi schema, ta có thể lưu vào db một ActivityLog hoặc cập nhật status
     // Ta cập nhật tạm thành CANCELLED để người dùng thấy đơn đã được hoàn, 
     // trong thực tế có thể cần thêm status RETURNED vào DB.
-    return prisma.$transaction(async (tx) => {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
         where: { id },
         data: { status: 'CANCELLED' } // Tạm dùng CANCELLED cho việc hoàn trả
@@ -299,6 +314,13 @@ export class OrderService {
 
       return updatedOrder;
     });
+
+    const fullOrder = await this.getOrderById(updatedOrder.id);
+    void mailService.sendOrderStatusChanged(fullOrder, order.status).catch((error) => {
+      console.error('Failed to send order return email', error);
+    });
+
+    return fullOrder;
   }
 
   /**
@@ -383,6 +405,7 @@ export class OrderService {
       where: { id },
       data: { status }
     });
+    const fullOrder = await this.getOrderById(updatedOrder.id);
 
     // Tạo thông báo cho user
     try {
@@ -399,6 +422,12 @@ export class OrderService {
       console.error('Failed to send order update notification', err);
     }
 
-    return updatedOrder;
+    if (currentStatus !== newStatus) {
+      void mailService.sendOrderStatusChanged(fullOrder, currentStatus).catch((error) => {
+        console.error('Failed to send order status email', error);
+      });
+    }
+
+    return fullOrder;
   }
 }

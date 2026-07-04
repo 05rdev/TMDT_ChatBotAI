@@ -55,6 +55,16 @@ function SepayContent() {
     
     const interval = setInterval(async () => {
       try {
+        const checkRes = await api.get(`/orders/sepay/check/${orderId}`);
+        const checkData = checkRes.data?.data;
+        const checkedOrder = checkData?.order;
+
+        if (checkData?.paid || checkedOrder?.payment?.status === 'SUCCESS' || checkedOrder?.status === 'PROCESSING') {
+          toast.success('Thanh toán thành công!');
+          router.push(`/checkout/success?orderId=${orderId}`);
+          return;
+        }
+
         const res = await api.get(`/orders/${orderId}`);
         if (res.data.success) {
           const order = res.data.data;

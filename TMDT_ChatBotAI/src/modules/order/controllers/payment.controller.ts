@@ -92,4 +92,19 @@ export class PaymentController {
       next(error);
     }
   }
+
+  async checkSepayPayment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const orderId = String(req.params.orderId);
+      const result = await paymentService.checkSepayPaymentForOrder(orderId, (req as any).user?.id);
+
+      return res.json({
+        success: true,
+        message: result.paid ? 'Thanh toan SePay da duoc xac nhan' : 'Chua tim thay giao dich SePay phu hop',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
