@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { BannerCarousel } from '@/components/BannerCarousel';
@@ -52,15 +52,15 @@ export default function HomePage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastRefreshAtRef = useRef(0);
 
-  const fetchHomeData = async (showLoading = true) => {
+  const fetchHomeData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const stamp = Date.now();
       const [newRes, bestRes, allRes, catRes] = await Promise.all([
-        api.get(`/products?sort=newest&limit=8&_=${stamp}`),
-        api.get(`/products?sort=best_selling&limit=8&_=${stamp}`),
-        api.get(`/products?limit=12&_=${stamp}`),
+        api.get('/products?sort=newest&limit=8'),
+        api.get('/products?sort=best_selling&limit=8'),
+        api.get('/products?limit=12'),
         api.get('/categories'),
       ]);
 
@@ -77,15 +77,17 @@ export default function HomePage() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    void fetchHomeData();
   }, []);
 
   useEffect(() => {
+    void fetchHomeData();
+  }, [fetchHomeData]);
+
+  useEffect(() => {
     const refreshVisiblePage = () => {
-      if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && now - lastRefreshAtRef.current > 30000) {
+        lastRefreshAtRef.current = now;
         void fetchHomeData(false);
       }
     };
@@ -99,7 +101,7 @@ export default function HomePage() {
       window.removeEventListener('pageshow', refreshVisiblePage);
       document.removeEventListener('visibilitychange', refreshVisiblePage);
     };
-  }, []);
+  }, [fetchHomeData]);
 
   // Featured = products with highest rating
   const featuredProducts = [...allProducts]

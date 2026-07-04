@@ -939,7 +939,7 @@ export class AdminChatbotService {
 
     const formatShortOrder = (order: (typeof pendingOrders)[number]) => {
       const items = order.items.map((item) => `${item.product.name} x${item.quantity}`).join(', ');
-      return `- #${order.id.slice(0, 8)} | ${order.user.name} | ${this.formatMoney(order.totalAmount)} | ${items}`;
+      return `- #${order.id.slice(0, 8)} | ${order.user.name} | Trang thai: ${ORDER_STATUS[order.status] || order.status} | ${this.formatMoney(order.totalAmount)} | ${items}`;
     };
 
     return {
@@ -955,6 +955,93 @@ export class AdminChatbotService {
         `Dang giao:\n${shippedOrders.length ? shippedOrders.map(formatShortOrder).join('\n') : '- Khong co.'}`,
       ].join('\n'),
     };
+  }
+
+  private async answerOrderQuestion(message: string, history: Array<{ role: string; content: string }>) {
+    const text = this.normalize(message);
+    const previousText = this.normalize(history.map((item) => item.content).slice(-4).join('\n'));
+    const asksOrderCount = /(hom nay|today).*(bao nhieu|may|tong).*(don hang|don\b)|(?:don hang|don\b).*(hom nay|today).*(bao nhieu|may|tong)/.test(text);
+    const asksOrderDetail = /(chi tiet|liet ke|danh sach|cac don|nhung don|don hang do)/.test(text) && /(don hang|don\b|do|nay|truoc)/.test(text);
+
+    if (!asksOrderCount && !(asksOrderDetail && /(hom nay|today|don hang)/.test(previousText))) return null;
+
+    const todayStart = this.startOfToday();
+    const orders = await prisma.order.findMany({
+      where: { createdAt: { gte: todayStart } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        items: { include: { product: { select: { name: true } }, variant: { select: { name: true, sku: true } } } },
+        payment: { select: { method: true, status: true } },
+      },
+    });
+
+    const statusCounts = orders.reduce<Record<string, number>>((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const summary = `Hom nay he thong co ${orders.length} don hang: ${ORDER_STATUS.PENDING} ${statusCounts.PENDING || 0}, ${ORDER_STATUS.PROCESSING} ${statusCounts.PROCESSING || 0}, ${ORDER_STATUS.SHIPPED} ${statusCounts.SHIPPED || 0}, ${ORDER_STATUS.DELIVERED} ${statusCounts.DELIVERED || 0}, ${ORDER_STATUS.CANCELLED} ${statusCounts.CANCELLED || 0}.`;
+    if (asksOrderCount && !asksOrderDetail) return summary;
+
+    if (!orders.length) return `${summary}\nChua co don nao de liet ke chi tiet.`;
+
+    const lines = orders.map((order) => {
+      const items = order.items
+        .map((item) => `${item.product.name} (${item.variant?.sku || item.variant?.name || 'mac dinh'}) x${item.quantity}`)
+        .join(', ');
+      const payment = order.payment
+        ? `${PAYMENT_METHOD[order.payment.method] || order.payment.method}/${PAYMENT_STATUS[order.payment.status] || order.payment.status}`
+        : 'Chua co thanh toan';
+      return `- #${order.id.slice(0, 8)} | ${order.user.name} | Trang thai: ${ORDER_STATUS[order.status] || order.status} | ${this.formatMoney(order.totalAmount)} | Thanh toan: ${payment} | ${items}`;
+    });
+
+    return [summary, 'Chi tiet:', ...lines].join('\n');
+  }
+
+  private async answerVoucherQuestion(message: string) {
+    const text = this.normalize(message);
+    if (!/(voucher|ma giam|coupon)/.test(text) || !/(hien tai|dang co|nhung|nao|liet ke|danh sach|xem)/.test(text)) return null;
+
+    const now = new Date();
+    const vouchers = await prisma.voucher.findMany({
+      orderBy: [{ isActive: 'desc' }, { endDate: 'asc' }],
+      take: 20,
+    });
+
+    if (!vouchers.length) return 'Hien tai he thong chua co voucher nao.';
+
+    return [
+      `Hien tai he thong co ${vouchers.length} voucher:`,
+      ...vouchers.map((voucher) => {
+        const discount = voucher.discountType === 'PERCENT' ? `${Number(voucher.discountValue)}%` : this.formatMoney(voucher.discountValue);
+        const status = !voucher.isActive ? 'Dang khoa' : voucher.endDate < now ? 'Het han' : 'Dang hoat dong';
+        return `- ${voucher.code} | ${discount} | ${status} | Da dung ${voucher.usedCount}/${voucher.usageLimit} | HSD ${voucher.endDate.toLocaleDateString('vi-VN')}`;
+      }),
+    ].join('\n');
+  }
+
+  private async answerCustomerQuestion(message: string) {
+    const text = this.normalize(message);
+    if (!/(khach|khach hang|user|nguoi dung|tai khoan)/.test(text) || !/(bao nhieu|tong|hien tai|co may)/.test(text)) return null;
+
+    const [total, active, inactive, admins] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { isActive: false } }),
+      prisma.user.count({ where: { role: 'ADMIN' } }),
+    ]);
+
+    return `Hien tai he thong co ${total} tai khoan: ${active} dang hoat dong, ${inactive} bi khoa/khong active, trong do co ${admins} tai khoan ADMIN.`;
+  }
+
+  private async answerDeterministicQuestion(message: string, history: Array<{ role: string; content: string }>) {
+    if (!this.isAdminQuestion(message)) return null;
+    return (
+      (await this.answerOrderQuestion(message, history)) ||
+      (await this.answerVoucherQuestion(message)) ||
+      (await this.answerCustomerQuestion(message))
+    );
   }
 
   private async buildInventoryContext(): Promise<ContextBlock> {
@@ -1333,6 +1420,20 @@ export class AdminChatbotService {
       });
 
       return actionResult.message;
+    }
+
+    const deterministicAnswer = await this.answerDeterministicQuestion(cleanMessage, actionHistory);
+    if (deterministicAnswer) {
+      await prisma.chatMessage.create({
+        data: {
+          userId: adminId,
+          role: 'assistant',
+          content: deterministicAnswer,
+          suggestedProducts: { isAdminChat: true } as any,
+        },
+      });
+
+      return deterministicAnswer;
     }
 
     const intent = this.detectIntent(cleanMessage);

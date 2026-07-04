@@ -23,6 +23,11 @@ export const Navbar = () => {
   const router = useRouter();
   const [navSearchQuery, setNavSearchQuery] = useState('');
 
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
+  };
+
   const handleNavSearch = () => {
     if (!navSearchQuery.trim()) return;
     router.push(`/shop?search=${encodeURIComponent(navSearchQuery.trim())}`);
@@ -191,7 +196,7 @@ export const Navbar = () => {
                 <User className="w-5 h-5" />
                 <span className="text-sm font-medium hidden sm:inline">{user?.name}</span>
               </Link>
-              <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={logout}>{t('nav.logout')}</Button>
+              <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={handleLogout}>{t('nav.logout')}</Button>
             </div>
           ) : (
             <div className="flex items-center space-x-1 sm:space-x-2">

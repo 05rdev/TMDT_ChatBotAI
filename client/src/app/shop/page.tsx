@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { Loader2, Star, ChevronDown, SlidersHorizontal, PackageX, X, ShoppingCart, Eye, Flame, Sparkles, ArrowUpDown, Check } from 'lucide-react';
@@ -78,6 +78,7 @@ export default function ShopPage() {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const lastRefreshAtRef = useRef(0);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -153,7 +154,7 @@ export default function ShopPage() {
     }));
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setIsLoading(true);
       const queryParams = new URLSearchParams();
@@ -171,7 +172,6 @@ export default function ShopPage() {
       if (sortBy === 'best_selling') queryParams.append('sort', 'best_selling');
       if (selectedRating) queryParams.append('minRating', String(selectedRating));
 
-      queryParams.append('_', String(Date.now()));
       const url = `/products?${queryParams.toString()}`;
       const response = await api.get(url);
 
@@ -193,11 +193,13 @@ export default function ShopPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, searchQuery, selectedCategory, minPrice, maxPrice, sortBy, selectedRating]);
 
   useEffect(() => {
     const refreshVisiblePage = () => {
-      if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && now - lastRefreshAtRef.current > 30000) {
+        lastRefreshAtRef.current = now;
         void fetchProducts();
       }
     };
@@ -211,7 +213,7 @@ export default function ShopPage() {
       window.removeEventListener('pageshow', refreshVisiblePage);
       document.removeEventListener('visibilitychange', refreshVisiblePage);
     };
-  }, [page, searchQuery, selectedCategory, minPrice, maxPrice, sortBy, selectedRating]);
+  }, [fetchProducts]);
 
   const handleApplyPriceFilter = () => {
     setPage(1);

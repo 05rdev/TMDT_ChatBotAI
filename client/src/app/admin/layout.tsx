@@ -54,8 +54,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isAuthenticated || user?.role !== 'ADMIN') {
       // Chỉ redirect nếu thực sự không phải admin (đợi 1 nhịp nữa cho chắc)
       const redirectTimer = setTimeout(() => {
-        if (!useAuthStore.getState().isAuthenticated || useAuthStore.getState().user?.role !== 'ADMIN') {
-          router.push('/');
+        const authState = useAuthStore.getState();
+        if (!authState.isAuthenticated) {
+          router.replace('/login');
+        } else if (authState.user?.role !== 'ADMIN') {
+          router.replace('/');
         } else {
           setIsAuthorized(true);
         }
@@ -87,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
   if (!isAuthorized) {
