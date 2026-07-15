@@ -115,7 +115,6 @@ export default function AdminAIChatPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 flex-1 overflow-hidden min-h-0">
-        
         {/* Left Sidebar - Quick Actions */}
         <div className="hidden lg:flex flex-col space-y-4">
             <div className="admin-card p-5">

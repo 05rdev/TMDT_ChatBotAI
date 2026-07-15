@@ -8,7 +8,7 @@ import { mailService } from '../../mail/mail.service';
 
 export class AuthService {
   async register(data: any) {
-    const { email, password, name } = data;
+    const { email, password, name, phone, address } = data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -22,9 +22,11 @@ export class AuthService {
         email,
         password: hashedPassword,
         name,
+        phone,
+        address,
         role: 'USER',
       },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      select: { id: true, email: true, name: true, phone: true, address: true, role: true, createdAt: true },
     });
   }
 
@@ -47,7 +49,7 @@ export class AuthService {
     await redisService.set(`refresh_token:${user.id}`, refreshToken, 604800);
 
     return {
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, phone: user.phone, address: user.address, role: user.role, avatar: user.avatar },
       accessToken,
       refreshToken,
     };
@@ -84,7 +86,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true },
+      select: { id: true, email: true, name: true, phone: true, address: true, role: true, avatar: true, createdAt: true },
     });
     if (!user) throw new AppError(404, 'Nguoi dung khong ton tai.');
     return user;
@@ -136,11 +138,11 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, data: any) {
-    const { name, avatar } = data;
+    const { name, avatar, phone, address } = data;
     return prisma.user.update({
       where: { id: userId },
-      data: { name, avatar },
-      select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true },
+      data: { name, avatar, phone, address },
+      select: { id: true, email: true, name: true, phone: true, address: true, role: true, avatar: true, createdAt: true },
     });
   }
 

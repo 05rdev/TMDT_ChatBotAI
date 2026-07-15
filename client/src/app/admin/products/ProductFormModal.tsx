@@ -56,6 +56,8 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [reviewSummary, setReviewSummary] = useState<any>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [newAttributeKey, setNewAttributeKey] = useState('');
+  const [newAttributeValue, setNewAttributeValue] = useState('');
 
   const [form, setForm] = useState<ProductFormData>({
     name: '',
@@ -100,8 +102,26 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
       }
       setImageFiles([]);
       setReviewSummary(null);
+      setNewAttributeKey('');
+      setNewAttributeValue('');
     }
   }, [isOpen, editProduct]);
+
+  const handleAddAttribute = () => {
+    const key = newAttributeKey.trim();
+    const value = newAttributeValue.trim();
+    if (!key || !value) {
+      toast.error('Vui long nhap ca ten thuoc tinh va gia tri');
+      return;
+    }
+
+    setForm(prev => ({
+      ...prev,
+      attributes: { ...prev.attributes, [key]: value }
+    }));
+    setNewAttributeKey('');
+    setNewAttributeValue('');
+  };
 
   const fetchReviewSummary = async () => {
     if (!editProduct) return;
@@ -407,26 +427,33 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
 
           {/* Attributes */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-foreground">Thuộc tính sản phẩm</label>
-              <button
-                type="button"
-                onClick={() => {
-                  const key = prompt('Nhập tên thuộc tính (ví dụ: Màu sắc, Kích thước):');
-                  if (key && key.trim()) {
-                    const value = prompt('Nhập giá trị:');
-                    if (value !== null) {
-                      setForm(prev => ({
-                        ...prev,
-                        attributes: { ...prev.attributes, [key.trim()]: value || '' }
-                      }));
-                    }
-                  }
-                }}
-                className="text-xs font-medium text-primary hover:text-primary-hover flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" /> Thêm thuộc tính
-              </button>
+            <div>
+              <label className="text-sm font-semibold text-foreground">Thuoc tinh san pham</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Thuoc tinh giup khach loc va tim san pham chinh xac hon. Vi du: Thuong hieu = Xiaomi, RAM = 16GB, Mau sac = Den.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+              <input
+                type="text"
+                value={newAttributeKey}
+                onChange={(e) => setNewAttributeKey(e.target.value)}
+                className="admin-input px-3 py-2.5"
+                placeholder="Ten thuoc tinh, vi du: RAM"
+                aria-label="Ten thuoc tinh san pham"
+              />
+              <input
+                type="text"
+                value={newAttributeValue}
+                onChange={(e) => setNewAttributeValue(e.target.value)}
+                className="admin-input px-3 py-2.5"
+                placeholder="Gia tri, vi du: 16GB"
+                aria-label="Gia tri thuoc tinh san pham"
+              />
+              <Button type="button" variant="outline" onClick={handleAddAttribute} className="whitespace-nowrap">
+                <Plus className="w-4 h-4 mr-2" /> Them
+              </Button>
             </div>
             
             {Object.keys(form.attributes).length > 0 ? (
@@ -446,9 +473,10 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                           return { ...prev, attributes: newAttrs };
                         });
                       }}
-                      className="p-1.5 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span>Xóa</span>
                     </button>
                   </div>
                 ))}
@@ -482,10 +510,11 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                               onClose(); // Simplest is to close and re-open/refresh
                             } catch (err) { toast.error('Lỗi khi đổi ảnh chính'); }
                           }}
-                          className="p-1.5 bg-white text-primary rounded-full hover:scale-110 transition-transform" 
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-primary rounded-full text-xs font-semibold hover:scale-105 transition-transform" 
                           title="Đặt làm ảnh chính"
                         >
                           <CheckCircle2 className="w-4 h-4" />
+                          <span>Chính</span>
                         </button>
                       )}
                       <button 
@@ -500,10 +529,11 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                             } catch (err) { toast.error('Lỗi khi xóa ảnh'); }
                           }
                         }}
-                        className="p-1.5 bg-white text-danger rounded-full hover:scale-110 transition-transform" 
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-danger rounded-full text-xs font-semibold hover:scale-105 transition-transform" 
                         title="Xóa ảnh"
                       >
                         <Trash2 className="w-4 h-4" />
+                        <span>Xóa</span>
                       </button>
                     </div>
                     {img.isPrimary && (
@@ -601,9 +631,10 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, editProdu
                       <button
                         type="button"
                         onClick={() => removeVariant(idx)}
-                        className="p-2 rounded-[var(--radius-md)] text-muted-foreground hover:bg-danger/10 hover:text-danger transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] text-xs font-semibold text-muted-foreground hover:bg-danger/10 hover:text-danger transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
+                        <span>Xóa</span>
                       </button>
                     )}
                   </div>

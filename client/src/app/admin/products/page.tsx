@@ -321,12 +321,14 @@ export default function AdminProductsPage() {
                       <div className="flex items-center justify-end space-x-2">
                          <button
                            onClick={() => handleEdit(product.id)}
-                           className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
+                           className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
                          >
                            <Edit className="w-4 h-4" />
+                           <span>Sửa</span>
                          </button>
-                         <button onClick={() => handleDelete(product.id)} className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors">
+                         <button onClick={() => handleDelete(product.id)} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors">
                            <Trash2 className="w-4 h-4" />
+                           <span>Xóa</span>
                          </button>
                       </div>
                     </td>

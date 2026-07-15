@@ -1,198 +1,313 @@
 'use client';
 
-import { Bot, Zap, ShieldCheck, Brain, Sparkles, ArrowRight, Globe, Users, Package } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import type { ReactNode } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { useTranslation } from '@/hooks/useTranslation';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Bot,
+  Boxes,
+  Camera,
+  CheckCircle2,
+  Headphones,
+  MessageSquareText,
+  PackageCheck,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+  WandSparkles,
+  Zap,
+} from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+
+const heroProducts = [
+  {
+    name: 'Laptop AI',
+    image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=520&q=80',
+    tone: 'bg-primary/10',
+  },
+  {
+    name: 'Tai nghe',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=520&q=80',
+    tone: 'bg-accent/10',
+  },
+  {
+    name: 'Camera',
+    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=520&q=80',
+    tone: 'bg-warning/10',
+  },
+];
+
+const stats = [
+  { value: '1.000+', label: 'sản phẩm công nghệ được tuyển chọn', icon: <Boxes className="h-5 w-5" /> },
+  { value: '24/7', label: 'trợ lý AI luôn sẵn sàng hỗ trợ', icon: <Bot className="h-5 w-5" /> },
+  { value: '2H', label: 'giao nhanh nội thành cho đơn đủ điều kiện', icon: <Truck className="h-5 w-5" /> },
+  { value: '30 ngày', label: 'đổi trả rõ ràng, dễ theo dõi', icon: <PackageCheck className="h-5 w-5" /> },
+];
+
+const aiFlow = [
+  {
+    icon: <MessageSquareText className="h-5 w-5" />,
+    title: 'Hỏi theo nhu cầu',
+    text: 'Bạn mô tả ngân sách, mục đích dùng và sở thích. AI hiểu ngữ cảnh thay vì chỉ khớp từ khóa.',
+  },
+  {
+    icon: <Search className="h-5 w-5" />,
+    title: 'Lọc đúng sản phẩm',
+    text: 'Hệ thống so sánh thuộc tính, tồn kho, đánh giá và mức giá để rút ngắn thời gian chọn mua.',
+  },
+  {
+    icon: <BadgeCheck className="h-5 w-5" />,
+    title: 'Chốt đơn tự tin',
+    text: 'Thông tin sản phẩm, chính sách và trạng thái đơn hàng được gom lại để bạn ra quyết định nhanh hơn.',
+  },
+];
+
+const values = [
+  {
+    icon: <WandSparkles className="h-6 w-6" />,
+    title: 'Cá nhân hóa vừa đủ',
+    text: 'Gợi ý dựa trên nhu cầu thực tế của từng khách hàng, không biến trải nghiệm mua sắm thành một ma trận khó thoát.',
+  },
+  {
+    icon: <ShieldCheck className="h-6 w-6" />,
+    title: 'Minh bạch và an toàn',
+    text: 'Từ đăng nhập, thanh toán đến lịch sử đơn hàng, các luồng quan trọng được thiết kế để dễ kiểm tra và ít rủi ro.',
+  },
+  {
+    icon: <Headphones className="h-6 w-6" />,
+    title: 'Hỗ trợ có người thật',
+    text: 'AI giúp xử lý nhanh, còn đội ngũ hỗ trợ vẫn ở đó khi bạn cần một câu trả lời rõ ràng và có trách nhiệm.',
+  },
+];
+
+const techStack = ['Next.js', 'Node.js', 'PostgreSQL', 'pgVector', 'Redis', 'Prisma', 'VNPay', 'Cloudinary'];
 
 export default function AboutPage() {
-  const { t } = useTranslation();
-
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10 space-y-32">
-      {/* Hero */}
-      <section className="relative pt-12 lg:pt-20 animate-slide-in-right">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center space-x-2 bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_var(--primary)] w-max">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span>{t('about.badge')}</span>
+    <main className="min-h-screen bg-background animate-fade-in-up">
+      <section className="page-shell py-8 md:py-14">
+        <div className="grid items-center gap-8 lg:grid-cols-[1.03fr_0.97fr] lg:gap-12">
+          <div className="max-w-2xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-[8px] border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-bold uppercase text-primary">
+              <Sparkles className="h-4 w-4" />
+              Về UltraShop
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter uppercase text-foreground">
-              {t('about.heroTitle1')}<br />
-              <span className="text-primary" style={{ WebkitTextStroke: '2px var(--foreground)' }}>{t('about.heroTitle2')}</span>
+            <h1 className="font-heading text-4xl font-semibold leading-[1.05] text-foreground md:text-6xl">
+              Mua sắm công nghệ dễ hiểu hơn nhờ AI.
             </h1>
 
-            <p className="text-xl font-medium max-w-xl border-l-4 border-primary pl-6 py-2 text-foreground/80">
-              {t('about.heroDesc')}
+            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
+              UltraShop kết hợp cửa hàng thiết bị công nghệ với trợ lý AI để giúp bạn tìm đúng sản phẩm,
+              hiểu rõ lựa chọn và theo dõi đơn hàng trong một trải nghiệm gọn gàng.
             </p>
 
-            <div className="flex flex-wrap gap-4 pt-4">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/shop">
-                <Button size="lg" className="text-lg py-4 px-8 flex items-center group">
-                  {t('about.exploreNow')} <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
+                <Button size="lg" className="w-full gap-2 sm:w-auto">
+                  Khám phá cửa hàng
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/chatbot">
-                <Button variant="outline" size="lg" className="text-lg py-4 px-8">
-                  <Bot className="w-5 h-5 mr-3" /> {t('about.chatWithAI')}
+                <Button variant="outline" size="lg" className="w-full gap-2 bg-card sm:w-auto">
+                  <Bot className="h-4 w-4" />
+                  Hỏi trợ lý AI
                 </Button>
               </Link>
             </div>
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                'Tìm bằng văn bản',
+                'Tìm bằng hình ảnh',
+                'Gợi ý theo nhu cầu',
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Visual Block */}
-          <div className="relative">
-            <div className="solid-card aspect-square w-full max-w-lg mx-auto bg-accent relative flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(var(--foreground) 2px, transparent 0)', backgroundSize: '16px 16px' }} />
-              <div className="text-center relative z-10 space-y-6">
-                <Bot className="w-32 h-32 text-foreground mx-auto" />
-                <div className="bg-foreground text-background px-6 py-3 font-black text-xl uppercase tracking-wider">
-                  AI-Powered Platform
+          <div className="relative overflow-hidden rounded-[8px] border border-border bg-card p-4 shadow-sm md:p-5">
+            <div className="grid grid-cols-[1fr_0.78fr] gap-3">
+              <div className="relative min-h-[300px] overflow-hidden rounded-[8px] bg-secondary">
+                <Image
+                  src={heroProducts[0].image}
+                  alt={heroProducts[0].name}
+                  fill
+                  sizes="(min-width: 1024px) 360px, 58vw"
+                  priority
+                  className="object-cover"
+                />
+              </div>
+              <div className="grid gap-3">
+                {heroProducts.slice(1).map((product) => (
+                  <div key={product.name} className={`relative min-h-[142px] overflow-hidden rounded-[8px] ${product.tone}`}>
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      sizes="(min-width: 1024px) 280px, 36vw"
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="absolute bottom-6 left-6 right-6 rounded-[8px] border border-white/30 bg-white/88 p-4 shadow-lg backdrop-blur-md dark:border-border dark:bg-card/90">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-primary text-primary-foreground">
+                  <Camera className="h-5 w-5" />
                 </div>
-              </div>
-              {/* Floating stats */}
-              <div className="absolute top-6 right-6 solid-card bg-background px-4 py-3 rotate-3 hover:rotate-0 transition-transform">
-                <span className="font-black text-2xl text-primary">99.9%</span>
-                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Uptime</span>
-              </div>
-              <div className="absolute bottom-6 left-6 solid-card bg-background px-4 py-3 -rotate-3 hover:rotate-0 transition-transform">
-                <span className="font-black text-2xl text-primary">&lt;0.1s</span>
-                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('about.aiResponse')}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Tìm kiếm bằng hình ảnh</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Tải ảnh sản phẩm lên, UltraShop gợi ý các lựa chọn tương tự trong cửa hàng.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Mission */}
-      <section className="border-t-4 border-foreground pt-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
-          <div>
-            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground whitespace-pre-line">
-              {t('about.missionTitle')}
-            </h2>
-          </div>
-          <div className="space-y-6">
-            <p className="text-xl font-medium text-foreground/80 leading-relaxed">
-              {t('about.missionDesc1')}
-            </p>
-            <p className="text-lg font-medium text-foreground/60 leading-relaxed">
-              {t('about.missionDesc2')}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Core Values */}
-      <section className="border-t-4 border-foreground pt-16">
-        <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground mb-12">
-          {t('about.coreValues')}
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <ValueCard
-            icon={<Brain className="w-12 h-12 text-primary" />}
-            title={t('about.aiFirst')}
-            description={t('about.aiFirstDesc')}
-            className="bg-foreground text-background"
-          />
-          <ValueCard
-            icon={<Zap className="w-12 h-12" />}
-            title={t('about.superFast')}
-            description={t('about.superFastDesc')}
-            className="bg-accent"
-          />
-          <ValueCard
-            icon={<ShieldCheck className="w-12 h-12" />}
-            title={t('about.absoluteSecurity')}
-            description={t('about.absoluteSecurityDesc')}
-            className="bg-background"
-          />
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="border-t-4 border-foreground pt-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <StatCard number="1000+" label={t('about.products')} icon={<Package className="w-6 h-6" />} />
-          <StatCard number="500+" label={t('about.customers')} icon={<Users className="w-6 h-6" />} />
-          <StatCard number="99.9%" label="Uptime" icon={<Globe className="w-6 h-6" />} />
-          <StatCard number="<0.1s" label={t('about.aiSpeed')} icon={<Zap className="w-6 h-6" />} />
-        </div>
-      </section>
-
-      {/* Tech Stack */}
-      <section className="border-t-4 border-foreground pt-16">
-        <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground mb-12">
-          {t('about.technology')}
-        </h2>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { name: 'Next.js', desc: 'Frontend Framework' },
-            { name: 'Node.js', desc: 'Backend Runtime' },
-            { name: 'PostgreSQL', desc: 'Database' },
-            { name: 'pgVector', desc: 'AI Search Engine' },
-            { name: 'Redis', desc: 'Caching Layer' },
-            { name: 'Ollama', desc: 'Local AI Model' },
-            { name: 'Prisma', desc: 'ORM' },
-            { name: 'VNPay', desc: 'Payment Gateway' },
-          ].map((tech) => (
-            <div key={tech.name} className="solid-card bg-background p-6 hover:-translate-y-2 transition-transform">
-              <h4 className="font-black text-lg uppercase tracking-tight text-foreground">{tech.name}</h4>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-2">{tech.desc}</p>
+      <section className="border-y border-border bg-secondary/35">
+        <div className="page-shell grid gap-3 py-6 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((item) => (
+            <div key={item.label} className="rounded-[8px] border border-border bg-card p-5">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-[8px] bg-primary/10 text-primary">
+                {item.icon}
+              </div>
+              <div className="text-2xl font-bold text-foreground">{item.value}</div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="solid-card bg-foreground text-background p-12 md:p-16 text-center space-y-8">
-        <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">
-          {t('about.readyToExperience')}
-        </h2>
-        <p className="text-xl font-medium opacity-80 max-w-2xl mx-auto">
-          {t('about.readyDesc')}
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-          <Link href="/shop">
-            <Button size="lg" className="text-lg py-4 px-10 bg-primary text-primary-foreground border-2 border-background shadow-[4px_4px_0px_0px_var(--background)]">
-              {t('about.shopNow')}
-            </Button>
-          </Link>
-          <Link href="/register">
-            <Button variant="outline" size="lg" className="text-lg py-4 px-10 border-2 border-background text-background hover:bg-background hover:text-foreground">
-              {t('about.createAccount')}
-            </Button>
-          </Link>
+      <section className="page-shell py-12 md:py-18">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+          <div>
+            <span className="text-xs font-bold uppercase text-primary">Sứ mệnh</span>
+            <h2 className="mt-3 font-heading text-3xl font-semibold leading-tight text-foreground md:text-5xl">
+              Giảm bớt nhiễu, tăng thêm sự chắc chắn khi mua hàng.
+            </h2>
+          </div>
+          <div className="space-y-5 text-base leading-8 text-muted-foreground">
+            <p>
+              Chúng tôi xây UltraShop cho những người muốn mua thiết bị công nghệ nhanh hơn nhưng vẫn cần
+              thông tin đáng tin cậy. Thay vì mở quá nhiều tab, bạn có thể hỏi AI, so sánh sản phẩm và
+              chuyển thẳng sang giỏ hàng khi đã sẵn sàng.
+            </p>
+            <p>
+              Mục tiêu của trang không chỉ là bán sản phẩm. Chúng tôi muốn từng bước trong hành trình mua
+              sắm, từ tìm kiếm, tư vấn, thanh toán đến hỗ trợ sau bán, đều rõ ràng và ít mệt hơn.
+            </p>
+          </div>
         </div>
       </section>
-    </div>
+
+      <section className="bg-card">
+        <div className="page-shell py-12 md:py-18">
+          <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="max-w-2xl">
+              <span className="text-xs font-bold uppercase text-primary">AI trong mua sắm</span>
+              <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground md:text-4xl">
+                Từ câu hỏi đến lựa chọn phù hợp
+              </h2>
+            </div>
+            <Link href="/ai-hub" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-hover">
+              Xem AI Hub
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {aiFlow.map((item, index) => (
+              <FeatureCard key={item.title} icon={item.icon} title={`${index + 1}. ${item.title}`} text={item.text} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="page-shell py-12 md:py-18">
+        <div className="grid gap-4 md:grid-cols-3">
+          {values.map((item) => (
+            <FeatureCard key={item.title} icon={item.icon} title={item.title} text={item.text} />
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-border bg-secondary/35">
+        <div className="page-shell grid gap-8 py-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+          <div>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] bg-accent text-accent-foreground">
+              <Zap className="h-6 w-6" />
+            </div>
+            <h2 className="font-heading text-3xl font-semibold text-foreground md:text-4xl">
+              Nền tảng được xây cho tốc độ và khả năng mở rộng.
+            </h2>
+            <p className="mt-4 leading-7 text-muted-foreground">
+              Công nghệ phía sau UltraShop hỗ trợ tìm kiếm ngữ nghĩa, chatbot, quản lý đơn hàng và thanh toán
+              trong cùng một hệ thống.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {techStack.map((tech) => (
+              <div key={tech} className="rounded-[8px] border border-border bg-card px-4 py-4 text-center text-sm font-semibold text-foreground">
+                {tech}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="page-shell py-12 md:py-18">
+        <div className="overflow-hidden rounded-[8px] border border-primary/20 bg-primary p-7 text-primary-foreground md:p-10">
+          <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <h2 className="font-heading text-3xl font-semibold leading-tight md:text-4xl">
+                Sẵn sàng tìm món đồ công nghệ tiếp theo?
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/85 md:text-base">
+                Khám phá cửa hàng hoặc trò chuyện với trợ lý AI để nhận gợi ý phù hợp với nhu cầu của bạn.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link href="/shop">
+                <Button size="lg" className="w-full gap-2 bg-card text-foreground hover:bg-secondary sm:w-auto">
+                  Mua sắm ngay
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button variant="outline" size="lg" className="w-full border-white/40 text-white hover:bg-white/10 sm:w-auto">
+                  Tạo tài khoản
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
-function ValueCard({ icon, title, description, className = '' }: { icon: React.ReactNode; title: string; description: string; className?: string }) {
+function FeatureCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
-    <div className={`solid-card p-8 flex flex-col justify-between hover:-translate-y-2 hover:translate-x-2 transition-transform duration-300 ${className}`}>
-      <div className="mb-8 p-4 border-2 border-current w-max shadow-[4px_4px_0px_0px_currentColor]">
+    <article className="card-elevated-hover p-6">
+      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-[8px] bg-accent/10 text-accent">
         {icon}
       </div>
-      <div>
-        <h3 className="text-2xl font-black uppercase mb-4 tracking-wide">{title}</h3>
-        <p className="font-medium text-lg opacity-80 leading-snug">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ number, label, icon }: { number: string; label: string; icon: React.ReactNode }) {
-  return (
-    <div className="solid-card bg-accent p-8 text-center hover:-translate-y-2 transition-transform">
-      <div className="flex items-center justify-center mb-4 text-primary">{icon}</div>
-      <div className="text-4xl font-black text-foreground tracking-tighter">{number}</div>
-      <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-2">{label}</div>
-    </div>
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-3 text-sm leading-7 text-muted-foreground">{text}</p>
+    </article>
   );
 }

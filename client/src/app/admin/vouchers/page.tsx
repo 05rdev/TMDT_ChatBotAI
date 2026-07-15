@@ -38,6 +38,8 @@ export default function AdminVouchersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
   const [formData, setFormData] = useState({
     code: '',
     discountType: 'PERCENT',
@@ -125,6 +127,14 @@ export default function AdminVouchersPage() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(vouchers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedVouchers = vouchers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   return (
     <>
       <div className="admin-page animate-fade-in-up">
@@ -150,8 +160,9 @@ export default function AdminVouchersPage() {
             <p className="text-sm font-medium text-muted-foreground">Đang tải dữ liệu...</p>
           </div>
         ) : (
+          <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-            {vouchers.map((v) => (
+            {paginatedVouchers.map((v) => (
               <div key={v.id} className="admin-card flex flex-col group overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-4 sm:p-6 space-y-5 flex-1 relative">
                   {/* Decorator */}
@@ -219,6 +230,40 @@ export default function AdminVouchersPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="admin-pagination admin-card">
+            <span>
+              Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, vouchers.length)} của {vouchers.length} voucher
+            </span>
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                Trước
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), Math.max(0, currentPage - 3) + 5).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-1.5 rounded-[var(--radius-md)] font-medium ${
+                    currentPage === pageNum ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-secondary transition-colors'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-[var(--radius-md)] border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                Tiếp
+              </button>
+            </div>
+          </div>
           </div>
         )}
       </div>

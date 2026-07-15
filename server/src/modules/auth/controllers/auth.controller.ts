@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AuthRequest } from '../../../middlewares/authenticate';
+import { uploadToCloudinary } from '../../../lib/cloudinary';
 
 const authService = new AuthService();
 
@@ -79,6 +80,38 @@ export class AuthController {
         success: true,
         message: 'Cập nhật thông tin thành công.',
         data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadAvatar(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui long chon anh dai dien.',
+        });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Avatar phai la tep hinh anh.',
+        });
+      }
+
+      const result = await uploadToCloudinary(file.buffer, `avatars/${userId}`);
+      const user = await authService.updateProfile(userId, { avatar: result.secure_url });
+
+      return res.json({
+        success: true,
+        message: 'Cap nhat avatar thanh cong.',
+        data: user,
       });
     } catch (error) {
       next(error);

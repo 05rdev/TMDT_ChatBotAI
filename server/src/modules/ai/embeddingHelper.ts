@@ -1,9 +1,12 @@
+import { cacheGet, cacheSet } from '../../lib/redis';
+
 /**
  * Helper to handle Embedding generation using Ollama only
  */
 export class EmbeddingHelper {
   private ollamaUrl: string;
   private ollamaModel: string;
+  private readonly CACHE_TTL_SECONDS = Number(process.env.EMBEDDING_CACHE_TTL || 86400);
   private readonly TIMEOUT_MS = 10_000; // 10 giây timeout
 
   constructor() {
@@ -20,8 +23,20 @@ export class EmbeddingHelper {
     const cleanText = text.replace(/\n/g, ' ').trim();
     if (!cleanText) throw new Error('Input text is empty');
 
+    const cacheKey = `embedding:${this.ollamaModel}:${Buffer.from(cleanText).toString('base64url').slice(0, 180)}`;
+    try {
+      const cached = await cacheGet<string>(cacheKey);
+      if (cached) {
+        const embedding = JSON.parse(cached);
+        if (Array.isArray(embedding) && embedding.length > 0) return embedding;
+      }
+    } catch (error: any) {
+      console.warn(`âš ï¸ Embedding cache read failed (${error.message})`);
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
+    const numGpu = process.env.OLLAMA_NUM_GPU !== undefined ? Number(process.env.OLLAMA_NUM_GPU) : undefined;
 
     try {
       const response = await fetch(this.ollamaUrl, {
@@ -31,9 +46,7 @@ export class EmbeddingHelper {
           model: this.ollamaModel,
           prompt: cleanText,
           keep_alive: -1,
-          options: {
-            num_gpu: 0
-          }
+          ...(Number.isFinite(numGpu) ? { options: { num_gpu: numGpu } } : {})
         }),
         signal: controller.signal,
       });
@@ -47,6 +60,11 @@ export class EmbeddingHelper {
 
       const data = await response.json() as any;
       if (data.embedding && Array.isArray(data.embedding) && data.embedding.length > 0) {
+        try {
+          await cacheSet(cacheKey, JSON.stringify(data.embedding), this.CACHE_TTL_SECONDS);
+        } catch (error: any) {
+          console.warn(`âš ï¸ Embedding cache write failed (${error.message})`);
+        }
         return data.embedding;
       }
 

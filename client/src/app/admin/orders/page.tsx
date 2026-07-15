@@ -188,10 +188,11 @@ export default function AdminOrdersPage() {
                        </select>
                        <button 
                          onClick={() => { setSelectedOrderId(order.id); setIsDetailOpen(true); }}
-                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors" 
+                         className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors" 
                          title="Xem chi tiết"
                        >
                          <Eye className="w-4 h-4" />
+                         <span>Xem</span>
                        </button>
                     </div>
                   </td>

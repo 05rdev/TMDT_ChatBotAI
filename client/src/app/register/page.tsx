@@ -11,7 +11,7 @@ import { Bot, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '', password: '', confirmPassword: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
@@ -30,7 +30,13 @@ export default function RegisterPage() {
       return;
     }
     try {
-      await api.post('/auth/register', { name: formData.name, email: formData.email, password: formData.password });
+      await api.post('/auth/register', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        password: formData.password,
+      });
       setSuccess(true);
       toast.success(t('register.success'), { description: t('register.successDesc') });
       setTimeout(() => router.push('/login'), 2000);
@@ -65,6 +71,10 @@ export default function RegisterPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input name="name" label={t('register.fullName')} placeholder="Nguyễn Văn A" value={formData.name} onChange={handleChange} required />
               <Input name="email" label={t('register.email')} type="email" placeholder="example@gmail.com" value={formData.email} onChange={handleChange} required />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input name="phone" label={t('register.phone')} type="tel" placeholder="0901234567" value={formData.phone} onChange={handleChange} required />
+              <Input name="address" label={t('register.address')} placeholder="12 Nguyen Van Bao, Go Vap" value={formData.address} onChange={handleChange} required />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input name="password" label={t('register.password')} type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />

@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { EmbeddingHelper } from '../embeddingHelper';
 import { ProductService } from '../../product/services/product.service';
+import { cacheGet, cacheSet } from '../../../lib/redis';
 
 const prisma = new PrismaClient();
 const embeddingHelper = new EmbeddingHelper();
@@ -17,6 +18,23 @@ const BRAND_KEYWORDS = [
   'iphone', 'samsung', 'xiaomi', 'sony', 'lg', 'panasonic', 'toshiba',
   'sharp', 'philips', 'daikin', 'mitsubishi', 'electrolux', 'bosch', 'apple'
 ];
+
+const BRAND_CANONICAL: Record<string, string> = {
+  iphone: 'Apple',
+  apple: 'Apple',
+  samsung: 'Samsung',
+  xiaomi: 'Xiaomi',
+  sony: 'Sony',
+  lg: 'LG',
+  panasonic: 'Panasonic',
+  toshiba: 'Toshiba',
+  sharp: 'Sharp',
+  philips: 'Philips',
+  daikin: 'Daikin',
+  mitsubishi: 'Mitsubishi',
+  electrolux: 'Electrolux',
+  bosch: 'Bosch',
+};
 
 const STOP_WORDS = [
   'tìm', 'kiếm', 'mua', 'bán', 'giá', 'cho', 'có', 'tại', 'ở', 'là', 'cái', 'chiếc', 'loại',
@@ -41,10 +59,95 @@ const ATTRIBUTE_KEY_ALIASES: Record<string, string> = {
   storage: 'storage_gb',
 };
 
+type ParsedSearchFilters = {
+  category: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  minRating: number | null;
+  minSold?: number | null;
+  minReviews?: number | null;
+  keywords: string | null;
+  features?: string[] | null;
+  sort: string | null;
+  attributes: Record<string, any>;
+};
+
 export class AIService {
   private ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
   private modelName = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   private productService = new ProductService();
+  private readonly intentCacheTtlSeconds = Number(process.env.SEARCH_INTENT_CACHE_TTL || 3600);
+
+  private normalizePlainText(text: string) {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase();
+  }
+
+  private buildCacheKey(prefix: string, value: string) {
+    const normalized = this.normalizePlainText(value).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 160);
+    return `${prefix}:${normalized || 'empty'}`;
+  }
+
+  private hasMeaningfulAttributes(attributes: any) {
+    return attributes && typeof attributes === 'object' && Object.keys(attributes).length > 0;
+  }
+
+  private hasHardFilters(filters: any) {
+    return Boolean(
+      filters?.priceMin ||
+      filters?.priceMax ||
+      filters?.minRating ||
+      filters?.sort ||
+      this.hasMeaningfulAttributes(filters?.attributes)
+    );
+  }
+
+  private shouldUseAIParser(query: string, regexFilters: ParsedSearchFilters, cleanedQuery: string) {
+    const mode = (process.env.SEARCH_INTENT_MODE || 'auto').toLowerCase();
+    if (mode === 'off' || process.env.DISABLE_OLLAMA_SEARCH === 'true') return false;
+    if (mode === 'always') return true;
+
+    const normalized = this.normalizePlainText(cleanedQuery || query);
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const hasBrandKeyword = BRAND_KEYWORDS.some((brand) => normalized.includes(brand));
+    const hasFeatureKeyword = FEATURE_KEYWORDS.some((keyword) => this.normalizePlainText(keyword).split(/\s+/).every((part) => normalized.includes(part)));
+
+    if (this.hasHardFilters(regexFilters) || hasBrandKeyword) return false;
+    return hasFeatureKeyword && words.length >= 5;
+  }
+
+  private mergeIntentFilters(localFilters: ParsedSearchFilters, aiFilters: any): ParsedSearchFilters {
+    if (!aiFilters) return localFilters;
+
+    const merged: ParsedSearchFilters = {
+      ...localFilters,
+      attributes: { ...(localFilters.attributes || {}) },
+    };
+
+    for (const [key, value] of Object.entries(aiFilters)) {
+      if (value === null || value === undefined || value === '') continue;
+
+      if (key === 'attributes' && typeof value === 'object') {
+        merged.attributes = {
+          ...(value as Record<string, any>),
+          ...(localFilters.attributes || {}),
+        };
+        continue;
+      }
+
+      const currentValue = (merged as any)[key];
+      const localHasValue = currentValue !== null && currentValue !== undefined && currentValue !== '';
+      if (!localHasValue) {
+        (merged as any)[key] = value;
+      }
+    }
+
+    return merged;
+  }
 
   /**
    * Chuẩn hóa truy vấn tiếng Việt trước khi gửi lên Ollama
@@ -214,6 +317,14 @@ export class AIService {
       attributes: {}
     };
     let q = query.toLowerCase();
+    q = q.replace(
+      /từ\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|củ|k|m)\s*(?:đến|tới)\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|củ|k|m)\b/i,
+      '$1-$3$4'
+    );
+    q = q.replace(
+      /(\d+(?:[.,]\d+)?)\s*(tr|triệu|củ|k|m)\s*(?:-|đến|tới)\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|củ|k|m)\b/i,
+      '$1-$3$4'
+    );
 
     // Price Range regex with strict word boundary only at the end (Vd: 5-10tr, 5tr đến 10tr)
     const rangeMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:-|đến|tới)\s*(\d+(?:\.\d+)?)\s*(tr|triệu|củ|k|m)\b/i);
@@ -263,6 +374,12 @@ export class AIService {
     if (q.includes('bán chạy') || q.includes('nhiều người mua')) filters.sort = 'best_selling';
     if (q.includes('đánh giá cao') || q.includes('tốt nhất')) filters.sort = 'top_rated';
     if (q.includes('mới nhất') || q.includes('vừa về')) filters.sort = 'newest';
+
+    const refreshRateMatch = q.match(/(?:tần\s*số\s*quét|refresh\s*rate|màn(?:\s*hình)?)?\s*(\d{2,3})\s*hz\b/i);
+    if (refreshRateMatch) {
+      filters.attributes.refresh_rate = { min: null, max: null, exact: refreshRateMatch[1] };
+      q = q.replace(refreshRateMatch[0], '[attr_refresh_rate]');
+    }
 
     // ===== ATTRIBUTE PARSING WITH TOKEN CONSUMPTION =====
     // Electronics attributes (numeric with units)
@@ -382,6 +499,15 @@ export class AIService {
       }
     }
 
+    const normalizedForBrand = this.normalizePlainText(q);
+    for (const brand of BRAND_KEYWORDS) {
+      if (normalizedForBrand.includes(brand)) {
+        filters.attributes.brand = { min: null, max: null, exact: BRAND_CANONICAL[brand] || brand };
+        q = q.replace(new RegExp(this.escapeRegExp(brand), 'i'), `[attr_brand]`);
+        break;
+      }
+    }
+
     const cleanedQuery = q
       .replace(/\[attr_[a-z_]+\]/gi, '')
       .replace(/\[price_[a-z_]+\]/gi, '')
@@ -412,6 +538,136 @@ export class AIService {
     return false;
   }
 
+  private getSearchTokens(query: string) {
+    return this.normalizePlainText(query)
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 1 && !STOP_WORDS.includes(word));
+  }
+
+  private productHasStock(product: any) {
+    return (product.variants || []).some((variant: any) => Number(variant.stock || 0) > 0);
+  }
+
+  private scoreProductForSearch(product: any, query: string, filters: ParsedSearchFilters) {
+    const tokens = this.getSearchTokens(query);
+    const name = this.normalizePlainText(product.name || '');
+    const description = this.normalizePlainText(product.description || '');
+    const category = this.normalizePlainText(product.category?.name || '');
+    const attrs = Array.isArray(product.attributes) ? product.attributes : [];
+    const attrText = this.normalizePlainText(attrs.map((attr: any) => `${attr.key} ${attr.value}`).join(' '));
+    let score = 0;
+
+    for (const token of tokens) {
+      if (name.includes(token)) score += 14;
+      else if (category.includes(token)) score += 10;
+      else if (attrText.includes(token)) score += 8;
+      else if (description.includes(token)) score += 3;
+    }
+
+    if (filters.category && category.includes(this.normalizePlainText(filters.category))) score += 18;
+
+    const minPrice = Number(product.minPrice || product.variants?.[0]?.price || 0);
+    if (filters.priceMin != null || filters.priceMax != null) {
+      const inRange = (!filters.priceMin || minPrice >= filters.priceMin) && (!filters.priceMax || minPrice <= filters.priceMax);
+      score += inRange ? 18 : -100;
+    }
+
+    for (const [rawKey, attrFilter] of Object.entries(filters.attributes || {})) {
+      const key = this.normalizeAttributeKey(rawKey);
+      const attr = attrs.find((item: any) => item.key === key || (key === 'storage_gb' && item.key === 'capacity_gb') || (key === 'capacity_gb' && item.key === 'storage_gb'));
+      if (!attr) continue;
+
+      const attrValue = this.normalizePlainText(String(attr.value || ''));
+      const attrNumber = Number.parseFloat(String(attr.value || ''));
+      if ((attrFilter as any)?.exact != null && attrValue.includes(this.normalizePlainText(String((attrFilter as any).exact)))) score += 20;
+      if ((attrFilter as any)?.min != null && Number.isFinite(attrNumber) && attrNumber >= Number((attrFilter as any).min)) score += 18;
+      if ((attrFilter as any)?.max != null && Number.isFinite(attrNumber) && attrNumber <= Number((attrFilter as any).max)) score += 18;
+    }
+
+    if (Number.isFinite(Number(product.distance))) {
+      score += Math.max(0, 24 * (1 - Number(product.distance)));
+    }
+    if (this.productHasStock(product)) score += 4;
+    score += Math.min(6, Number(product.averageRating || 0));
+    score += Math.min(6, Math.log10(Number(product.soldCount || 0) + 1) * 3);
+
+    return Math.round(score * 100) / 100;
+  }
+
+  private rerankPrecisionFirst(products: any[], query: string, filters: ParsedSearchFilters, limit: number) {
+    if (products.length === 0) return products;
+
+    const ranked = products
+      .map((product) => ({
+        ...product,
+        searchScore: this.scoreProductForSearch(product, query, filters),
+      }))
+      .filter((product) => product.searchScore > -50)
+      .sort((a, b) => b.searchScore - a.searchScore);
+
+    if (ranked.length === 0) return [];
+
+    const bestScore = ranked[0].searchScore;
+    const hasSignals = this.hasHardFilters(filters) || this.getSearchTokens(query).length > 0;
+    if (!hasSignals || bestScore < 8) return ranked.slice(0, limit);
+
+    const threshold = Math.max(8, bestScore * 0.35);
+    return ranked.filter((product) => product.searchScore >= threshold).slice(0, limit);
+  }
+
+  private mergeRankedResults(
+    resultSets: Array<{ items: any[]; source: string; weight?: number }>,
+    limit: number,
+    rrfK = 60
+  ) {
+    const byId = new Map<string, any>();
+
+    for (const resultSet of resultSets) {
+      const weight = resultSet.weight ?? 1;
+      resultSet.items.forEach((item, index) => {
+        if (!item?.id) return;
+
+        const rank = index + 1;
+        const existing = byId.get(item.id) || {
+          ...item,
+          hybridScore: 0,
+          searchSources: [],
+        };
+
+        existing.hybridScore += weight / (rrfK + rank);
+        existing.searchSources = Array.from(new Set([...(existing.searchSources || []), resultSet.source]));
+
+        byId.set(item.id, {
+          ...existing,
+          ...item,
+          hybridScore: existing.hybridScore,
+          searchSources: existing.searchSources,
+        });
+      });
+    }
+
+    return Array.from(byId.values())
+      .sort((a, b) => Number(b.hybridScore || 0) - Number(a.hybridScore || 0))
+      .slice(0, limit);
+  }
+
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T, label: string): Promise<T> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn(`${label} timed out after ${timeoutMs}ms; using fallback results.`);
+        resolve(fallback);
+      }, timeoutMs);
+
+      promise
+        .then((result) => resolve(result))
+        .catch((error) => {
+          console.warn(`${label} failed; using fallback results:`, error);
+          resolve(fallback);
+        })
+        .finally(() => clearTimeout(timeout));
+    });
+  }
+
   /**
    * TÌM KIẾM THÔNG MINH (Hybrid Search)
    */
@@ -419,29 +675,46 @@ export class AIService {
     const msgLower = query.toLowerCase();
     console.log(`🤖 AI Searching for: "${query}" (Category: ${categoryId || 'All'}, SkipDetect: ${skipCategoryDetection})`);
 
-    // 1. Phân tích ý định người dùng với cơ chế Retry
-    let aiFilters = null;
-    try {
-      aiFilters = await this.parseQueryWithAI(query, 1);
-      if (!aiFilters) {
-        console.log('🔄 Ollama Attempt 1 returned null. Retrying with Attempt 2...');
-        aiFilters = await this.parseQueryWithAI(query, 2);
+    // 1. Local-first intent parsing: avoid calling Ollama for common product searches.
+    const { filters: regexFilters, cleanedQuery } = this.extractFiltersRegex(query) as { filters: ParsedSearchFilters; cleanedQuery: string };
+    let aiFilters: ParsedSearchFilters = regexFilters;
+    let llmIntent: any = null;
+
+    if (this.shouldUseAIParser(query, regexFilters, cleanedQuery)) {
+      const cacheKey = this.buildCacheKey('search:intent', query);
+      try {
+        const cached = await cacheGet<string>(cacheKey);
+        if (cached) {
+          llmIntent = JSON.parse(cached);
+          console.log('⚡ Search intent loaded from cache.');
+        }
+      } catch (error: any) {
+        console.warn('⚠️ Search intent cache read failed:', error.message);
       }
-    } catch (e) {
-      console.warn('⚠️ Ollama parsing errored, falling back to regex.');
-    }
 
-    const { filters: regexFilters, cleanedQuery } = this.extractFiltersRegex(query);
-
-    const mergedFilters = { ...regexFilters };
-    if (aiFilters) {
-      for (const [key, value] of Object.entries(aiFilters)) {
-        if (value !== null && value !== undefined && value !== '') {
-          (mergedFilters as any)[key] = value;
+      if (!llmIntent) {
+        try {
+          llmIntent = await this.parseQueryWithAI(query, 1);
+          if (!llmIntent) {
+            console.log('🔄 Ollama Attempt 1 returned null. Retrying with Attempt 2...');
+            llmIntent = await this.parseQueryWithAI(query, 2);
+          }
+          if (llmIntent) {
+            try {
+              await cacheSet(cacheKey, JSON.stringify(llmIntent), this.intentCacheTtlSeconds);
+            } catch (error: any) {
+              console.warn('⚠️ Search intent cache write failed:', error.message);
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Ollama parsing errored, using local parser only.');
         }
       }
+
+      aiFilters = this.mergeIntentFilters(regexFilters, llmIntent);
+    } else {
+      console.log('⚡ Local parser handled search intent; skipping Ollama intent parser.');
     }
-    aiFilters = mergedFilters;
 
     if (skipCategoryDetection) {
       aiFilters.category = null;
@@ -606,7 +879,7 @@ export class AIService {
     if (useSemanticSearch) {
       console.log('🔍 Executing Semantic Search...');
       try {
-        products = await this.searchSemantic(query, poolLimit, aiFilters, undefined, categoryIds);
+        products = await this.searchHybrid(query, poolLimit, aiFilters, undefined, categoryIds);
       } catch (err) {
         console.warn('⚠️ Semantic search failed, falling back to keyword search:', err);
       }
@@ -621,7 +894,32 @@ export class AIService {
         .filter(w => w.length > 1 && !STOP_WORDS.includes(w))
         .join(' ');
 
-      if (searchText && !where.OR) {
+      const searchTokens = this.getSearchTokens(searchText);
+      const selectedCategories = categoryIds.length > 0
+        ? await prisma.category.findMany({ where: { id: { in: categoryIds } }, select: { name: true } })
+        : [];
+      const categoryTokenSet = new Set(
+        selectedCategories.flatMap((category) => this.getSearchTokens(category.name))
+      );
+      const isCategoryOnlySearch = categoryIds.length > 0
+        && searchTokens.length > 0
+        && searchTokens.every((token) => categoryTokenSet.has(token));
+
+      if (isCategoryOnlySearch && products.length === 0) {
+        products = await prisma.product.findMany({
+          where,
+          include: {
+            images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+            category: { select: { name: true } },
+            variants: { orderBy: { price: 'asc' }, take: 1 },
+            attributes: true
+          },
+          take: poolLimit,
+          orderBy: aiFilters?.sort === 'newest' ? { createdAt: 'desc' } : undefined
+        });
+      }
+
+      if (searchText && !where.OR && products.length === 0) {
         const phraseWhere = { ...where };
         phraseWhere.OR = [
           { name: { contains: searchText, mode: 'insensitive' as const } },
@@ -647,7 +945,7 @@ export class AIService {
       }
 
       // Nếu cụm từ không tìm được, dùng where gốc (có keywords từ AI)
-      if (products.length === 0) {
+      if (products.length === 0 && where.OR) {
         products = await prisma.product.findMany({
           where,
           include: {
@@ -886,14 +1184,17 @@ export class AIService {
 
     // 6. Lọc và Sắp xếp nâng cao
     if (aiFilters) {
-      if (aiFilters.minRating) {
-        enrichedProducts = enrichedProducts.filter(p => p.averageRating >= aiFilters.minRating);
+      if (aiFilters.minRating != null) {
+        const minRating = aiFilters.minRating;
+        enrichedProducts = enrichedProducts.filter(p => p.averageRating >= minRating);
       }
-      if (aiFilters.minSold) {
-        enrichedProducts = enrichedProducts.filter(p => p.soldCount >= aiFilters.minSold);
+      if (aiFilters.minSold != null) {
+        const minSold = aiFilters.minSold;
+        enrichedProducts = enrichedProducts.filter(p => p.soldCount >= minSold);
       }
-      if (aiFilters.minReviews) {
-        enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= aiFilters.minReviews);
+      if (aiFilters.minReviews != null) {
+        const minReviews = aiFilters.minReviews;
+        enrichedProducts = enrichedProducts.filter(p => p.totalReviews >= minReviews);
       }
 
       // 6.5 Lọc theo attributes (min/max range + exact)
@@ -1036,7 +1337,7 @@ export class AIService {
       return this.intelligentSearch(query, limit, undefined, true);
     }
 
-    return enrichedProducts.slice(0, limit).map(p => ({
+    return this.rerankPrecisionFirst(enrichedProducts, query, aiFilters, limit).map(p => ({
       ...p,
       searchType: useSemanticSearch ? 'semantic' : 'keyword',
     }));
@@ -1136,6 +1437,130 @@ export class AIService {
         variants: p.variants.map(v => ({ ...v, price: Number(v.price) }))
       };
     }).filter(Boolean);
+  }
+
+  async searchLexical(query: string, limit: number = 20, filters: any = null, categoryId?: string, categoryIds: string[] = []): Promise<any[]> {
+    let categoryFilter = Prisma.empty;
+    if (categoryIds.length > 0) {
+      categoryFilter = Prisma.sql`AND p."categoryId" IN (${Prisma.join(categoryIds)})`;
+    } else if (filters?.category) {
+      categoryFilter = Prisma.sql`AND c.name ILIKE ${'%' + filters.category + '%'}`;
+    } else if (categoryId) {
+      categoryFilter = Prisma.sql`AND p."categoryId" = ${categoryId}`;
+    }
+
+    const priceMinFilter = filters?.priceMin ? Prisma.sql`AND v.price >= ${filters.priceMin}` : Prisma.empty;
+    const priceMaxFilter = filters?.priceMax ? Prisma.sql`AND v.price <= ${filters.priceMax}` : Prisma.empty;
+    const minRatingFilter = filters?.minRating ? Prisma.sql`AND COALESCE(avg_rating.rating, 0) >= ${filters.minRating}` : Prisma.empty;
+    const minSoldFilter = filters?.minSold ? Prisma.sql`AND COALESCE(sold_stats.sold, 0) >= ${filters.minSold}` : Prisma.empty;
+    const minReviewsFilter = filters?.minReviews ? Prisma.sql`AND COALESCE(avg_rating.total_reviews, 0) >= ${filters.minReviews}` : Prisma.empty;
+
+    const results = await prisma.$queryRaw<any[]>(Prisma.sql`
+      WITH query AS (
+        SELECT websearch_to_tsquery('simple', ${query}) AS tsq
+      ),
+      product_text AS (
+        SELECT p.id,
+               setweight(to_tsvector('simple', COALESCE(p.name, '')), 'A') ||
+               setweight(to_tsvector('simple', COALESCE(c.name, '')), 'A') ||
+               setweight(to_tsvector('simple', COALESCE(string_agg(pa.key || ' ' || pa.value, ' '), '')), 'B') ||
+               setweight(to_tsvector('simple', COALESCE(p.description, '')), 'C') AS document
+        FROM "Product" p
+        JOIN "Category" c ON p."categoryId" = c.id
+        LEFT JOIN "ProductAttribute" pa ON pa."productId" = p.id
+        WHERE p."isDeleted" = false
+          AND p."isActive" = true
+          ${categoryFilter}
+        GROUP BY p.id, c.name
+      )
+      SELECT p.id,
+             ts_rank_cd(pt.document, query.tsq) AS "lexicalScore",
+             COALESCE(avg_rating.rating, 0) AS "averageRating",
+             COALESCE(sold_stats.sold, 0) AS "soldCount",
+             COALESCE(avg_rating.total_reviews, 0) AS "totalReviews",
+             MIN(v.price) AS "minPrice"
+      FROM product_text pt
+      JOIN query ON true
+      JOIN "Product" p ON p.id = pt.id
+      JOIN "ProductVariant" v ON p.id = v."productId"
+      LEFT JOIN (
+          SELECT "productId", AVG(rating) AS rating, COUNT(rating) AS total_reviews
+          FROM "Review"
+          GROUP BY "productId"
+      ) avg_rating ON p.id = avg_rating."productId"
+      LEFT JOIN (
+          SELECT oi."productId", SUM(oi.quantity) AS sold
+          FROM "OrderItem" oi
+          JOIN "Order" o ON oi."orderId" = o.id
+          WHERE o.status != 'CANCELLED'
+          GROUP BY oi."productId"
+      ) sold_stats ON p.id = sold_stats."productId"
+      WHERE pt.document @@ query.tsq
+        ${priceMinFilter}
+        ${priceMaxFilter}
+      GROUP BY p.id, pt.document, query.tsq, avg_rating.rating, avg_rating.total_reviews, sold_stats.sold
+      HAVING 1=1
+        ${minRatingFilter}
+        ${minSoldFilter}
+        ${minReviewsFilter}
+      ORDER BY "lexicalScore" DESC, "soldCount" DESC
+      LIMIT ${limit}
+    `);
+
+    if (results.length === 0) return [];
+
+    const productIds = results.map(r => r.id);
+    const fullDetails = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: {
+        images: { orderBy: { isPrimary: 'desc' }, take: 1 },
+        category: { select: { name: true } },
+        variants: { orderBy: { price: 'asc' }, take: 1 },
+        attributes: true
+      }
+    });
+
+    return results.map((result, index) => {
+      const product = fullDetails.find(p => p.id === result.id);
+      if (!product) return null;
+      return {
+        ...product,
+        lexicalRank: index + 1,
+        lexicalScore: Number(result.lexicalScore || 0),
+        averageRating: Number(result.averageRating),
+        soldCount: Number(result.soldCount),
+        totalReviews: Number(result.totalReviews),
+        minPrice: product.variants?.[0]?.price ? Number(product.variants[0].price) : 0,
+        primaryImage: product.images?.[0]?.url || null,
+        variants: product.variants.map(v => ({ ...v, price: Number(v.price) }))
+      };
+    }).filter(Boolean);
+  }
+
+  async searchHybrid(query: string, limit: number = 20, filters: any = null, categoryId?: string, categoryIds: string[] = []): Promise<any[]> {
+    const configuredLimit = Number(process.env.SEARCH_RETRIEVAL_LIMIT) || 300;
+    const retrievalLimit = Math.min(Math.max(limit * 2, 40), configuredLimit);
+    const semanticTimeoutMs = Number(process.env.SEARCH_SEMANTIC_TIMEOUT_MS) || 3500;
+
+    const [semanticProducts, lexicalProducts] = await Promise.all([
+      this.withTimeout(
+        this.searchSemantic(query, retrievalLimit, filters, categoryId, categoryIds),
+        semanticTimeoutMs,
+        [],
+        'Semantic search'
+      ),
+      this.withTimeout(
+        this.searchLexical(query, retrievalLimit, filters, categoryId, categoryIds),
+        2500,
+        [],
+        'Lexical search'
+      ),
+    ]);
+
+    return this.mergeRankedResults([
+      { items: lexicalProducts, source: 'lexical', weight: 1.15 },
+      { items: semanticProducts, source: 'semantic', weight: 1 },
+    ], limit);
   }
 
   /**

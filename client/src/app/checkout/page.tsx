@@ -31,7 +31,12 @@ function CheckoutContent() {
 
   useEffect(() => {
     if (user) {
-      setFormData(prev => ({ ...prev, name: user.name || '' }));
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || user.name || '',
+        phone: prev.phone || user.phone || '',
+        address: prev.address || user.address || '',
+      }));
     }
     fetchCart();
   }, [user]);

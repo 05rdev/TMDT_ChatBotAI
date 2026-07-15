@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, ShieldCheck, UserX, Loader2, Filter } from 'lucide-react';
+import { Search, Edit2, Trash2, ShieldCheck, UserX, Loader2, Filter, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import UserEditModal from './UserEditModal';
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    return response?.data?.message || fallback;
+  }
+
+  return fallback;
+};
 
 interface User {
   id: string;
@@ -14,6 +23,7 @@ interface User {
   role: string;
   isActive: boolean;
   createdAt: string;
+  avatar?: string | null;
 }
 
 export default function AdminUsersPage() {
@@ -68,7 +78,7 @@ export default function AdminUsersPage() {
           setTotal(res.data.pagination.total);
         }
       }
-    } catch (error) {
+    } catch {
       toast.error('Lỗi khi tải danh sách người dùng');
     } finally {
       setIsLoading(false);
@@ -84,8 +94,8 @@ export default function AdminUsersPage() {
         ));
         toast.success(user.isActive ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
       }
-    } catch (error: any) {
-      const msg = error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái';
+    } catch (error: unknown) {
+        const msg = getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật trạng thái');
       toast.error(msg);
     }
   };
@@ -98,8 +108,8 @@ export default function AdminUsersPage() {
           toast.success('Đã xóa người dùng');
           fetchUsers();
         }
-      } catch (error: any) {
-        const msg = error.response?.data?.message || 'Có lỗi xảy ra khi xóa';
+      } catch (error: unknown) {
+        const msg = getErrorMessage(error, 'Có lỗi xảy ra khi xóa');
         toast.error(msg);
       }
     }
@@ -203,6 +213,7 @@ export default function AdminUsersPage() {
             <thead>
               <tr className="bg-secondary/50 border-b border-border">
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap text-center">Avatar</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Người dùng</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">Vai trò</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground whitespace-nowrap text-center">Trạng thái</th>
@@ -213,7 +224,7 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-border/50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
+                  <td colSpan={7} className="p-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
                       <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       <p className="font-medium text-sm">Đang tải dữ liệu...</p>
@@ -222,7 +233,7 @@ export default function AdminUsersPage() {
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
+                  <td colSpan={7} className="p-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
                       <UserX className="w-10 h-10 opacity-50" />
                       <p className="font-medium text-sm">Không tìm thấy khách hàng nào</p>
@@ -233,6 +244,15 @@ export default function AdminUsersPage() {
                 <tr key={user.id} className="hover:bg-secondary/30 transition-colors group">
                   <td className="px-6 py-4 text-xs font-medium text-muted-foreground">
                     <span className="truncate max-w-[80px] inline-block">{user.id.slice(0, 8)}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-secondary ring-2 ring-background shadow-sm">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.name || user.email} className="h-full w-full object-cover" />
+                      ) : (
+                        <UserIcon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <p className="font-semibold text-foreground text-sm">{user.name}</p>
@@ -265,17 +285,19 @@ export default function AdminUsersPage() {
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => handleEdit(user)}
-                        className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[var(--radius-md)] transition-colors"
                         title="Chỉnh sửa"
                       >
                         <Edit2 className="w-4 h-4" />
+                        <span>Sửa</span>
                       </button>
                       <button
                         onClick={() => deleteUser(user.id)}
-                        className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[var(--radius-md)] transition-colors"
                         title="Xóa"
                       >
                         <Trash2 className="w-4 h-4" />
+                        <span>Xóa</span>
                       </button>
                     </div>
                   </td>

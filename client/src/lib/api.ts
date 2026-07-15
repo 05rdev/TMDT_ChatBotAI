@@ -33,6 +33,7 @@ const isAuthRequiredRequest = (url?: string) => {
   return [
     '/admin',
     '/ai',
+    '/auth/avatar',
     '/auth/profile',
     '/auth/change-password',
     '/cart',

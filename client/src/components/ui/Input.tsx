@@ -2,10 +2,11 @@ import React from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  helper?: string;
   error?: string;
 }
 
-export const Input = ({ label, error, className = '', ...props }: InputProps) => {
+export const Input = ({ label, helper, error, className = '', ...props }: InputProps) => {
   return (
     <div className="w-full space-y-1.5">
       {label && <label className="text-sm font-medium text-foreground/70 ml-1">{label}</label>}
@@ -15,6 +16,7 @@ export const Input = ({ label, error, className = '', ...props }: InputProps) =>
                    placeholder:text-muted-foreground/50 transition-all ${className}`}
         {...props}
       />
+      {helper && !error && <p className="text-xs text-muted-foreground ml-1 leading-relaxed">{helper}</p>}
       {error && <p className="text-xs text-danger ml-1">{error}</p>}
     </div>
   );

@@ -11,6 +11,7 @@ import { ShoppingCart, User, Search, Menu, Bot, Moon, Sun, Mic, Camera, MessageS
 import { useTheme } from 'next-themes';
 import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { getMediaUrl } from '@/lib/media';
 
 export const Navbar = () => {
   const { user, isAuthenticated, hasHydrated, resetAuth, logout } = useAuthStore();
@@ -23,6 +24,7 @@ export const Navbar = () => {
   const router = useRouter();
   const [navSearchQuery, setNavSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const avatarUrl = getMediaUrl(user?.avatar);
 
   const handleLogout = () => {
     logout();
@@ -199,7 +201,13 @@ export const Navbar = () => {
               </Link>
 
               <Link href="/profile" className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors">
-                <User className="w-5 h-5" />
+                <span className="w-8 h-8 rounded-full bg-secondary border border-border overflow-hidden flex items-center justify-center shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={user?.name || 'Avatar'} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4.5 h-4.5" />
+                  )}
+                </span>
                 <span className="text-sm font-medium hidden sm:inline">{user?.name}</span>
               </Link>
               <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={handleLogout}>{t('nav.logout')}</Button>

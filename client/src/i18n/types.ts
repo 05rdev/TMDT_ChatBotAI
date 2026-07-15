@@ -77,6 +77,8 @@ export interface TranslationDictionary {
   'register.subtitle': string;
   'register.fullName': string;
   'register.email': string;
+  'register.phone': string;
+  'register.address': string;
   'register.password': string;
   'register.confirmPassword': string;
   'register.submitBtn': string;
@@ -200,6 +202,12 @@ export interface TranslationDictionary {
   'profile.emailLabel': string;
   'profile.fullName': string;
   'profile.avatarUrl': string;
+  'profile.avatarImage': string;
+  'profile.chooseAvatar': string;
+  'profile.cancelAvatar': string;
+  'profile.avatarHelp': string;
+  'profile.avatarInvalidType': string;
+  'profile.avatarTooLarge': string;
   'profile.saveInfo': string;
   'profile.oldPassword': string;
   'profile.oldPasswordPlaceholder': string;
@@ -221,6 +229,7 @@ export interface TranslationDictionary {
   'notification.title': string;
   'notification.empty': string;
   'notification.viewAll': string;
+  'notification.markAllRead': string;
 
   // Common
   'common.loading': string;

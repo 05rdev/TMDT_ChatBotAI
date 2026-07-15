@@ -17,6 +17,75 @@ import { toast } from 'sonner';
 import { useTranslation } from '@/hooks/useTranslation';
 import { T } from '@/components/T';
 import { normalizeProductAttributes } from '@/lib/productAttributes';
+import type { Locale } from '@/i18n';
+
+const productText: Record<Locale, {
+  loginToAdd: string;
+  addedToCart: string;
+  addToCartError: string;
+  noImage: string;
+  outOfStock: string;
+  specs: string;
+}> = {
+  vi: {
+    loginToAdd: 'Vui lòng đăng nhập để thêm vào giỏ hàng',
+    addedToCart: 'Đã thêm vào giỏ hàng',
+    addToCartError: 'Lỗi khi thêm vào giỏ hàng',
+    noImage: 'Không có ảnh',
+    outOfStock: 'Hết hàng',
+    specs: 'Thông số kỹ thuật',
+  },
+  en: {
+    loginToAdd: 'Please log in to add this item to your cart',
+    addedToCart: 'Added to cart',
+    addToCartError: 'Failed to add to cart',
+    noImage: 'No image available',
+    outOfStock: 'Out of stock',
+    specs: 'Technical specifications',
+  },
+  ja: {
+    loginToAdd: 'カートに追加するにはログインしてください',
+    addedToCart: 'カートに追加しました',
+    addToCartError: 'カートへの追加に失敗しました',
+    noImage: '画像がありません',
+    outOfStock: '在庫切れ',
+    specs: '技術仕様',
+  },
+  ko: {
+    loginToAdd: '장바구니에 추가하려면 로그인해 주세요',
+    addedToCart: '장바구니에 추가되었습니다',
+    addToCartError: '장바구니 추가에 실패했습니다',
+    noImage: '이미지가 없습니다',
+    outOfStock: '품절',
+    specs: '기술 사양',
+  },
+};
+
+const attributeLabels: Record<string, Record<Locale, string>> = {
+  category_slug: { vi: 'Danh mục', en: 'Category', ja: 'カテゴリー', ko: '카테고리' },
+  color: { vi: 'Màu sắc', en: 'Color', ja: 'カラー', ko: '색상' },
+  condition: { vi: 'Tình trạng', en: 'Condition', ja: '状態', ko: '상태' },
+  connection_type: { vi: 'Kết nối', en: 'Connection type', ja: '接続方式', ko: '연결 방식' },
+  storage: { vi: 'Bộ nhớ', en: 'Storage', ja: 'ストレージ', ko: '저장 용량' },
+  ram: { vi: 'RAM', en: 'RAM', ja: 'RAM', ko: 'RAM' },
+  screen_size: { vi: 'Kích thước màn hình', en: 'Screen size', ja: '画面サイズ', ko: '화면 크기' },
+  battery: { vi: 'Pin', en: 'Battery', ja: 'バッテリー', ko: '배터리' },
+  warranty: { vi: 'Bảo hành', en: 'Warranty', ja: '保証', ko: '보증' },
+};
+
+const attributeValues: Record<string, Record<Locale, string>> = {
+  black: { vi: 'Đen', en: 'Black', ja: 'ブラック', ko: '블랙' },
+  white: { vi: 'Trắng', en: 'White', ja: 'ホワイト', ko: '화이트' },
+  silver: { vi: 'Bạc', en: 'Silver', ja: 'シルバー', ko: '실버' },
+  gold: { vi: 'Vàng', en: 'Gold', ja: 'ゴールド', ko: '골드' },
+  new: { vi: 'Mới', en: 'New', ja: '新品', ko: '새 상품' },
+  used: { vi: 'Đã qua sử dụng', en: 'Used', ja: '中古', ko: '중고' },
+  wired: { vi: 'Có dây', en: 'Wired', ja: '有線', ko: '유선' },
+  wireless: { vi: 'Không dây', en: 'Wireless', ja: 'ワイヤレス', ko: '무선' },
+};
+
+const getAttributeLabel = (key: string, locale: Locale) => attributeLabels[key]?.[locale] || key.replace(/_/g, ' ');
+const getAttributeValue = (value: string, locale: Locale) => attributeValues[value.toLowerCase()]?.[locale] || value;
 
 interface Product {
   id: string;
@@ -45,7 +114,8 @@ export default function ProductDetailPage() {
   const addToCart = useCartStore((state) => state.addItem);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const { user } = useAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const text = productText[locale];
 
   useEffect(() => {
     if (slug) {
@@ -88,7 +158,7 @@ export default function ProductDetailPage() {
     if (!product) return;
     
     if (!user) {
-      toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      toast.error(text.loginToAdd);
       router.push('/login');
       return;
     }
@@ -102,9 +172,9 @@ export default function ProductDetailPage() {
         quantity: quantity
       });
       await fetchCart();
-      toast.success('Đã thêm vào giỏ hàng');
+      toast.success(text.addedToCart);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Lỗi khi thêm vào giỏ hàng');
+      toast.error(error.response?.data?.message || text.addToCartError);
     }
   };
 
@@ -176,7 +246,7 @@ export default function ProductDetailPage() {
               </AnimatePresence>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                KhÃ´ng cÃ³ áº£nh
+                {text.noImage}
               </div>
             )}
             
@@ -289,7 +359,7 @@ export default function ProductDetailPage() {
               <p className={`text-xs font-medium ${currentVariant.stock > 0 ? 'text-muted-foreground' : 'text-rose-500'}`}>
                 {currentVariant.stock > 0 
                   ? t('product.stockAvailable', { count: currentVariant.stock })
-                  : 'Hết hàng'}
+                  : text.outOfStock}
               </p>
             </div>
 
@@ -310,7 +380,7 @@ export default function ProductDetailPage() {
                 className="flex-1"
                 disabled={currentVariant.stock <= 0}
                >
-                 {currentVariant.stock > 0 ? t('product.buyNow') : 'Hết hàng'}
+                 {currentVariant.stock > 0 ? t('product.buyNow') : text.outOfStock}
                </Button>
             </div>
           </div>
@@ -384,13 +454,13 @@ export default function ProductDetailPage() {
               {/* Attributes */}
               {productAttributes.length > 0 && (
                 <div className="mt-6 p-4 bg-card border border-border rounded-[var(--radius-lg)]">
-                  <h4 className="font-semibold text-foreground mb-3">Thông số kỹ thuật</h4>
+                  <h4 className="font-semibold text-foreground mb-3">{text.specs}</h4>
                   <div className="space-y-2">
                     {productAttributes.map((attr) => (
                       <div key={attr.key} className="flex justify-between gap-4 py-2 border-b border-border/50 last:border-0">
-                        <span className="text-sm text-muted-foreground">{attr.key}</span>
+                        <span className="text-sm text-muted-foreground">{getAttributeLabel(attr.key, locale)}</span>
                         <span className="text-sm font-medium text-foreground text-right">
-                          {attr.value}{attr.unit ? ` ${attr.unit}` : ''}
+                          {getAttributeValue(attr.value, locale)}{attr.unit ? ` ${attr.unit}` : ''}
                         </span>
                       </div>
                     ))}
@@ -422,7 +492,7 @@ export default function ProductDetailPage() {
                           <Star key={j} className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${j < review.rating ? 'fill-current' : 'text-muted-foreground/30'}`} />
                         ))}
                       </div>
-                      <p className="text-xs sm:text-sm text-foreground pt-1">{review.comment}</p>
+                      <p className="text-xs sm:text-sm text-foreground pt-1"><T>{review.comment}</T></p>
                     </div>
                   </div>
                 ))}

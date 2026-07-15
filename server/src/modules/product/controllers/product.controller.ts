@@ -18,19 +18,27 @@ export class ProductController {
 
       // Nếu có từ khóa tìm kiếm và KHÔNG phải admin, sử dụng AI Search thông minh
       if (validatedQuery.search && !validatedQuery.isAdmin) {
+        const page = validatedQuery.page || 1;
+        const limit = validatedQuery.limit || 20;
+        const configuredSearchPoolLimit = Number(process.env.SEARCH_RESULT_POOL_LIMIT) || 200;
+        const searchPoolLimit = Math.max(page * limit, configuredSearchPoolLimit);
         const aiProducts = await aiService.intelligentSearch(
           validatedQuery.search,
-          validatedQuery.limit || 20,
+          searchPoolLimit,
           validatedQuery.categoryId
         );
+        const total = aiProducts.length;
+        const start = (page - 1) * limit;
+        const paginatedProducts = aiProducts.slice(start, start + limit);
+
         return res.json({
           success: true,
-          data: aiProducts,
+          data: paginatedProducts,
           pagination: {
-            total: aiProducts.length,
-            page: validatedQuery.page || 1,
-            limit: validatedQuery.limit || 20,
-            totalPages: 1
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
           },
           searchType: 'intelligent'
         });

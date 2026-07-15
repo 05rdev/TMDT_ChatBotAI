@@ -60,13 +60,13 @@ export default function ShopPage() {
     const urlSort = searchParams.get('sort');
     const urlPage = searchParams.get('page');
 
-    if (urlSearch !== null) setSearchQuery(urlSearch);
-    if (urlCategory) setSelectedCategory(urlCategory);
-    if (urlMinPrice) setMinPrice(urlMinPrice);
-    if (urlMaxPrice) setMaxPrice(urlMaxPrice);
-    if (urlMinRating) setSelectedRating(Number(urlMinRating));
-    if (urlSort) setSortBy(urlSort as SortOption);
-    if (urlPage) setPage(Number(urlPage));
+    setSearchQuery(urlSearch || '');
+    setSelectedCategory(urlCategory || null);
+    setMinPrice(urlMinPrice || '');
+    setMaxPrice(urlMaxPrice || '');
+    setSelectedRating(urlMinRating ? Number(urlMinRating) : null);
+    setSortBy(urlSort ? (urlSort as SortOption) : 'newest');
+    setPage(urlPage ? Number(urlPage) : 1);
   }, [searchParams]);
 
   // Pagination

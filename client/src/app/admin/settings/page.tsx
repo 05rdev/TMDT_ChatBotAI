@@ -17,7 +17,8 @@ export default function AdminSettingsPage() {
   ];
 
   return (
-    <div className="admin-page lg:flex-row gap-4 lg:gap-8 animate-fade-in-up">
+    <div className="admin-page animate-fade-in-up">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
       {/* Sidebar Settings Tabs */}
       <div className="w-full lg:w-64 flex flex-row lg:flex-col gap-2 shrink-0 overflow-x-auto pb-1 lg:pb-0">
         {tabs.map((tab) => (
@@ -49,6 +50,7 @@ export default function AdminSettingsPage() {
             <p className="text-muted-foreground text-sm">Tab cài đặt này sẽ sớm ra mắt trong phiên bản tiếp theo.</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -329,7 +331,7 @@ function NotificationList() {
                       onClick={() => handleEdit(notif)}
                       className="w-full sm:w-auto"
                     >
-                      <span className="hidden sm:inline">Sửa</span>
+                      <span>Sửa</span>
                     </Button>
                     <Button 
                       variant="outline" 
@@ -337,8 +339,8 @@ function NotificationList() {
                       onClick={() => handleDelete(notif.id)}
                       className="text-danger border-danger/20 hover:bg-danger/10 hover:border-danger hover:text-danger w-full sm:w-auto"
                     >
-                      <Trash2 className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Xóa</span>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      <span>Xóa</span>
                     </Button>
                   </div>
                 </>

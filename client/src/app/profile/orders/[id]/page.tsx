@@ -22,6 +22,219 @@ import {
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
+import type { Locale } from '@/i18n';
+
+const detailText: Record<Locale, Record<string, string>> = {
+  vi: {
+    loading: 'Đang truy xuất thông tin đơn hàng...',
+    notFound: 'Không tìm thấy đơn hàng',
+    back: 'Quay lại lịch sử',
+    title: 'Chi tiết đơn hàng',
+    orderCode: 'Mã đơn',
+    placedAt: 'Đặt lúc',
+    exportPdf: 'Xuất hóa đơn (PDF)',
+    cancelOrder: 'Hủy đơn hàng',
+    returnOrder: 'Hoàn trả hàng',
+    tracker: 'Trạng thái vận chuyển',
+    placed: 'Đặt đơn',
+    confirmed: 'Xác nhận',
+    shipping: 'Giao hàng',
+    completed: 'Hoàn tất',
+    orderedTime: 'Thời gian đặt hàng',
+    latestUpdate: 'Cập nhật gần nhất',
+    products: 'Sản phẩm',
+    quantity: 'Số lượng',
+    reviewProduct: 'Đánh giá sản phẩm',
+    subtotal: 'Tạm tính',
+    shippingFee: 'Phí vận chuyển',
+    free: 'Miễn phí',
+    total: 'Tổng cộng',
+    shippingInfo: 'Thông tin nhận hàng',
+    edit: 'Chỉnh sửa',
+    newAddress: 'Địa chỉ mới',
+    newPhone: 'Số điện thoại mới',
+    save: 'Lưu',
+    cancel: 'Hủy',
+    address: 'Địa chỉ giao hàng',
+    phone: 'Số điện thoại',
+    paymentMethod: 'Phương thức thanh toán',
+    paid: 'Đã thanh toán',
+    secure: 'Giao dịch được bảo mật bởi hệ thống UltraShop Security.',
+    support: 'Yêu cầu hỗ trợ đơn hàng',
+    close: 'Đóng',
+    confirmCancel: 'Xác nhận hủy',
+    reviewTitle: 'Đánh giá sản phẩm',
+    reviewIntro: 'Chia sẻ trải nghiệm của bạn về',
+    ratingQuestion: 'Bạn đánh giá mấy sao?',
+    reviewComment: 'Bình luận của bạn',
+    reviewPlaceholder: 'Sản phẩm dùng rất tốt, đóng gói cẩn thận...',
+    submitReview: 'Gửi đánh giá',
+    noTime: 'Chưa có thời gian',
+    statusPending: 'Chờ xác nhận',
+    statusProcessing: 'Đang xử lý',
+    statusShipped: 'Đang giao hàng',
+    statusDelivered: 'Hoàn tất',
+    statusCancelled: 'Đã hủy',
+    statusUnknown: 'Không rõ',
+  },
+  en: {
+    loading: 'Retrieving order information...',
+    notFound: 'Order not found',
+    back: 'Back to order history',
+    title: 'Order details',
+    orderCode: 'Order ID',
+    placedAt: 'Placed at',
+    exportPdf: 'Export invoice (PDF)',
+    cancelOrder: 'Cancel order',
+    returnOrder: 'Return order',
+    tracker: 'Shipping status',
+    placed: 'Order placed',
+    confirmed: 'Confirmed',
+    shipping: 'Shipping',
+    completed: 'Completed',
+    orderedTime: 'Order time',
+    latestUpdate: 'Latest update',
+    products: 'Products',
+    quantity: 'Quantity',
+    reviewProduct: 'Review product',
+    subtotal: 'Subtotal',
+    shippingFee: 'Shipping fee',
+    free: 'Free',
+    total: 'Total',
+    shippingInfo: 'Shipping information',
+    edit: 'Edit',
+    newAddress: 'New address',
+    newPhone: 'New phone number',
+    save: 'Save',
+    cancel: 'Cancel',
+    address: 'Shipping address',
+    phone: 'Phone number',
+    paymentMethod: 'Payment method',
+    paid: 'Paid',
+    secure: 'Transaction secured by UltraShop Security.',
+    support: 'Request order support',
+    close: 'Close',
+    confirmCancel: 'Confirm cancellation',
+    reviewTitle: 'Product review',
+    reviewIntro: 'Share your experience with',
+    ratingQuestion: 'How many stars would you rate?',
+    reviewComment: 'Your review',
+    reviewPlaceholder: 'The product works very well and was packed carefully...',
+    submitReview: 'Submit review',
+    noTime: 'No time available',
+    statusPending: 'Pending confirmation',
+    statusProcessing: 'Processing',
+    statusShipped: 'Shipping',
+    statusDelivered: 'Completed',
+    statusCancelled: 'Cancelled',
+    statusUnknown: 'Unknown',
+  },
+  ja: {
+    loading: '注文情報を取得しています...',
+    notFound: '注文が見つかりません',
+    back: '注文履歴に戻る',
+    title: '注文詳細',
+    orderCode: '注文番号',
+    placedAt: '注文日時',
+    exportPdf: '請求書を出力（PDF）',
+    cancelOrder: '注文をキャンセル',
+    returnOrder: '返品する',
+    tracker: '配送状況',
+    placed: '注文済み',
+    confirmed: '確認済み',
+    shipping: '配送中',
+    completed: '完了',
+    orderedTime: '注文時間',
+    latestUpdate: '最終更新',
+    products: '商品',
+    quantity: '数量',
+    reviewProduct: '商品をレビュー',
+    subtotal: '小計',
+    shippingFee: '送料',
+    free: '無料',
+    total: '合計',
+    shippingInfo: '配送先情報',
+    edit: '編集',
+    newAddress: '新しい住所',
+    newPhone: '新しい電話番号',
+    save: '保存',
+    cancel: 'キャンセル',
+    address: '配送先住所',
+    phone: '電話番号',
+    paymentMethod: '支払い方法',
+    paid: '支払い済み',
+    secure: '取引はUltraShop Securityによって保護されています。',
+    support: '注文サポートを依頼',
+    close: '閉じる',
+    confirmCancel: 'キャンセルを確定',
+    reviewTitle: '商品レビュー',
+    reviewIntro: '体験を共有してください:',
+    ratingQuestion: '星はいくつですか？',
+    reviewComment: 'レビュー内容',
+    reviewPlaceholder: '商品はとても良く、丁寧に梱包されていました...',
+    submitReview: 'レビューを送信',
+    noTime: '日時なし',
+    statusPending: '確認待ち',
+    statusProcessing: '処理中',
+    statusShipped: '配送中',
+    statusDelivered: '完了',
+    statusCancelled: 'キャンセル済み',
+    statusUnknown: '不明',
+  },
+  ko: {
+    loading: '주문 정보를 불러오는 중...',
+    notFound: '주문을 찾을 수 없습니다',
+    back: '주문 내역으로 돌아가기',
+    title: '주문 상세',
+    orderCode: '주문 번호',
+    placedAt: '주문 시간',
+    exportPdf: '송장 내보내기 (PDF)',
+    cancelOrder: '주문 취소',
+    returnOrder: '반품 요청',
+    tracker: '배송 상태',
+    placed: '주문 완료',
+    confirmed: '확인됨',
+    shipping: '배송 중',
+    completed: '완료',
+    orderedTime: '주문 시간',
+    latestUpdate: '최근 업데이트',
+    products: '상품',
+    quantity: '수량',
+    reviewProduct: '상품 리뷰',
+    subtotal: '소계',
+    shippingFee: '배송비',
+    free: '무료',
+    total: '총계',
+    shippingInfo: '배송 정보',
+    edit: '수정',
+    newAddress: '새 주소',
+    newPhone: '새 전화번호',
+    save: '저장',
+    cancel: '취소',
+    address: '배송 주소',
+    phone: '전화번호',
+    paymentMethod: '결제 방법',
+    paid: '결제 완료',
+    secure: '거래는 UltraShop Security로 보호됩니다.',
+    support: '주문 지원 요청',
+    close: '닫기',
+    confirmCancel: '취소 확인',
+    reviewTitle: '상품 리뷰',
+    reviewIntro: '경험을 공유해 주세요:',
+    ratingQuestion: '별점을 선택해 주세요',
+    reviewComment: '리뷰 내용',
+    reviewPlaceholder: '상품이 좋고 포장이 꼼꼼했습니다...',
+    submitReview: '리뷰 보내기',
+    noTime: '시간 정보 없음',
+    statusPending: '확인 대기',
+    statusProcessing: '처리 중',
+    statusShipped: '배송 중',
+    statusDelivered: '완료',
+    statusCancelled: '취소됨',
+    statusUnknown: '알 수 없음',
+  },
+};
 
 interface OrderItem {
   id: string;
@@ -43,6 +256,7 @@ interface Order {
   address: string;
   phone: string;
   createdAt: string;
+  updatedAt?: string;
   items: OrderItem[];
   payment?: {
     method: string;
@@ -60,6 +274,8 @@ interface Order {
 export default function OrderDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { locale } = useTranslation();
+  const text = detailText[locale];
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,7 +309,7 @@ export default function OrderDetailPage() {
         setOrder(res.data.data);
       }
     } catch (error) {
-      toast.error('Không tìm thấy đơn hàng');
+      toast.error(text.notFound);
       router.push('/profile/orders');
     } finally {
       setIsLoading(false);
@@ -171,17 +387,17 @@ export default function OrderDetailPage() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return { icon: <Clock />, label: 'Chờ xác nhận', color: 'bg-warning text-warning-foreground', border: 'border-warning/30', step: 1 };
+        return { icon: <Clock />, label: text.statusPending, color: 'bg-warning text-warning-foreground', border: 'border-warning/30', step: 1 };
       case 'PROCESSING':
-        return { icon: <Zap />, label: 'Đang xử lý', color: 'bg-accent text-accent-foreground', border: 'border-accent/30', step: 2 };
+        return { icon: <Zap />, label: text.statusProcessing, color: 'bg-accent text-accent-foreground', border: 'border-accent/30', step: 2 };
       case 'SHIPPED':
-        return { icon: <Truck />, label: 'Đang giao hàng', color: 'bg-primary text-primary-foreground', border: 'border-primary/30', step: 3 };
+        return { icon: <Truck />, label: text.statusShipped, color: 'bg-primary text-primary-foreground', border: 'border-primary/30', step: 3 };
       case 'DELIVERED':
-        return { icon: <CheckCircle2 />, label: 'Hoàn tất', color: 'bg-success text-success-foreground', border: 'border-success/30', step: 4 };
+        return { icon: <CheckCircle2 />, label: text.statusDelivered, color: 'bg-success text-success-foreground', border: 'border-success/30', step: 4 };
       case 'CANCELLED':
-        return { icon: <XCircle />, label: 'Đã hủy', color: 'bg-danger text-white', border: 'border-danger/30', step: 0 };
+        return { icon: <XCircle />, label: text.statusCancelled, color: 'bg-danger text-white', border: 'border-danger/30', step: 0 };
       default:
-        return { icon: <Clock />, label: 'Không rõ', color: 'bg-secondary text-foreground', border: 'border-border', step: 1 };
+        return { icon: <Clock />, label: text.statusUnknown, color: 'bg-secondary text-foreground', border: 'border-border', step: 1 };
     }
   };
 
@@ -191,21 +407,34 @@ export default function OrderDetailPage() {
     return `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3002'}/${url}`;
   };
 
+  const formatDateTime = (value?: string) => {
+    if (!value) return text.noTime;
+    return new Date(value).toLocaleString(locale === 'vi' ? 'vi-VN' : locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
   if (isLoading) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
       <Loader2 className="w-10 h-10 animate-spin text-primary" />
-      <p className="text-sm font-medium text-muted-foreground animate-pulse">Đang truy xuất thông tin đơn hàng...</p>
+      <p className="text-sm font-medium text-muted-foreground animate-pulse">{text.loading}</p>
     </div>
   );
 
   if (!order) return null;
 
   const statusInfo = getStatusInfo(order.status);
+  const orderCreatedAt = formatDateTime(order.createdAt);
+  const orderUpdatedAt = formatDateTime(order.updatedAt || order.createdAt);
   const steps = [
-    { label: 'Đặt đơn', icon: Calendar },
-    { label: 'Xác nhận', icon: ShieldCheck },
-    { label: 'Giao hàng', icon: Truck },
-    { label: 'Hoàn tất', icon: CheckCircle2 }
+    { label: text.placed, icon: Calendar },
+    { label: text.confirmed, icon: ShieldCheck },
+    { label: text.shipping, icon: Truck },
+    { label: text.completed, icon: CheckCircle2 }
   ];
 
   return (
@@ -214,13 +443,17 @@ export default function OrderDetailPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 pb-6 border-b border-border">
         <div className="space-y-3">
           <Link href="/profile/orders" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors group">
-            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại lịch sử
+            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> {text.back}
           </Link>
           <h1 className="font-heading text-3xl sm:text-4xl text-foreground">
-            Chi tiết đơn hàng
+            {text.title}
           </h1>
           <div className="flex items-center flex-wrap gap-3">
-             <span className="text-sm font-medium text-muted-foreground">Mã đơn: <strong className="text-foreground">#{order.id.toUpperCase()}</strong></span>
+             <span className="text-sm font-medium text-muted-foreground">{text.orderCode}: <strong className="text-foreground">#{order.id.toUpperCase()}</strong></span>
+             <span className="inline-flex items-center text-sm font-medium text-muted-foreground">
+               <Calendar className="w-4 h-4 mr-1.5 text-primary" />
+               {text.placedAt}: <strong className="text-foreground ml-1">{orderCreatedAt}</strong>
+             </span>
              <div className={`${statusInfo.color} px-3 py-1 rounded-full text-xs font-semibold shadow-sm`}>
                 {statusInfo.label}
              </div>
@@ -229,16 +462,16 @@ export default function OrderDetailPage() {
         
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="rounded-full shrink-0">
-            Xuất hóa đơn (PDF)
+            {text.exportPdf}
           </Button>
           {(order.status === 'PENDING' || order.status === 'PROCESSING') && (
             <Button onClick={() => setShowCancelModal(true)} disabled={isUpdating} variant="destructive" className="rounded-full shrink-0">
-              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Hủy đơn hàng
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {text.cancelOrder}
             </Button>
           )}
           {order.status === 'DELIVERED' && (
             <Button onClick={handleReturnOrder} disabled={isUpdating} className="rounded-full shrink-0 bg-orange-600 hover:bg-orange-700">
-              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Hoàn trả hàng
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {text.returnOrder}
             </Button>
           )}
         </div>
@@ -249,7 +482,7 @@ export default function OrderDetailPage() {
           {/* Order Tracker */}
           <div className="card-elevated bg-card border border-border p-8 sm:p-10 rounded-[var(--radius-xl)]">
             <h3 className="font-heading text-xl text-foreground mb-10 flex items-center">
-              Trạng thái vận chuyển <Truck className="ml-3 w-5 h-5 text-primary" />
+              {text.tracker} <Truck className="ml-3 w-5 h-5 text-primary" />
             </h3>
             
             <div className="relative flex justify-between items-start max-w-lg mx-auto">
@@ -273,9 +506,25 @@ export default function OrderDetailPage() {
                     <span className={`text-xs font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                       {step.label}
                     </span>
+                    {idx === 0 && (
+                      <span className="text-[10px] leading-snug text-muted-foreground max-w-[92px]">
+                        {orderCreatedAt}
+                      </span>
+                    )}
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-secondary/40 border border-border rounded-[var(--radius-md)] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{text.orderedTime}</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{orderCreatedAt}</p>
+              </div>
+              <div className="bg-secondary/40 border border-border rounded-[var(--radius-md)] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{text.latestUpdate}</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{orderUpdatedAt}</p>
+              </div>
             </div>
 
             {order.status === 'CANCELLED' && (
@@ -289,7 +538,7 @@ export default function OrderDetailPage() {
           {/* Items */}
           <div className="card-elevated bg-card border border-border rounded-[var(--radius-xl)] overflow-hidden">
             <div className="p-6 border-b border-border bg-secondary/30">
-              <h3 className="font-heading text-lg text-foreground">Sản phẩm ({order.items.length})</h3>
+              <h3 className="font-heading text-lg text-foreground">{text.products} ({order.items.length})</h3>
             </div>
             <div className="divide-y divide-border/50">
               {order.items.map((item, idx) => (
@@ -300,7 +549,7 @@ export default function OrderDetailPage() {
                   <div className="flex-1 min-w-0 space-y-1">
                     <h4 className="font-semibold text-base text-foreground line-clamp-1">{item.product.name}</h4>
                     <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground">{item.variant.name}</span>
-                    <p className="text-sm font-medium text-muted-foreground mt-1">Số lượng: {item.quantity}</p>
+                    <p className="text-sm font-medium text-muted-foreground mt-1">{text.quantity}: {item.quantity}</p>
                   </div>
                   <div className="text-right shrink-0 space-y-2">
                     <p className="font-bold text-lg text-foreground">{Number(item.price).toLocaleString('vi-VN')}đ</p>
@@ -314,7 +563,7 @@ export default function OrderDetailPage() {
                           setShowReviewModal(true);
                         }}
                       >
-                        Đánh giá sản phẩm
+                        {text.reviewProduct}
                       </Button>
                     )}
                   </div>
@@ -323,7 +572,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="p-6 sm:p-8 bg-secondary/10 border-t border-border space-y-3">
                <div className="flex justify-between items-center text-sm">
-                 <span className="font-medium text-muted-foreground">Tạm tính:</span>
+                 <span className="font-medium text-muted-foreground">{text.subtotal}:</span>
                  <span className="font-semibold text-foreground">
                    {order.items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0).toLocaleString('vi-VN')}đ
                  </span>
@@ -337,11 +586,11 @@ export default function OrderDetailPage() {
                  </div>
                )}
                <div className="flex justify-between items-center text-sm">
-                 <span className="font-medium text-muted-foreground">Phí vận chuyển:</span>
-                 <span className="font-semibold text-success">Miễn phí</span>
+                 <span className="font-medium text-muted-foreground">{text.shippingFee}:</span>
+                 <span className="font-semibold text-success">{text.free}</span>
                </div>
                <div className="flex justify-between items-center pt-4 border-t border-border/50">
-                 <span className="text-base font-semibold text-foreground">Tổng cộng:</span>
+                 <span className="text-base font-semibold text-foreground">{text.total}:</span>
                  <span className="text-3xl font-bold text-primary">{Number(order.totalAmount).toLocaleString('vi-VN')}đ</span>
                </div>
             </div>
@@ -354,17 +603,17 @@ export default function OrderDetailPage() {
           <div className="card-elevated bg-card border border-border p-6 rounded-[var(--radius-xl)]">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-semibold text-base flex items-center text-foreground">
-                <MapPin className="w-4.5 h-4.5 mr-2 text-primary" /> Thông tin nhận hàng
+                <MapPin className="w-4.5 h-4.5 mr-2 text-primary" /> {text.shippingInfo}
               </h3>
               {(order.status === 'PENDING' || order.status === 'PROCESSING') && !isEditing && (
-                <button onClick={() => setIsEditing(true)} className="text-xs text-primary font-semibold hover:underline">Chỉnh sửa</button>
+                <button onClick={() => setIsEditing(true)} className="text-xs text-primary font-semibold hover:underline">{text.edit}</button>
               )}
             </div>
             <div className="space-y-4">
               {isEditing ? (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Địa chỉ mới</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{text.newAddress}</label>
                     <textarea 
                       value={newAddress}
                       onChange={(e) => setNewAddress(e.target.value)}
@@ -372,7 +621,7 @@ export default function OrderDetailPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Số điện thoại mới</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{text.newPhone}</label>
                     <input 
                       type="text"
                       value={newPhone}
@@ -381,18 +630,18 @@ export default function OrderDetailPage() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleUpdateInfo} disabled={isUpdating} size="sm" className="flex-1 rounded-full text-xs">Lưu</Button>
-                    <Button onClick={() => { setIsEditing(false); setNewAddress(order.address); setNewPhone(order.phone); }} variant="outline" size="sm" className="flex-1 rounded-full text-xs">Hủy</Button>
+                    <Button onClick={handleUpdateInfo} disabled={isUpdating} size="sm" className="flex-1 rounded-full text-xs">{text.save}</Button>
+                    <Button onClick={() => { setIsEditing(false); setNewAddress(order.address); setNewPhone(order.phone); }} variant="outline" size="sm" className="flex-1 rounded-full text-xs">{text.cancel}</Button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Địa chỉ giao hàng</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{text.address}</p>
                     <p className="font-medium text-sm leading-relaxed text-foreground">{order.address}</p>
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Số điện thoại</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{text.phone}</p>
                     <p className="font-medium text-sm flex items-center text-foreground"><Phone className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> {order.phone}</p>
                   </div>
                 </>
@@ -403,17 +652,17 @@ export default function OrderDetailPage() {
           {/* Payment */}
           <div className="card-elevated bg-card border border-border p-6 rounded-[var(--radius-xl)]">
             <h3 className="font-semibold text-base mb-5 flex items-center text-foreground">
-              <CreditCard className="w-4.5 h-4.5 mr-2 text-primary" /> Phương thức thanh toán
+              <CreditCard className="w-4.5 h-4.5 mr-2 text-primary" /> {text.paymentMethod}
             </h3>
             <div className="space-y-4">
               <div className="bg-secondary/50 border border-border rounded-[var(--radius-md)] p-4 flex items-center justify-between">
                 <span className="text-sm font-semibold">{order.payment?.method || 'VNPAY'}</span>
-                <span className="px-2.5 py-1 bg-success/10 text-success rounded-full text-[11px] font-semibold">Đã thanh toán</span>
+                <span className="px-2.5 py-1 bg-success/10 text-success rounded-full text-[11px] font-semibold">{text.paid}</span>
               </div>
               <div className="flex items-start bg-primary/5 p-3 rounded-[var(--radius-md)]">
                 <ShieldCheck className="w-4 h-4 text-primary mr-2 shrink-0 mt-0.5" />
                 <p className="text-xs font-medium text-muted-foreground leading-relaxed">
-                  Giao dịch được bảo mật bởi hệ thống UltraShop Security.
+                  {text.secure}
                 </p>
               </div>
             </div>
@@ -421,7 +670,7 @@ export default function OrderDetailPage() {
 
           <div className="pt-2">
             <Button onClick={() => router.push('/profile/support')} variant="outline" className="w-full">
-              Yêu cầu hỗ trợ đơn hàng
+              {text.support}
             </Button>
           </div>
         </div>
@@ -433,7 +682,7 @@ export default function OrderDetailPage() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isUpdating && setShowCancelModal(false)} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border">
-              <h3 className="text-xl font-heading text-foreground">Hủy đơn hàng</h3>
+              <h3 className="text-xl font-heading text-foreground">{text.cancelOrder}</h3>
               <p className="text-xs text-muted-foreground mt-1">Vui lòng cho chúng tôi biết lý do bạn muốn hủy đơn hàng này.</p>
             </div>
             <div className="p-6 space-y-4">
@@ -469,7 +718,7 @@ export default function OrderDetailPage() {
                 disabled={isUpdating || !cancelReason} 
                 className="flex-1 rounded-full"
               >
-                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Xác nhận hủy
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {text.confirmCancel}
               </Button>
               <Button 
                 variant="outline" 
@@ -477,7 +726,7 @@ export default function OrderDetailPage() {
                 disabled={isUpdating}
                 className="flex-1 rounded-full"
               >
-                Đóng
+                {text.close}
               </Button>
             </div>
           </div>
@@ -490,12 +739,12 @@ export default function OrderDetailPage() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isUpdating && setShowReviewModal(false)} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border">
-              <h3 className="text-xl font-heading text-foreground">Đánh giá sản phẩm</h3>
-              <p className="text-xs text-muted-foreground mt-1">Chia sẻ trải nghiệm của bạn về {selectedProduct.name}</p>
+              <h3 className="text-xl font-heading text-foreground">{text.reviewTitle}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{text.reviewIntro} {selectedProduct.name}</p>
             </div>
             <div className="p-6 space-y-6">
               <div className="flex flex-col items-center space-y-3">
-                <p className="text-sm font-semibold text-muted-foreground">Bạn đánh giá mấy sao?</p>
+                <p className="text-sm font-semibold text-muted-foreground">{text.ratingQuestion}</p>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <button 
@@ -513,9 +762,9 @@ export default function OrderDetailPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bình luận của bạn</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{text.reviewComment}</label>
                 <textarea 
-                  placeholder="Sản phẩm dùng rất tốt, đóng gói cẩn thận..."
+                  placeholder={text.reviewPlaceholder}
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   className="w-full bg-secondary/50 border border-border rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary min-h-[120px] resize-none"
@@ -528,7 +777,7 @@ export default function OrderDetailPage() {
                 disabled={isUpdating} 
                 className="flex-1 rounded-full"
               >
-                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Gửi đánh giá
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {text.submitReview}
               </Button>
               <Button 
                 variant="outline" 
@@ -536,7 +785,7 @@ export default function OrderDetailPage() {
                 disabled={isUpdating}
                 className="flex-1 rounded-full"
               >
-                Hủy
+                {text.cancel}
               </Button>
             </div>
           </div>

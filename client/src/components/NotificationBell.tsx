@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, Check, Loader2, Package, Sparkles, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
-import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface Notification {
@@ -23,7 +23,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -42,11 +42,7 @@ export function NotificationBell() {
   }, [isOpen, notifications.length]);
 
   useEffect(() => {
-    if (!hasHydrated) return;
-
-    if (!isAuthenticated) {
-      return;
-    }
+    if (!hasHydrated || !isAuthenticated) return;
 
     if (!localStorage.getItem('accessToken')) {
       resetAuth();
@@ -66,6 +62,7 @@ export function NotificationBell() {
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -73,8 +70,8 @@ export function NotificationBell() {
   const markAsRead = async (id: string) => {
     try {
       await api.put(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications((prev) => prev.map((notification) => notification.id === id ? { ...notification, isRead: true } : notification));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error(error);
     }
@@ -83,7 +80,7 @@ export function NotificationBell() {
   const markAllAsRead = async () => {
     try {
       await api.put('/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error(error);
@@ -92,9 +89,12 @@ export function NotificationBell() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'ORDER': return <Package className="w-4.5 h-4.5 text-accent" />;
-      case 'PROMOTION': return <Sparkles className="w-4.5 h-4.5 text-warning" />;
-      default: return <AlertCircle className="w-4.5 h-4.5 text-primary" />;
+      case 'ORDER':
+        return <Package className="w-4.5 h-4.5 text-accent" />;
+      case 'PROMOTION':
+        return <Sparkles className="w-4.5 h-4.5 text-warning" />;
+      default:
+        return <AlertCircle className="w-4.5 h-4.5 text-primary" />;
     }
   };
 
@@ -102,9 +102,10 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-[var(--radius-md)] hover:bg-secondary transition-colors"
+        aria-label={t('notification.title')}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -119,11 +120,11 @@ export function NotificationBell() {
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-foreground">{t('notification.title')}</h3>
             {unreadCount > 0 && (
-              <button 
+              <button
                 onClick={markAllAsRead}
                 className="text-xs font-medium text-primary hover:underline flex items-center"
               >
-                <Check className="w-3 h-3 mr-1" /> Đã đọc tất cả
+                <Check className="w-3 h-3 mr-1" /> {t('notification.markAllRead')}
               </button>
             )}
           </div>
@@ -139,9 +140,9 @@ export function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {notifications.map(notification => (
-                  <div 
-                    key={notification.id} 
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
                     onClick={() => !notification.isRead && markAsRead(notification.id)}
                     className={`p-3.5 hover:bg-secondary cursor-pointer transition-colors flex gap-3 ${!notification.isRead ? 'bg-primary/5' : ''}`}
                   >
@@ -156,7 +157,7 @@ export function NotificationBell() {
                         {notification.content}
                       </p>
                       <span className="text-[10px] text-muted mt-1.5 block">
-                        {new Date(notification.createdAt).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(notification.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : locale, { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     {!notification.isRead && (
@@ -167,7 +168,7 @@ export function NotificationBell() {
               </div>
             )}
           </div>
-          
+
           <div className="p-2 border-t border-border text-center">
             <Link href="/profile/notifications" className="text-xs font-medium text-primary hover:underline block py-2 transition-colors">
               {t('notification.viewAll')}
